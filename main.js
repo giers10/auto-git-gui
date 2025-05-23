@@ -564,7 +564,7 @@ app.whenReady().then(() => {
     } catch (err) {
       debug(`FEHLER beim Commit: ${err.message}`);
       return { success: false, error: err.message };
-    }//die readme is wieder weg
+    }
   });
 
   ipcMain.handle('set-monitoring', async (_e, folderPath, monitoring) => {
