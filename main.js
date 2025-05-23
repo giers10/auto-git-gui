@@ -119,7 +119,7 @@ function startMonitoringWatcher(folderPath, win) {
       pollInterval: 100
     }
   });
-//weirdass
+
   // TODO: Optionale .gitignore Logik nachrüsten
 
   watcher.on('all', async (event, changedPath) => {
