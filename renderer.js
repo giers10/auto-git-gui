@@ -122,7 +122,7 @@ window.addEventListener('DOMContentLoaded', async () => {
           await window.electronAPI.setMonitoring(folderObj, !isMonitoring);
           await renderSidebar();
         });
-li.appendChild(pausePlayBtn);
+      li.appendChild(pausePlayBtn);
 
       li.addEventListener('contextmenu', e => {
         e.preventDefault();
