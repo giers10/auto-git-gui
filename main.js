@@ -140,7 +140,7 @@ function startMonitoringWatcher(folderPath, win) {
     // Alle betroffenen Pfade sammeln und je nach Typ annotieren
     const changes = [];
     status.not_added.forEach(f => changes.push(`add ${f}`));
-    status.created.forEach(f   => changes.push(`[add] ${f}`));
+    status.created.forEach(f   => changes.push(`add ${f}`));
     status.modified.forEach(f  => changes.push(`change ${f}`));
     status.deleted.forEach(f   => changes.push(`unlink ${f}`));
     status.renamed.forEach(r   => changes.push(`[rename] ${r.from} → ${r.to}`));
