@@ -125,7 +125,7 @@ function startMonitoringWatcher(folderPath, win) {
   watcher.on('all', async (event, changedPath) => {
     debug(`[MONITOR] ${event} in ${changedPath}`);
     // Hier einfach auto-commit Funktion rufen:
-    await autoCommit(folderPath, `[auto] ${event} ${path.relative(folderPath, changedPath)}`);
+    await autoCommit(folderPath, `[${event}] ${path.relative(folderPath, changedPath)}`);
     // Repo-UI aktualisieren:
     win.webContents.send('repo-updated', folderPath);
   });
@@ -147,7 +147,7 @@ function startMonitoringWatcher(folderPath, win) {
 
     if (changes.length > 0) {
       // Commit-Message so bauen wie beim Event (eine Zeile pro Datei)
-      const msg = `[auto]` + changes.map(l => ` ${l}`).join('\n');
+      const msg = changes.map(l => ` ${l}`).join('\n');
       const did = await autoCommit(folderPath, msg);
       if (did) {
         win.webContents.send('repo-updated', folderPath);
