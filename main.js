@@ -117,7 +117,7 @@ function startMonitoringWatcher(folderPath, win) {
     awaitWriteFinish: {
       stabilityThreshold: 300,
       pollInterval: 100
-    }
+    } //yo
   });
 
   // TODO: Optionale .gitignore Logik nachrüsten
