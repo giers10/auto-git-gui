@@ -535,7 +535,7 @@ app.whenReady().then(() => {
           // **Return nicht vergessen, sonst geht der Branch-Move weiter**
           // ----> Das ist die Zeile die du wahrscheinlich vergessen hast!
           // Beende hier die Branch-Logik
-          return;
+          return { success: true };
         }
 
         // Ansonsten wie gehabt:
