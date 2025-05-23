@@ -135,7 +135,7 @@ function startMonitoringWatcher(folderPath, win) {
     debug(`[MONITOR] Starte initialen Commit-Check für ${folderPath}`);
     const did = await autoCommit(
       folderPath,
-      `[auto] startup ${path.relative(folderPath, folderPath)}`
+      `[auto] startup ${event} ${path.relative(folderPath, folderPath)}`
     );
     if (did) {
       win.webContents.send('repo-updated', folderPath);
