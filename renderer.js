@@ -8,6 +8,11 @@ window.addEventListener('DOMContentLoaded', async () => {
   const contentList = document.getElementById('contentList');
   const panel       = document.querySelector('.flex-1.p-4.overflow-y-auto');
 
+  const commitBtn = document.getElementById('commitBtn');
+
+
+
+
   // 1) Baby-Blau und Nacht-Blau als RGB-Arrays
   const DAY_COLOR   = [173, 216, 230];
   const NIGHT_COLOR = [0,   0,   50];
@@ -393,5 +398,34 @@ async function renderSidebar() {
     if (titleEl.textContent !== 'No folder selected') {
       window.electronAPI.showFolderContextMenu(titleEl.textContent);
     }
+  });
+
+
+
+  commitBtn.addEventListener('click', async () => {
+    const folder = await window.electronAPI.getSelected();
+    console.log('[DEBUG] Selected folder for commit:', folder);
+
+    if (!folder || folder === 'No folder selected') {
+      alert('Kein Ordner ausgewählt!');
+      return;
+    }
+    const message = prompt('Commit-Nachricht:', 'test');
+    if (!message) return;
+
+    commitBtn.disabled = true;
+    commitBtn.textContent = 'Committing...';
+
+    const result = await window.electronAPI.commitCurrentFolder(folder, message);
+    console.log('[DEBUG] Commit result:', result);
+
+    if (result.success) {
+      alert('Commit erfolgreich!');
+      await renderContent(folder);  // ← refresht Commit-Liste!
+    } else {
+      alert('Commit fehlgeschlagen:\n' + result.error);
+    }
+    commitBtn.disabled = false;
+    commitBtn.textContent = 'Commit';
   });
 });

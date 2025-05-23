@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSkipPrompt: ()      => ipcRenderer.invoke('get-skip-git-prompt'),
   setSkipPrompt: val     => ipcRenderer.invoke('set-skip-git-prompt', val),
   showFolderContextMenu: folderPath => ipcRenderer.send('show-folder-context-menu', folderPath),
+  commitCurrentFolder: (folder, message) => ipcRenderer.invoke('commit-current-folder', folder, message),
 });
 
 ipcRenderer.on('repo-updated', (_e, folder) => {
