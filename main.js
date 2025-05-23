@@ -194,7 +194,7 @@ async function autoCommit(folder, message) {
   debug('[autoCommit] Commit erfolgreich erstellt.');
   return true;
 }
-
+//test
 
 app.whenReady().then(() => {
   const win = createWindow();
