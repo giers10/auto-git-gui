@@ -479,7 +479,7 @@ app.whenReady().then(() => {
         currentBranch = (await git.revparse(['--abbrev-ref', 'HEAD'])).trim();
       } catch {
         currentBranch = null;
-      }
+      } //mach kein fass auf
 
       if (!currentBranch || currentBranch === 'HEAD') {
         // HEAD ist detached
