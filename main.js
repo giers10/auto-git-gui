@@ -147,7 +147,7 @@ function startMonitoringWatcher(folderPath, win) {
 
     if (changes.length > 0) {
       // Commit-Message so bauen wie beim Event (eine Zeile pro Datei)
-      const msg = `[auto] initial monitor: \n` + changes.map(l => ` - ${l}`).join('\n');
+      const msg = `[auto]` + changes.map(l => ` - ${l}`).join('\n');
       const did = await autoCommit(folderPath, msg);
       if (did) {
         win.webContents.send('repo-updated', folderPath);
