@@ -132,7 +132,7 @@ function startMonitoringWatcher(folderPath, win) {
     debug(`[MONITOR] Starte initialen Commit-Check für ${folderPath}`);
     const git = simpleGit(folderPath);
     const status = await git.status();
-    if (
+    if (//test
       status.not_added.length > 0 ||
       status.created.length > 0 ||
       status.modified.length > 0 ||
