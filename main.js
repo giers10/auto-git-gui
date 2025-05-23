@@ -139,7 +139,7 @@ function startMonitoringWatcher(folderPath, win) {
       status.deleted.length > 0 ||
       status.renamed.length > 0
     ) {
-      const msg = buildCommitMessageFromStatus(status, '[auto] ');
+      const msg = buildCommitMessageFromStatus(status, 'auto-git: ');
       const did = await autoCommit(folderPath, msg);
       if (did) {
         win.webContents.send('repo-updated', folderPath);
@@ -159,12 +159,12 @@ function startMonitoringWatcher(folderPath, win) {
       status.deleted.length > 0 ||
       status.renamed.length > 0
     ) {
-      const msg = buildCommitMessageFromStatus(status, '[auto]');
+      const msg = buildCommitMessageFromStatus(status, 'auto-git');
       await autoCommit(folderPath, msg);
       win.webContents.send('repo-updated', folderPath);
     }
   });
-  
+
   monitoringWatchers.set(folderPath, watcher);
   debug(`[MONITOR] Watcher aktiv für ${folderPath}`);
 }
