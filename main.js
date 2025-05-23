@@ -106,48 +106,40 @@ async function initGitRepo(folder) {
 // Map für Monitoring-Watcher (nicht repoWatchers!)
 const monitoringWatchers = new Map();
 
+// Helper: Baut eine Commit-Message aus git.status()
+function buildCommitMessageFromStatus(status, prefix = '[auto]') {
+  const changes = [];
+  status.not_added.forEach(f => changes.push(`[add] ${f}`));
+  status.created.forEach(f   => changes.push(`[add] ${f}`));
+  status.modified.forEach(f  => changes.push(`[change] ${f}`));
+  status.deleted.forEach(f   => changes.push(`[unlink] ${f}`));
+  status.renamed.forEach(r   => changes.push(`[rename] ${r.from} → ${r.to}`));
+  return prefix + '\n' + changes.map(l => ` ${l}`).join('\n');
+}
+
 function startMonitoringWatcher(folderPath, win) {
-  // Nicht mehrfach starten
   if (monitoringWatchers.has(folderPath)) return;
   const watcher = chokidar.watch(folderPath, {
-    ignored: /(^|[\/\\])\..|node_modules|\.git/, // ignoriert .git und .dot-Dateien + node_modules
+    ignored: /(^|[\/\\])\..|node_modules|\.git/,
     ignoreInitial: true,
     persistent: true,
-    depth: 99, // Rekursiv
-    awaitWriteFinish: {
-      stabilityThreshold: 300,
-      pollInterval: 100
-    }
+    depth: 99,
+    awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 }
   });
 
-  // TODO: Optionale .gitignore Logik nachrüsten
-
-  watcher.on('all', async (event, changedPath) => {
-    debug(`[MONITOR] ${event} in ${changedPath}`);
-    // Hier einfach auto-commit Funktion rufen:
-    await autoCommit(folderPath, `[${event}] ${path.relative(folderPath, changedPath)}`);
-    // Repo-UI aktualisieren:
-    win.webContents.send('repo-updated', folderPath);
-  });
-
-  // Initialer Commit, falls beim Start schon ungestagte Änderungen vorliegen
+  // Initialer Commit
   (async () => {
     debug(`[MONITOR] Starte initialen Commit-Check für ${folderPath}`);
-
     const git = simpleGit(folderPath);
     const status = await git.status();
-
-    // Alle betroffenen Pfade sammeln und je nach Typ annotieren
-    const changes = [];
-    status.not_added.forEach(f => changes.push(`[add] ${f}`));
-    status.created.forEach(f   => changes.push(`[add] ${f}`));
-    status.modified.forEach(f  => changes.push(`[change] ${f}`));
-    status.deleted.forEach(f   => changes.push(`[unlink] ${f}`));
-    status.renamed.forEach(r   => changes.push(`[rename] ${r.from} → ${r.to}`));
-
-    if (changes.length > 0) {
-      // Commit-Message so bauen wie beim Event (eine Zeile pro Datei)
-      const msg = changes.map(l => ` ${l}`).join('\n');
+    if (
+      status.not_added.length > 0 ||
+      status.created.length > 0 ||
+      status.modified.length > 0 ||
+      status.deleted.length > 0 ||
+      status.renamed.length > 0
+    ) {
+      const msg = buildCommitMessageFromStatus(status, '[auto] initial monitor:');
       const did = await autoCommit(folderPath, msg);
       if (did) {
         win.webContents.send('repo-updated', folderPath);
@@ -155,6 +147,23 @@ function startMonitoringWatcher(folderPath, win) {
       }
     }
   })();
+
+  // Bei jedem Event → status neu holen, Message wie beim initialen Check bauen
+  watcher.on('all', async () => {
+    const git = simpleGit(folderPath);
+    const status = await git.status();
+    if (
+      status.not_added.length > 0 ||
+      status.created.length > 0 ||
+      status.modified.length > 0 ||
+      status.deleted.length > 0 ||
+      status.renamed.length > 0
+    ) {
+      const msg = buildCommitMessageFromStatus(status, '[auto]');
+      await autoCommit(folderPath, msg);
+      win.webContents.send('repo-updated', folderPath);
+    }
+  });
 
   monitoringWatchers.set(folderPath, watcher);
   debug(`[MONITOR] Watcher aktiv für ${folderPath}`);
