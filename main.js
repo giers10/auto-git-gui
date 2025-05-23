@@ -492,7 +492,7 @@ app.whenReady().then(() => {
       } catch (e) {
         masterCommit = null; // master existiert nicht
         hasMaster = false;
-      }
+      }asd
 
       if (hasMaster && headCommit === masterCommit) {
         // HEAD ist detached, zeigt aber auf den master-Tip!
