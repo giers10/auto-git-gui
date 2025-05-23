@@ -484,18 +484,42 @@ app.whenReady().then(() => {
 
       // Falls detached, **jetzt erst** alten Branch umbenennen und neuen master erzeugen
       if (!currentBranch || currentBranch === 'HEAD') {
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const backupBranch = `backup-master-${timestamp}`;
-
-        // Alten master umbenennen (nur falls vorhanden!)
-        const branches = await git.branchLocal();
-        if (branches.all.includes('master')) {
-          await git.branch(['-m', 'master', backupBranch]);
-          debug(`Alter master-Branch wurde in ${backupBranch} umbenannt.`);
+        // HEAD ist detached, prüfe ob HEAD auf dem Tip von master ist!
+        const headCommit = (await git.revparse(['HEAD'])).trim();
+        let masterCommit = null;
+        let hasMaster = false;
+        try {
+          masterCommit = (await git.revparse(['refs/heads/master'])).trim();
+          hasMaster = true;
+        } catch (e) {
+          masterCommit = null;
+          hasMaster = false;
         }
-        // Neuer master-Branch
-        await git.checkout(['-b', 'master']);
-        debug('Neuer master-Branch erstellt und ausgecheckt.');
+
+        if (hasMaster && headCommit === masterCommit) {
+          // HEAD ist detached, aber zeigt exakt auf master!
+          await git.checkout('master');
+          debug('[autoCommit] HEAD war detached, zeigte aber exakt auf master – jetzt zurück auf master.');
+          // **Return nicht vergessen, sonst geht der Branch-Move weiter**
+          // ----> Das ist die Zeile die du wahrscheinlich vergessen hast!
+          // Beende hier die Branch-Logik
+          return;
+        }
+
+        // Ansonsten wie gehabt:
+        if (hasMaster) {
+          // HEAD ist detached, zeigt nicht auf master -> backup + neuer master
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const backupBranch = `backup-master-${timestamp}`;
+          await git.branch(['-m', 'master', backupBranch]);
+          debug(`[autoCommit] Alter master in ${backupBranch} umbenannt.`);
+          await git.checkout(['-b', 'master']);
+          debug('[autoCommit] Neuer master-Branch erstellt und ausgecheckt.');
+        } else {
+          // Kein master vorhanden (erstmalig)
+          await git.checkout(['-b', 'master']);
+          debug('[autoCommit] Kein master-Branch vorhanden, neuer master erstellt.');
+        }
       }
 
       await git.add(['-A']);
