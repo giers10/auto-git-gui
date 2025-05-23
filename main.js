@@ -117,7 +117,7 @@ function startMonitoringWatcher(folderPath, win) {
     awaitWriteFinish: {
       stabilityThreshold: 300,
       pollInterval: 100
-    } 
+    }
   });
 
   // TODO: Optionale .gitignore Logik nachrüsten
@@ -133,13 +133,26 @@ function startMonitoringWatcher(folderPath, win) {
   // Initialer Commit, falls beim Start schon ungestagte Änderungen vorliegen
   (async () => {
     debug(`[MONITOR] Starte initialen Commit-Check für ${folderPath}`);
-    const event       = 'startup';
-    const changedPath = folderPath;
-    const msg = `[auto] ${event} ${path.relative(folderPath, changedPath)}`;
-    const did = await autoCommit(folderPath, msg);
-    if (did) {
-      win.webContents.send('repo-updated', folderPath);
-      debug(`[MONITOR] Initialer Auto-Commit für ${folderPath} durchgeführt.`);
+
+    const git = simpleGit(folderPath);
+    const status = await git.status();
+
+    // Alle betroffenen Pfade sammeln und je nach Typ annotieren
+    const changes = [];
+    status.not_added.forEach(f => changes.push(`[add] ${f}`));
+    status.created.forEach(f   => changes.push(`[add] ${f}`));
+    status.modified.forEach(f  => changes.push(`[modify] ${f}`));
+    status.deleted.forEach(f   => changes.push(`[delete] ${f}`));
+    status.renamed.forEach(r   => changes.push(`[rename] ${r.from} → ${r.to}`));
+
+    if (changes.length > 0) {
+      // Commit-Message so bauen wie beim Event (eine Zeile pro Datei)
+      const msg = `[auto] initial monitor: \n` + changes.map(l => ` - ${l}`).join('\n');
+      const did = await autoCommit(folderPath, msg);
+      if (did) {
+        win.webContents.send('repo-updated', folderPath);
+        debug(`[MONITOR] Initialer Auto-Commit für ${folderPath} durchgeführt:\n${msg}`);
+      }
     }
   })();
 
