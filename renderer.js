@@ -8,9 +8,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   const contentList = document.getElementById('contentList');
   const panel       = document.querySelector('.flex-1.p-4.overflow-y-auto');
 
-  const commitBtn = document.getElementById('commitBtn');
-
-
 
 
   // 1) Baby-Blau und Nacht-Blau als RGB-Arrays
@@ -401,31 +398,39 @@ async function renderSidebar() {
   });
 
 
-
+  const commitBtn = document.getElementById('commitBtn');
   commitBtn.addEventListener('click', async () => {
+    // 1) Welcher Ordner ist gerade ausgewählt?
     const folder = await window.electronAPI.getSelected();
-    console.log('[DEBUG] Selected folder for commit:', folder);
-
-    if (!folder || folder === 'No folder selected') {
+    if (!folder) {
       alert('Kein Ordner ausgewählt!');
       return;
     }
-    const message = prompt('Commit-Nachricht:', 'test');
-    if (!message) return;
+    // 2) Nachricht abfragen
+    const message = 'test'
+    alert('Commit-Button geklickt!');
+    // 3) UI blockieren
+    commitBtn.disabled   = true;
+    commitBtn.textContent = 'Committing…';
 
-    commitBtn.disabled = true;
-    commitBtn.textContent = 'Committing...';
-
+    // 4) IPC‐Aufruf
     const result = await window.electronAPI.commitCurrentFolder(folder, message);
-    console.log('[DEBUG] Commit result:', result);
+    console.log('[renderer] commit result:', result);
 
+    // 5) Ergebnis anzeigen und Liste neu laden
     if (result.success) {
       alert('Commit erfolgreich!');
-      await renderContent(folder);  // ← refresht Commit-Liste!
+      await renderContent(folder);
     } else {
       alert('Commit fehlgeschlagen:\n' + result.error);
     }
-    commitBtn.disabled = false;
+
+    // 6) UI wieder freigeben
+    commitBtn.disabled   = false;
     commitBtn.textContent = 'Commit';
   });
+
+
+
+
 });

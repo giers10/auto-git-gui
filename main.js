@@ -19,10 +19,13 @@ const store = new Store({
 // Map zum Speichern der Watcher pro Ordner
 const repoWatchers = new Map();
 
+
+
 // Debug Helper
 function debug(msg) {
   console.log(`[DEBUG ${new Date().toISOString()}] ${msg}`);
 }
+
 
 /**
  * Erstellt das BrowserWindow und lädt index.html.
@@ -272,6 +275,53 @@ app.whenReady().then(() => {
   });
   ipcMain.handle('get-skip-git-prompt', ()    => store.get('skipGitPrompt'));
   ipcMain.handle('set-skip-git-prompt', (_e,val) => store.set('skipGitPrompt', val));
+
+
+ ipcMain.handle('commit-current-folder', async (_e, folder, message) => {
+    try {
+      debug(`Commit-Vorgang für ${folder} gestartet…`);
+      const git = simpleGit(folder);
+
+      // 1) Branch‐Status prüfen
+      let currentBranch = null;
+      try {
+        currentBranch = (await git.revparse(['--abbrev-ref', 'HEAD'])).trim();
+        debug(`Aktueller Branch: ${currentBranch}`);
+      } catch {
+        debug('HEAD ist detached.');
+      }
+
+      // 2) Falls detached, alten master sichern und neuen anlegen
+      if (!currentBranch || currentBranch === 'HEAD') {
+        const timestamp    = new Date().toISOString().replace(/[:.]/g, '-');
+        const backupBranch = `backup-master-${timestamp}`;
+        const branches     = await git.branchLocal();
+
+        if (branches.all.includes('master')) {
+          await git.branch(['-m', 'master', backupBranch]);
+          debug(`Alter master → ${backupBranch}`);
+        }
+        await git.checkout(['-b', 'master']);
+        debug('Neuer master-Branch erstellt.');
+      }
+
+      // 3) Commit & Push
+      await git.add(['-A']);             debug('git add -A');
+      await git.commit(message || 'test'); debug('git commit');
+      await git.push(['-u','origin','master']); debug('git push');
+
+      return { success: true };
+    } catch (err) {
+      debug(`FEHLER beim Commit: ${err.message}`);
+      return { success: false, error: err.message };
+    }
+  });
+
+
+
+
+
+  // … Ende der IPC-Handler …
 });
 
 ipcMain.on('show-folder-context-menu', (event, folderPath) => {
@@ -293,60 +343,6 @@ ipcMain.on('show-folder-context-menu', (event, folderPath) => {
   ];
   const menu = Menu.buildFromTemplate(template);
   menu.popup({ window: win });
-
-// main.js
-
-const simpleGit = require('simple-git');
-const path = require('path');
-
-// Debug Helper
-function debug(msg) {
-  console.log(`[DEBUG ${new Date().toISOString()}] ${msg}`);
-}
-
-  ipcMain.handle('commit-current-folder', async (_e, folder, message) => {
-    try {
-      debug(`Commit-Vorgang für ${folder} gestartet…`);
-      const git = simpleGit(folder);
-      
-      // HEAD-Status prüfen
-      let currentBranch = null;
-      try {
-        currentBranch = (await git.revparse(['--abbrev-ref', 'HEAD'])).trim();
-        debug(`Aktueller Branch: ${currentBranch}`);
-      } catch (err) {
-        debug('HEAD ist detached.');
-      }
-
-      // Wenn detached, alten Branch umbenennen und neuen master erzeugen
-      if (!currentBranch || currentBranch === 'HEAD') {
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const backupBranch = `backup-master-${timestamp}`;
-
-        // Alten master umbenennen (nur falls vorhanden!)
-        const branches = await git.branchLocal();
-        if (branches.all.includes('master')) {
-          await git.branch(['-m', 'master', backupBranch]);
-          debug(`Alter master-Branch wurde in ${backupBranch} umbenannt.`);
-        }
-        // Neuer master-Branch
-        await git.checkout(['-b', 'master']);
-        debug('Neuer master-Branch erstellt und ausgecheckt.');
-      }
-
-      await git.add(['-A']);
-      debug('Alle Änderungen gestaged.');
-      await git.commit(message || 'test');
-      debug('Commit erfolgreich erstellt.');
-      await git.push(['-u', 'origin', 'master']);
-      debug('Push auf origin/master erfolgreich.');
-
-      return { success: true };
-    } catch (err) {
-      debug(`FEHLER beim Commit: ${err.message}`);
-      return { success: false, error: err.message };
-    }
-  });
 }); 
 
 // clean up on exit
