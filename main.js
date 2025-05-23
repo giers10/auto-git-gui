@@ -408,7 +408,7 @@ app.whenReady().then(() => {
     const git = simpleGit(folderObj.path);
     await git.revert(hash, ['--no-edit']);
   });
-
+//yo
   /**
    * Checkt das Arbeitsverzeichnis auf exakt den Zustand von `hash` aus.
    */
