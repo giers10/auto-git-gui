@@ -101,32 +101,28 @@ window.addEventListener('DOMContentLoaded', async () => {
         </button>
       `;
 
-      // 1) Container für die rechten Buttons
-      const rightControls = document.createElement('div');
-      rightControls.className = 'flex items-center space-x-2';
+        // play/pause Button korrekt initialisieren
+        const pausePlayBtn = document.createElement('button');
+        pausePlayBtn.className = 'pause-play-btn ml-2 p-1 rounded';
+        pausePlayBtn.title = isMonitoring ? 'Monitoring pausieren' : 'Monitoring starten';
+        // statt Emoji: SVG-Strings
+        pausePlayBtn.innerHTML = isMonitoring
+          ? /* Pause-Icon */
+            `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/>
+               <rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/>
+             </svg>`
+          : /* Play-Icon */
+            `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <polygon points="7,5 19,12 7,19" fill="currentColor"/>
+             </svg>`;
 
-      // 2) Pause/Play-Button (wie gehabt)
-      const pausePlayBtn = document.createElement('button');
-      pausePlayBtn.className = 'pause-play-btn p-1 rounded';
-      pausePlayBtn.title = isMonitoring ? 'Monitoring pausieren' : 'Monitoring starten';
-      pausePlayBtn.innerHTML = isMonitoring
-        ? `<svg …Pause-Icon…></svg>`
-        : `<svg …Play-Icon…></svg>`;
-      pausePlayBtn.addEventListener('click', async e => {
-        e.stopPropagation();
-        await window.electronAPI.setMonitoring(folderObj, !isMonitoring);
-        await renderSidebar();
-      });
-
-      // 3) Remove-Button aus dem HTML ziehen
-      const removeBtn = li.querySelector('.remove-btn');
-      removeBtn.classList.add('p-1', 'rounded');  // gleiche button-Grundklassen
-
-      // 4) Beide in den rechten Container packen
-      rightControls.append(pausePlayBtn, removeBtn);
-
-      // 5) Und den Container ans <li> anhängen
-      li.appendChild(rightControls);
+        pausePlayBtn.addEventListener('click', async e => {
+          e.stopPropagation();
+          await window.electronAPI.setMonitoring(folderObj, !isMonitoring);
+          await renderSidebar();
+        });
+      li.appendChild(pausePlayBtn);
 
       li.addEventListener('contextmenu', e => {
         e.preventDefault();
