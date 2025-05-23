@@ -141,7 +141,7 @@ function startMonitoringWatcher(folderPath, win) {
     const changes = [];
     status.not_added.forEach(f => changes.push(`[add] ${f}`));
     status.created.forEach(f   => changes.push(`[add] ${f}`));
-    status.modified.forEach(f  => changes.push(`[modify] ${f}`));
+    status.modified.forEach(f  => changes.push(`change ${f}`));
     status.deleted.forEach(f   => changes.push(`[delete] ${f}`));
     status.renamed.forEach(r   => changes.push(`[rename] ${r.from} → ${r.to}`));
 
