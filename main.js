@@ -139,7 +139,7 @@ function startMonitoringWatcher(folderPath, win) {
       status.deleted.length > 0 ||
       status.renamed.length > 0
     ) {
-      const msg = buildCommitMessageFromStatus(status, '[auto] initial monitor:');
+      const msg = buildCommitMessageFromStatus(status, '[auto] ');
       const did = await autoCommit(folderPath, msg);
       if (did) {
         win.webContents.send('repo-updated', folderPath);
