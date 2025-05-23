@@ -536,7 +536,7 @@ app.whenReady().then(() => {
           // ----> Das ist die Zeile die du wahrscheinlich vergessen hast!
           // Beende hier die Branch-Logik
           return { success: true };
-        }a
+        }b
 
         // Ansonsten wie gehabt:
         if (hasMaster) {
