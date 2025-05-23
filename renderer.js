@@ -81,44 +81,40 @@ window.addEventListener('DOMContentLoaded', async () => {
         selected && folder === selected.path ? 'selected' : ''
       ].join(' ');
 
-        li.innerHTML = `
-          <div class="flex items-center space-x-2 overflow-hidden">
-            <!-- links: Icon + Name -->
-            <svg …></svg>
-            <span class="truncate text-sm font-medium">${basename(folder)}</span>
-          </div>
-          <div class="flex items-center space-x-2">
-            <!-- Play/Pause -->
-            <button
-              class="pause-play-btn p-1 rounded"
-              title="${isMonitoring ? 'Monitoring pausieren' : 'Monitoring starten'}"
-            >
-              ${isMonitoring
-                ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" …>…</svg>`
-                : `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" …>…</svg>`
-              }
-            </button>
-            <!-- Entfernen -->
-            <button class="remove-btn p-1 rounded">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" …>…</svg>
-            </button>
-          </div>
-        `;
-        // play/pause Button korrekt initialisieren
-        const pausePlayBtn = document.createElement('button');
-        pausePlayBtn.className = 'pause-play-btn ml-2 p-1 rounded';
-        pausePlayBtn.title = isMonitoring ? 'Monitoring pausieren' : 'Monitoring starten';
-        // statt Emoji: SVG-Strings
-        pausePlayBtn.innerHTML = isMonitoring
-          ? /* Pause-Icon */
-            `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+li.innerHTML = `
+  <div class="flex items-center space-x-2 overflow-hidden">
+    <!-- links: Icon + Name -->
+          <svg xmlns="http://www.w3.org/2000/svg"
+               class="h-5 w-5 flex-shrink-0"
+               fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/>
+          </svg>
+          <span class="truncate text-sm font-medium">${basename(folder)}</span>
+  </div>
+  <div class="flex items-center space-x-2">
+    <!-- Play/Pause -->
+    <button
+      class="pause-play-btn p-1 rounded"
+      title="${isMonitoring ? 'Monitoring pausieren' : 'Monitoring starten'}"
+    >
+      ${isMonitoring
+        ?             `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                <rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/>
                <rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/>
              </svg>`
-          : /* Play-Icon */
-            `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        :             `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                <polygon points="7,5 19,12 7,19" fill="currentColor"/>
              </svg>`;
+      }
+    </button>
+    <!-- Entfernen -->
+    <button class="remove-btn p-1 rounded">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" …>…</svg>
+    </button>
+  </div>
+`;
+      
 
         pausePlayBtn.addEventListener('click', async e => {
           e.stopPropagation();
