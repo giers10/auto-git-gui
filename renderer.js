@@ -8,18 +8,13 @@ window.addEventListener('DOMContentLoaded', async () => {
   const contentList = document.getElementById('contentList');
   const panel       = document.querySelector('.flex-1.p-4.overflow-y-auto');
 
-
-
-  // 1) Baby-Blau und Nacht-Blau als RGB-Arrays
+  // Farben für Sky-Mode
   const DAY_COLOR   = [173, 216, 230];
   const NIGHT_COLOR = [0,   0,   50];
 
-  // 2) Linearer Interpolator
   function lerpColor(c1, c2, t) {
     return c1.map((v, i) => Math.round(v + t * (c2[i] - v)));
   }
-
-  // 3) Entscheider für den Zeit-Factor
   function getTimeFactor() {
     const now = new Date();
     const md  = now.getHours() * 60 + now.getMinutes();
@@ -29,29 +24,20 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (md < 20 * 60)  return 1 - ((md - 16*60) / (4*60));
     return 0;
   }
-
-  // 4) setzt die Hintergrundfarbe
   function updateBackground() {
     const factor = getTimeFactor();
     const [r,g,b] = lerpColor(NIGHT_COLOR, DAY_COLOR, factor);
     panel.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
   }
-
-  // 5) applySkyMode-Funktion
   let skyIntervalId, titleIntervalId;
   function applySkyMode(enabled) {
     document.body.classList.toggle('sky-mode', enabled);
-
-    // alte Intervalle löschen
     clearInterval(skyIntervalId);
     clearInterval(titleIntervalId);
 
     if (enabled) {
-      // Hintergrund updaten
       updateBackground();
       skyIntervalId = setInterval(updateBackground, 60_000);
-
-      // Titel-Farbe je nach Uhrzeit
       function updateTitleColor() {
         const hour = new Date().getHours();
         if (hour >= 18 || hour < 6) {
@@ -63,124 +49,129 @@ window.addEventListener('DOMContentLoaded', async () => {
       updateTitleColor();
       titleIntervalId = setInterval(updateTitleColor, 60_000);
     } else {
-      // Sky-Mode aus → zurücksetzen
       panel.style.backgroundColor = '';
-      titleEl.style.color          = '';
+      titleEl.style.color = '';
     }
   }
-
-  // 6) initial anwenden und auf Event lauschen
   const initialSky = await window.settingsAPI.getSkyMode();
   applySkyMode(initialSky);
   window.addEventListener('skymode-changed', e => applySkyMode(e.detail));
 
-  // … restliches Rendering wie gehabt …
   function basename(fullPath) {
     return fullPath.replace(/.*[\\/]/, '');
   }
 
-async function renderSidebar() {
-  const folders  = await window.electronAPI.getFolders();
-  const selected = await window.electronAPI.getSelected();
-  folderList.innerHTML = '';
+  // Utility für FolderObj-Suche per Path
+  async function getFolderObjByPath(path) {
+    const folders = await window.electronAPI.getFolders();
+    return folders.find(f => f.path === path) || null;
+  }
 
-  folders.forEach(folder => {
-    // 1) li anlegen, selected-Klasse statt bg-[#fecdd3]
-    const li = document.createElement('li');
-    li.className = [
-      'flex items-center justify-between px-3 py-2 rounded cursor-pointer',
-      folder === selected ? 'selected' : ''
-    ].join(' ');
+  async function renderSidebar() {
+    const folders  = await window.electronAPI.getFolders();
+    const selected = await window.electronAPI.getSelected();
+    folderList.innerHTML = '';
 
-    // 2) inneres Markup, ohne Hard-Coded-Farben
-    li.innerHTML = `
-      <div class="flex items-center space-x-2 overflow-hidden">
-        <svg xmlns="http://www.w3.org/2000/svg"
-             class="h-5 w-5 flex-shrink-0"
-             fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/>
-        </svg>
-        <span class="truncate text-sm font-medium">${basename(folder)}</span>
-      </div>
-      <button class="remove-btn">
-        <svg xmlns="http://www.w3.org/2000/svg"
-             class="h-5 w-5"
-             fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"/>
-        </svg>
-      </button>
-    `;
+    folders.forEach(folderObj => {
+      const folder = folderObj.path;
+      const isMonitoring = folderObj.monitoring;
+      const li = document.createElement('li');
+      li.className = [
+        'flex items-center justify-between px-3 py-2 rounded cursor-pointer',
+        selected && folder === selected.path ? 'selected' : ''
+      ].join(' ');
 
-    // rechter Mausklick in der Sidebar
-    li.addEventListener('contextmenu', e => {
-      e.preventDefault();
-      window.electronAPI.showFolderContextMenu(folder);
-    });
+      li.innerHTML = `
+        <div class="flex items-center space-x-2 overflow-hidden">
+          <svg xmlns="http://www.w3.org/2000/svg"
+               class="h-5 w-5 flex-shrink-0"
+               fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/>
+          </svg>
+          <span class="truncate text-sm font-medium">${basename(folder)}</span>
+        </div>
+        <button class="remove-btn">
+          <svg xmlns="http://www.w3.org/2000/svg"
+               class="h-5 w-5"
+               fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      `;
 
-    // 3) Klick auf li (Select)
-    li.addEventListener('click', async e => {
-      if (e.target.closest('.remove-btn')) return;
-      await window.electronAPI.setSelected(folder);
-      await renderSidebar();
-      await renderContent(folder);
-    });
+      // play/pause Button korrekt initialisieren
+      const pausePlayBtn = document.createElement('button');
+      pausePlayBtn.className = 'pause-play-btn ml-2';
+      pausePlayBtn.innerHTML = isMonitoring ? '⏸️' : '▶️';
+      pausePlayBtn.title = isMonitoring ? 'Monitoring pausieren' : 'Monitoring starten';
+      pausePlayBtn.addEventListener('click', async e => {
+        e.stopPropagation();
+        await window.electronAPI.setMonitoring(folderObj, !isMonitoring);
+        await renderSidebar();
+      });
+      li.appendChild(pausePlayBtn);
 
-    // 4) Remove-Button
-    li.querySelector('.remove-btn').addEventListener('click', async e => {
-      e.stopPropagation();
+      li.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        window.electronAPI.showFolderContextMenu(folderObj.path);
+      });
 
-      // Commit-Count / Diffs / SkipPrompt-Logik wie gehabt
-      const count      = await window.electronAPI.getCommitCount(folder);
-      const hasUnstaged= await window.electronAPI.hasDiffs(folder);
-      const skipPrompt = await window.settingsAPI.getSkipPrompt();
+      li.addEventListener('click', async e => {
+        if (e.target.closest('.remove-btn')) return;
+        await window.electronAPI.setSelected(folderObj);
+        await renderSidebar();
+        await renderContent(folderObj);
+      });
 
-      if (count === 1 && !hasUnstaged) {
-        if (skipPrompt) {
-          await window.electronAPI.removeGitFolder(folder);
-        } else {
-          const ok = confirm(
-            'Dieser Ordner hat nur einen Initial-Commit und keine Änderungen.\n' +
-            'Möchtest du das gesamte Git-Repository (den .git-Ordner) löschen?'
-          );
-          if (ok) {
-            await window.electronAPI.removeGitFolder(folder);
+      li.querySelector('.remove-btn').addEventListener('click', async e => {
+        e.stopPropagation();
+        const count      = await window.electronAPI.getCommitCount(folderObj);
+        const hasUnstaged= await window.electronAPI.hasDiffs(folderObj);
+        const skipPrompt = await window.settingsAPI.getSkipPrompt();
+
+        if (count === 1 && !hasUnstaged) {
+          if (skipPrompt) {
+            await window.electronAPI.removeGitFolder(folderObj);
           } else {
-            return;
+            const ok = confirm(
+              'Dieser Ordner hat nur einen Initial-Commit und keine Änderungen.\n' +
+              'Möchtest du das gesamte Git-Repository (den .git-Ordner) löschen?'
+            );
+            if (ok) {
+              await window.electronAPI.removeGitFolder(folderObj);
+            } else {
+              return;
+            }
           }
         }
-      }
 
-      // 5) aus Sidebar/Store entfernen
-      await window.electronAPI.removeFolder(folder);
-      await renderSidebar();
-
-      // 6) neue Selektion
-      const all = await window.electronAPI.getFolders();
-      if (all.length === 0) {
-        titleEl.textContent = 'No folder selected';
-        contentList.innerHTML = '';
-      } else {
-        // entfernten Index vorher merken, dann neuen auswählen
-        const idxOld = folders.indexOf(folder);
-        let idxNew = Math.max(0, idxOld - 1);
-        const pick = all[idxNew];
-        await window.electronAPI.setSelected(pick);
+        await window.electronAPI.removeFolder(folderObj);
         await renderSidebar();
-        await renderContent(pick);
-      }
+
+        const all = await window.electronAPI.getFolders();
+        if (all.length === 0) {
+          titleEl.textContent = 'No folder selected';
+          contentList.innerHTML = '';
+        } else {
+          const idxOld = folders.findIndex(f => f.path === folderObj.path);
+          let idxNew = Math.max(0, idxOld - 1);
+          const pick = all[idxNew];
+          await window.electronAPI.setSelected(pick);
+          await renderSidebar();
+          await renderContent(pick);
+        }
+      });
+
+      folderList.appendChild(li);
     });
+  }
 
-    folderList.appendChild(li);
-  });
-}
-
-  async function renderContent(folder) {
-    const currentFolder = folder;
+  async function renderContent(folderObj) {
+    const folder = folderObj.path;
     titleEl.textContent = folder;
-    const { head, commits } = await window.electronAPI.getCommits(folder);
-
+    const { head, commits } = await window.electronAPI.getCommits(folderObj);
 
     contentList.innerHTML = commits.map(c => `
       <li class="w-full p-3 mb-2 bg-white border border-gray-200 rounded shadow-sm
@@ -220,21 +211,10 @@ async function renderSidebar() {
             </svg>
             Jump Here
           </button>
-         <!-- Revert-Button -->
-          <!--<button class="revert-btn flex items-center px-2 py-1 text-xs border rounded hover:bg-gray-100" data-hash="${c.hash}">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none"
-                 viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M15 12H3m12 0l-4-4m4 4l-4 4"/>
-            </svg>
-            Revert
-          </button>-->
         </div>
         <div class="diff-container relative">
-          <!-- copy-Button oben rechts -->
           <button class="copy-diff-btn absolute top-1 right-1 p-1 border rounded hover:bg-gray-100 flex items-center justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <!-- Copy-Icon: -->
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h6a2 2 0 012 2v2m0 4h2a2 2 0 002-2v-6a2 2 0 00-2-2h-6a2 2 0 00-2 2v2" />
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -246,10 +226,10 @@ async function renderSidebar() {
       </li>
     `).join('');
 
-    // Erst mal alle Diff-Buttons prüfen und ggf. deaktivieren
+    // Diff-Buttons prüfen und ggf. deaktivieren
     contentList.querySelectorAll('.diff-btn').forEach(async btn => {
       const hash      = btn.dataset.hash;
-      const diffText  = await window.electronAPI.diffCommit(folder, hash);
+      const diffText = await window.electronAPI.diffCommit(folderObj, hash);
       if (!diffText.trim()) {
         btn.disabled = true;
         btn.classList.add('disabled');
@@ -267,7 +247,7 @@ async function renderSidebar() {
 
         if (!pre.innerHTML.trim()) {
           // fetch und HTML-Snippet bauen
-          const diff = await window.electronAPI.diffCommit(folder, hash);
+          const diff = await window.electronAPI.diffCommit(folderObj, hash);
           const escaped = diff
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
@@ -300,8 +280,7 @@ async function renderSidebar() {
       btn.addEventListener('click', async () => {
         const hash = btn.dataset.hash;
         try {
-          // verwende jetzt currentFolder statt einer undefinierten Variable
-          const savedPath = await window.electronAPI.snapshotCommit(currentFolder, hash);
+          const savedPath = await window.electronAPI.snapshotCommit(folderObj, hash);
           if (savedPath) {
             alert(`Snapshot gespeichert unter:\n${savedPath}`);
           }
@@ -312,37 +291,20 @@ async function renderSidebar() {
       });
     });
 
-    // Revert-Button
-    contentList.querySelectorAll('.revert-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const hash = btn.dataset.hash;
-        if (confirm(`Commit ${hash} wirklich revertieren?`)) {
-          await window.electronAPI.revertCommit(folder, hash);
-          await renderContent(folder);
-        }
-      });
-    });
-
     // Checkout-Button
     contentList.querySelectorAll('.checkout-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const hash = btn.dataset.hash;
-        //if (!confirm(`Jump here? Ungestagte Änderungen werden verworfen.`)) return;
-        // currentFolder hast du oben in renderContent gespeichert
-        await window.electronAPI.checkoutCommit(currentFolder, hash);
-        await renderContent(currentFolder);
+        await window.electronAPI.checkoutCommit(folderObj, hash);
+        await renderContent(folderObj);
       });
     });
-    const currentEl = contentList.querySelector('li.current-commit');
 
     // Copy-Diff-Button
     contentList.querySelectorAll('.diff-container').forEach(container => {
       const btn = container.querySelector('.copy-diff-btn');
       const pre = container.querySelector('pre');
-
-      // speicher die ursprüngliche SVG
       const originalSVG = btn.innerHTML;
-      // erstelle die Checkmark-SVG
       const checkSVG = `
         <svg xmlns="http://www.w3.org/2000/svg"
              class="h-4 w-4 text-green-600"
@@ -351,13 +313,10 @@ async function renderSidebar() {
                 d="M5 13l4 4L19 7"/>
         </svg>
       `;
-
       btn.addEventListener('click', () => {
         navigator.clipboard.writeText(pre.textContent)
           .then(() => {
-            // Icon tauschen
             btn.innerHTML = checkSVG;
-            // nach 1s wieder zurück
             setTimeout(() => {
               btn.innerHTML = originalSVG;
             }, 1000);
@@ -368,8 +327,8 @@ async function renderSidebar() {
       });
     });
 
+    const currentEl = contentList.querySelector('li.current-commit');
     if (currentEl) {
-      // weich scrollen und zentriert in den Viewport bringen
       currentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }
@@ -378,7 +337,6 @@ async function renderSidebar() {
   const initial = await window.electronAPI.getSelected();
   if (initial) await renderContent(initial);
 
-  // Add-Folder
   addBtn.addEventListener('click', async () => {
     await window.electronAPI.addFolder();
     await renderSidebar();
@@ -386,10 +344,12 @@ async function renderSidebar() {
     if (sel) await renderContent(sel);
   });
 
-  // repo-updated, contextmenus usw.
-  window.addEventListener('repo-updated', e => {
-    if (titleEl.textContent === e.detail) renderContent(e.detail);
+  // Repo-Update Handling jetzt mit Lookup für folderObj
+  window.addEventListener('repo-updated', async e => {
+    const obj = await getFolderObjByPath(e.detail);
+    if (obj) renderContent(obj);
   });
+
   titleEl.addEventListener('contextmenu', e => {
     e.preventDefault();
     if (titleEl.textContent !== 'No folder selected') {
@@ -397,40 +357,27 @@ async function renderSidebar() {
     }
   });
 
-
   const commitBtn = document.getElementById('commitBtn');
   commitBtn.addEventListener('click', async () => {
-    // 1) Welcher Ordner ist gerade ausgewählt?
-    const folder = await window.electronAPI.getSelected();
-    if (!folder) {
+    const folderObj = await window.electronAPI.getSelected();
+    if (!folderObj || !folderObj.path) {
       alert('Kein Ordner ausgewählt!');
       return;
     }
-    // 2) Nachricht abfragen
     const message = 'test'
-    alert('Commit-Button geklickt!');
-    // 3) UI blockieren
     commitBtn.disabled   = true;
     commitBtn.textContent = 'Committing…';
 
-    // 4) IPC‐Aufruf
-    const result = await window.electronAPI.commitCurrentFolder(folder, message);
-    console.log('[renderer] commit result:', result);
-
-    // 5) Ergebnis anzeigen und Liste neu laden
+    const result = await window.electronAPI.commitCurrentFolder(folderObj, message);
     if (result.success) {
       alert('Commit erfolgreich!');
-      await renderContent(folder);
+      await renderContent(folderObj);
     } else {
       alert('Commit fehlgeschlagen:\n' + result.error);
     }
 
-    // 6) UI wieder freigeben
     commitBtn.disabled   = false;
     commitBtn.textContent = 'Commit';
   });
-
-
-
 
 });

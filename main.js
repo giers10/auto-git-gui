@@ -47,6 +47,7 @@ function createWindow() {
   return win;
 }
 
+
 // Settings-Fenster
 let settingsWin;
 function openSettings(win) {
@@ -101,6 +102,87 @@ async function initGitRepo(folder) {
   }
 }
 
+
+// Map für Monitoring-Watcher (nicht repoWatchers!)
+const monitoringWatchers = new Map();
+
+function startMonitoringWatcher(folderPath, win) {
+  // Nicht mehrfach starten
+  if (monitoringWatchers.has(folderPath)) return;
+  const watcher = chokidar.watch(folderPath, {
+    ignored: /(^|[\/\\])\..|node_modules|\.git/, // ignoriert .git und .dot-Dateien + node_modules
+    ignoreInitial: true,
+    persistent: true,
+    depth: 99, // Rekursiv
+    awaitWriteFinish: {
+      stabilityThreshold: 300,
+      pollInterval: 100
+    }
+  });
+
+  // TODO: Optionale .gitignore Logik nachrüsten
+
+  watcher.on('all', async (event, changedPath) => {
+    debug(`[MONITOR] ${event} in ${changedPath}`);
+    // Hier einfach auto-commit Funktion rufen:
+    await autoCommit(folderPath, `[auto] ${event} ${path.relative(folderPath, changedPath)}`);
+    // Repo-UI aktualisieren:
+    win.webContents.send('repo-updated', folderPath);
+  });
+
+  monitoringWatchers.set(folderPath, watcher);
+  debug(`[MONITOR] Watcher aktiv für ${folderPath}`);
+}
+
+function stopMonitoringWatcher(folderPath) {
+  const watcher = monitoringWatchers.get(folderPath);
+  if (watcher) {
+    watcher.close();
+    monitoringWatchers.delete(folderPath);
+    debug(`[MONITOR] Watcher gestoppt für ${folderPath}`);
+  }
+}
+
+async function autoCommit(folder, message) {
+  const git = simpleGit(folder);
+  const status = await git.status();
+  if (
+    status.not_added.length === 0 &&
+    status.created.length   === 0 &&
+    status.deleted.length   === 0 &&
+    status.modified.length  === 0 &&
+    status.renamed.length   === 0
+  ) {
+    debug('Auto-Commit: Keine Änderungen zum committen.');
+    return false;
+  }
+  // Der Rest wie in commit-current-folder
+  let currentBranch = null;
+  try {
+    currentBranch = (await git.revparse(['--abbrev-ref', 'HEAD'])).trim();
+    debug(`[autoCommit] Aktueller Branch: ${currentBranch}`);
+  } catch {
+    debug('[autoCommit] HEAD ist detached.');
+  }
+  if (!currentBranch || currentBranch === 'HEAD') {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupBranch = `backup-master-${timestamp}`;
+    const branches = await git.branchLocal();
+    if (branches.all.includes('master')) {
+      await git.branch(['-m', 'master', backupBranch]);
+      debug(`[autoCommit] Alter master in ${backupBranch} umbenannt.`);
+    }
+    await git.checkout(['-b', 'master']);
+    debug('[autoCommit] Neuer master-Branch erstellt und ausgecheckt.');
+  }
+  await git.add(['-A']);
+  debug('[autoCommit] Alle Änderungen gestaged.');
+  await git.commit(message || '[auto]');
+  debug('[autoCommit] Commit erfolgreich erstellt.');
+  return true;
+}
+
+
 app.whenReady().then(() => {
   const win = createWindow();
 
@@ -118,22 +200,39 @@ app.whenReady().then(() => {
   ]);
   Menu.setApplicationMenu(menu);
 
-  // 1) Beim Start bereits gespeicherte Ordner überwachen
-  const folders = store.get('folders');
-  folders.forEach(folder => {
-    // nur watchen, wenn .git existiert
-    if (fs.existsSync(path.join(folder, '.git', 'refs', 'heads', 'master'))) {
-      watchRepo(folder, win);
+  // 1) Beim Start bereits gespeicherte Ordner überwachen und monitoren
+  const folders = store.get('folders') || [];
+  folders.forEach(folderObj => {
+    if (fs.existsSync(path.join(folderObj.path, '.git', 'refs', 'heads', 'master'))) {
+      watchRepo(folderObj.path, win);
+    }
+    if (folderObj.monitoring) {
+      startMonitoringWatcher(folderObj.path, win);
     }
   });
 
   // 2) IPC-Handler
+  ipcMain.handle('get-selected', () => {
+    const folders = store.get('folders') || [];
+    const selectedPath = store.get('selected');
+    return folders.find(f => f.path === selectedPath) || null;
+  });
 
+  ipcMain.handle('set-selected', (_e, folderObjOrPath) => {
+    // Akzeptiert sowohl String (legacy) als auch Objekt:
+    const folderPath = typeof folderObjOrPath === 'string'
+      ? folderObjOrPath
+      : folderObjOrPath.path;
+    store.set('selected', folderPath);
+    const folders = store.get('folders') || [];
+    return folders.find(f => f.path === folderPath) || null;
+  });
 
   // Liste aller Folders
   ipcMain.handle('get-folders', () => store.get('folders'));
 
-  // Ordner hinzufügen: Open-Dialog, init, Store-Update, watchen
+
+  // Ordner hinzufügen: Open-Dialog, init, Store-Update, watchen, monitoren
   ipcMain.handle('add-folder', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       properties: ['openDirectory']
@@ -141,6 +240,24 @@ app.whenReady().then(() => {
     if (canceled || !filePaths[0]) {
       return store.get('folders');
     }
+    const newFolder = filePaths[0];
+    await initGitRepo(newFolder);
+    let folders = store.get('folders') || [];
+    let folderObj = folders.find(f => f.path === newFolder);
+    if (!folderObj) {
+      folderObj = { path: newFolder, monitoring: true };
+      folders.push(folderObj);
+      store.set('folders', folders);
+    }
+    store.set('selected', newFolder);
+    watchRepo(newFolder, win);
+    startMonitoringWatcher(newFolder, win);
+    return store.get('folders');
+  });
+/*
+  ipcMain.handle('add-folder', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({ properties: ['openDirectory'] });
+    if (canceled || !filePaths[0]) return store.get('folders');
     const newFolder = filePaths[0];
 
     // Repo initialisieren
@@ -158,8 +275,27 @@ app.whenReady().then(() => {
 
     return store.get('folders');
   });
-
+*/
   // Ordner entfernen: Watcher schließen, Store-Update
+  ipcMain.handle('remove-folder', (_e, folderObj) => {
+    const folders = store.get('folders') || [];
+    const updated = folders.filter(f => f.path !== folderObj.path);
+    store.set('folders', updated);
+    if (store.get('selected') === folderObj.path) store.set('selected', null);
+    stopMonitoringWatcher(folderObj.path);
+    const watcher = repoWatchers.get(folderObj.path);
+    if (watcher) watcher.close(), repoWatchers.delete(folderObj.path);
+    return updated;
+  });
+
+/*
+  ipcMain.handle('get-selected', () => store.get('selected'));
+  ipcMain.handle('set-selected', (_e, folderPath) => {
+    store.set('selected', folderPath);
+    return folderPath;
+  });
+  */
+  /*
   ipcMain.handle('remove-folder', (_e, folder) => {
     const watcher = repoWatchers.get(folder);
     if (watcher) {
@@ -173,41 +309,45 @@ app.whenReady().then(() => {
     }
     return updated;
   });
+  */
+
 
   // Zähle Commits
-    ipcMain.handle('get-commit-count', async (_e, folder) => {
-    const git = simpleGit(folder);
+    ipcMain.handle('get-commit-count', async (_e, folderObj) => {
+    const git = simpleGit(folderObj.path);
     const log = await git.log();
     return log.total; // Anzahl der Commits
   });
 
   // Prüfe, ob es ungestagte Änderungen gibt
-  ipcMain.handle('has-diffs', async (_e, folder) => {
-    const git = simpleGit(folder);
+  ipcMain.handle('has-diffs', async (_e, folderObj) => {
+    const git = simpleGit(folderObj.path);
     const status = await git.status();
     // modified, not_added, deleted, etc.
     return status.files.length > 0;
   });
 
   // Entferne das .git-Verzeichnis
-  ipcMain.handle('remove-git-folder', async (_e, folder) => {
-    const gitDir = path.join(folder, '.git');
+  ipcMain.handle('remove-git-folder', async (_e, folderObj) => {
+    const gitDir = path.join(folderObj.path, '.git');
     if (fs.existsSync(gitDir)) {
       await fs.promises.rm(gitDir, { recursive: true, force: true });
     }
     return;
   });
 
+/*
   // Selected
   ipcMain.handle('get-selected', () => store.get('selected'));
   ipcMain.handle('set-selected', (_e, folder) => {
     store.set('selected', folder);
     return folder;
   });
+  */
 
   // Commits holen
-  ipcMain.handle('get-commits', async (_e, folder) => {
-    const git = simpleGit(folder);
+  ipcMain.handle('get-commits', async (_e, folderObj) => {
+    const git = simpleGit(folderObj.path);
     // alle Commits holen
     const log = await git.log(['--all']);
     // aktuellen HEAD‐Hash ermitteln
@@ -224,40 +364,40 @@ app.whenReady().then(() => {
   });
 
   // Diff
-  ipcMain.handle('diff-commit', async (_e, folder, hash) => {
-    const git = simpleGit(folder);
+  ipcMain.handle('diff-commit', async (_e, folderObj, hash) => {
+    const git = simpleGit(folderObj.path);
     return git.diff([`${hash}^!`]);
   });
 
   // Revert
-  ipcMain.handle('revert-commit', async (_e, folder, hash) => {
-    const git = simpleGit(folder);
+  ipcMain.handle('revert-commit', async (_e, folderObj, hash) => {
+    const git = simpleGit(folderObj.path);
     await git.revert(hash, ['--no-edit']);
   });
 
   /**
    * Checkt das Arbeitsverzeichnis auf exakt den Zustand von `hash` aus.
    */
-  ipcMain.handle('checkout-commit', async (_e, folder, hash) => {
-    const git = simpleGit(folder);
+  ipcMain.handle('checkout-commit', async (_e, folderObj, hash) => {
+    const git = simpleGit(folderObj.path);
     // clean mode: alle lokalen Veränderungen verwerfen
     await git.checkout([hash, '--force']);
   });
 
 
   // Snapshot
-  ipcMain.handle('snapshot-commit', async (_e, folder, hash) => {
+  ipcMain.handle('snapshot-commit', async (_e, folderObj, hash) => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       title: 'Ordner auswählen zum Speichern des Snapshots',
       properties: ['openDirectory']
     });
     if (canceled || !filePaths[0]) return;
     const outDir   = filePaths[0];
-    const baseName = path.basename(folder);
+    const baseName = path.basename(folderObj.path);
     const filePath = path.join(outDir, `${baseName}-${hash}.zip`);
     return new Promise((resolve, reject) => {
       exec(
-        `git -C "${folder}" archive --format zip --output "${filePath}" ${hash}`,
+        `git -C "${folderObj.path}" archive --format zip --output "${filePath}" ${hash}`,
         err => err ? reject(err) : resolve(filePath)
       );
     });
@@ -277,38 +417,58 @@ app.whenReady().then(() => {
   ipcMain.handle('set-skip-git-prompt', (_e,val) => store.set('skipGitPrompt', val));
 
 
- ipcMain.handle('commit-current-folder', async (_e, folder, message) => {
+
+
+
+  ipcMain.handle('commit-current-folder', async (_e, folderObj, message) => {
+    folder = folderObj.path;
     try {
       debug(`Commit-Vorgang für ${folder} gestartet…`);
       const git = simpleGit(folder);
 
-      // 1) Branch‐Status prüfen
+      // Prüfe: Gibt es was zu committen?
+      const status = await git.status();
+      if (
+        status.not_added.length === 0 &&
+        status.created.length   === 0 &&
+        status.deleted.length   === 0 &&
+        status.modified.length  === 0 &&
+        status.renamed.length   === 0
+      ) {
+        debug('Nichts zu committen.');
+        return { success: false, error: 'Nichts zu committen.' };
+      }
+
+      // HEAD-Status prüfen
       let currentBranch = null;
       try {
         currentBranch = (await git.revparse(['--abbrev-ref', 'HEAD'])).trim();
         debug(`Aktueller Branch: ${currentBranch}`);
-      } catch {
+      } catch (err) {
         debug('HEAD ist detached.');
       }
 
-      // 2) Falls detached, alten master sichern und neuen anlegen
+      // Falls detached, **jetzt erst** alten Branch umbenennen und neuen master erzeugen
       if (!currentBranch || currentBranch === 'HEAD') {
-        const timestamp    = new Date().toISOString().replace(/[:.]/g, '-');
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const backupBranch = `backup-master-${timestamp}`;
-        const branches     = await git.branchLocal();
 
+        // Alten master umbenennen (nur falls vorhanden!)
+        const branches = await git.branchLocal();
         if (branches.all.includes('master')) {
           await git.branch(['-m', 'master', backupBranch]);
-          debug(`Alter master → ${backupBranch}`);
+          debug(`Alter master-Branch wurde in ${backupBranch} umbenannt.`);
         }
+        // Neuer master-Branch
         await git.checkout(['-b', 'master']);
-        debug('Neuer master-Branch erstellt.');
+        debug('Neuer master-Branch erstellt und ausgecheckt.');
       }
 
-      // 3) Commit & Push
-      await git.add(['-A']);             debug('git add -A');
-      await git.commit(message || 'test'); debug('git commit');
-      await git.push(['-u','origin','master']); debug('git push');
+      await git.add(['-A']);
+      debug('Alle Änderungen gestaged.');
+      await git.commit(message || 'test');
+      debug('Commit erfolgreich erstellt.');
+      // Push hier ggf. noch auskommentiert lassen
 
       return { success: true };
     } catch (err) {
@@ -317,8 +477,21 @@ app.whenReady().then(() => {
     }
   });
 
-
-
+  ipcMain.handle('set-monitoring', async (_e, folderPath, monitoring) => {
+    let folders = store.get('folders') || [];
+    folders = folders.map(f =>
+      f.path === folderPath ? { ...f, monitoring } : f
+    );
+    store.set('folders', folders);
+    debug(`[STORE] Monitoring für ${folderPath}: ${monitoring}`);
+    // Monitoring-Watcher starten/stoppen → gleich mehr dazu
+    if (monitoring) {
+      startMonitoringWatcher(folderPath, win);
+    } else {
+      stopMonitoringWatcher(folderPath);
+    }
+    return monitoring;
+  });
 
 
   // … Ende der IPC-Handler …
