@@ -101,27 +101,27 @@ window.addEventListener('DOMContentLoaded', async () => {
         </button>
       `;
 
-// play/pause Button korrekt initialisieren
-const pausePlayBtn = document.createElement('button');
-pausePlayBtn.className = 'pause-play-btn ml-2 hover:bg-gray-200 p-1 rounded';
-pausePlayBtn.title = isMonitoring ? 'Monitoring pausieren' : 'Monitoring starten';
-// statt Emoji: SVG-Strings
-pausePlayBtn.innerHTML = isMonitoring
-  ? /* Pause-Icon */
-    `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-       <rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/>
-       <rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/>
-     </svg>`
-  : /* Play-Icon */
-    `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-       <polygon points="7,5 19,12 7,19" fill="currentColor"/>
-     </svg>`;
+        // play/pause Button korrekt initialisieren
+        const pausePlayBtn = document.createElement('button');
+        pausePlayBtn.className = 'pause-play-btn ml-2 hover:bg-gray-200 p-1 rounded';
+        pausePlayBtn.title = isMonitoring ? 'Monitoring pausieren' : 'Monitoring starten';
+        // statt Emoji: SVG-Strings
+        pausePlayBtn.innerHTML = isMonitoring
+          ? /* Pause-Icon */
+            `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/>
+               <rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/>
+             </svg>`
+          : /* Play-Icon */
+            `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <polygon points="7,5 19,12 7,19" fill="currentColor"/>
+             </svg>`;
 
-pausePlayBtn.addEventListener('click', async e => {
-  e.stopPropagation();
-  await window.electronAPI.setMonitoring(folderObj, !isMonitoring);
-  await renderSidebar();
-});
+        pausePlayBtn.addEventListener('click', async e => {
+          e.stopPropagation();
+          await window.electronAPI.setMonitoring(folderObj, !isMonitoring);
+          await renderSidebar();
+        });
 li.appendChild(pausePlayBtn);
 
       li.addEventListener('contextmenu', e => {
