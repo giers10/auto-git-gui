@@ -116,7 +116,7 @@ function startMonitoringWatcher(folderPath, win) {
     depth: 99, // Rekursiv
     awaitWriteFinish: {
       stabilityThreshold: 300,
-      pollInterval: 100
+      pollInterval: 100asdasd
     } 
   });
 
