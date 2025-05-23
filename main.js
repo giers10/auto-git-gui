@@ -492,7 +492,7 @@ app.whenReady().then(() => {
           masterCommit = (await git.revparse(['refs/heads/master'])).trim();
           hasMaster = true;
         } catch (e) {
-          masterCommit = null;
+          masterCommit = null; //wawa
           hasMaster = false;
         }
 
