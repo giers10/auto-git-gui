@@ -191,25 +191,57 @@ async function autoCommit(folder, message) {
     debug('Auto-Commit: Keine Änderungen zum committen.');
     return false;
   }
-  // Der Rest wie in commit-current-folder
+
   let currentBranch = null;
   try {
     currentBranch = (await git.revparse(['--abbrev-ref', 'HEAD'])).trim();
     debug(`[autoCommit] Aktueller Branch: ${currentBranch}`);
   } catch {
     debug('[autoCommit] HEAD ist detached.');
+    currentBranch = null;
   }
+
   if (!currentBranch || currentBranch === 'HEAD') {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupBranch = `backup-master-${timestamp}`;
-    const branches = await git.branchLocal();
-    if (branches.all.includes('master')) {
+    // === Erweiterte Logs ===
+    const headCommit = (await git.revparse(['HEAD'])).trim();
+    let masterCommit = null;
+    let hasMaster = false;
+    try {
+      masterCommit = (await git.revparse(['refs/heads/master'])).trim();
+      hasMaster = true;
+    } catch (e) {
+      debug('[autoCommit] master branch existiert nicht.');
+      masterCommit = null;
+      hasMaster = false;
+    }
+    debug(`[autoCommit] HEAD:   ${headCommit}`);
+    debug(`[autoCommit] master: ${masterCommit}`);
+
+    if (hasMaster && headCommit === masterCommit) {
+      // HEAD ist detached, zeigt aber exakt auf master-Tip → einfach auf master auschecken.
+      await git.checkout('master');
+      debug('[autoCommit] HEAD war detached, zeigte aber exakt auf master – jetzt zurück auf master.');
+      // Nach dem Checkout nochmal aktuellen Branch loggen:
+      currentBranch = (await git.revparse(['--abbrev-ref', 'HEAD'])).trim();
+      debug(`[autoCommit] Nach checkout: Aktueller Branch: ${currentBranch}`);
+      // Jetzt **NICHT** weiter zur Umbenenn-Logik!
+    } else if (hasMaster) {
+      // HEAD ist detached, zeigt auf einen anderen Commit → backup master und neuen master-Branch
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupBranch = `backup-master-${timestamp}`;
       await git.branch(['-m', 'master', backupBranch]);
       debug(`[autoCommit] Alter master in ${backupBranch} umbenannt.`);
+      await git.checkout(['-b', 'master']);
+      debug('[autoCommit] Neuer master-Branch erstellt und ausgecheckt.');
+      currentBranch = 'master';
+    } else {
+      // Kein master vorhanden (erstmalig)
+      await git.checkout(['-b', 'master']);
+      debug('[autoCommit] Kein master-Branch vorhanden, neuer master erstellt.');
+      currentBranch = 'master';
     }
-    await git.checkout(['-b', 'master']);
-    debug('[autoCommit] Neuer master-Branch erstellt und ausgecheckt.');
   }
+
   await git.add(['-A']);
   debug('[autoCommit] Alle Änderungen gestaged.');
   await git.commit(message || '[auto]');
