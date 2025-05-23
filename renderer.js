@@ -103,7 +103,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
         // play/pause Button korrekt initialisieren
         const pausePlayBtn = document.createElement('button');
-        pausePlayBtn.className = 'pause-play-btn ml-2 hover:bg-gray-200 p-1 rounded';
+        pausePlayBtn.className = 'pause-play-btn ml-2 p-1 rounded';
         pausePlayBtn.title = isMonitoring ? 'Monitoring pausieren' : 'Monitoring starten';
         // statt Emoji: SVG-Strings
         pausePlayBtn.innerHTML = isMonitoring
@@ -122,7 +122,7 @@ window.addEventListener('DOMContentLoaded', async () => {
           await window.electronAPI.setMonitoring(folderObj, !isMonitoring);
           await renderSidebar();
         });
-li.appendChild(pausePlayBtn);
+      li.appendChild(pausePlayBtn);
 
       li.addEventListener('contextmenu', e => {
         e.preventDefault();
