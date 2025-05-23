@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>auto-git</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    #catSlot img {
+      width: 120px;
+      height: 120px;
+    }
+
+    /* Außenschale für den Diff: overflow + max-height */
+    .diff-container {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+
+    /* Pfeil-Icon: 90°-Rotation */
+    .rotate {
+      transition: transform 0.3s ease;
+    }
+    .rotate.open {
+      transform: rotate(90deg);
+    }
+
+    /* Diff-Zeilen hervorheben */
+    .diff-line {
+      white-space: pre-wrap;
+      font-family: monospace;
+    }
+    .diff-line.addition {
+      background-color: #dafbe1; /* GitHub-grün */
+    }
+    .diff-line.deletion {
+      background-color: #ffeef0; /* GitHub-rot */
+    }
+    /* Deaktivierter Button */
+    .disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    /* verhindert den Hover-Effekt, wenn disabled */
+    button.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    button.disabled:hover {
+      background-color: transparent;
+    }
+    @keyframes glow {
+      0%, 100% { box-shadow: 0 0 4px gold; }
+      50%      { box-shadow: 0 0 12px gold; }
+    }
+
+    /* Klasse für den aktuellen Commit */
+    .current-commit {
+      animation: glow 4s infinite ease-in-out;
+      /* stell sicher, dass Du überhaupt eine sichtbare Border hast: */
+      border-width: 1px !important;
+      border-style: solid !important;
+      border-color: gold !important;
+    }
+  </style>
+</head>
+<body class="flex h-screen bg-white">
+
+  <!-- Sidebar -->
+  <aside class="w-64 bg-[#fff1f2] border-r border-[#ffe4e6] flex flex-col">
+    <h2 class="px-4 py-3 text-lg font-semibold text-gray-900">Monitored Folders</h2>
+    <ul id="folderList" class="flex-1 px-2 space-y-2 overflow-y-auto"></ul>
+    <button id="addFolderBtn" class="mx-4 mb-4 flex items-center justify-center space-x-2 px-3 py-2 bg-[#ffe4e6] rounded hover:bg-[#fecdd3]">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[#9f1239]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      <span class="text-sm font-medium text-[#9f1239]">Add Folder</span>
+    </button>
+  </aside>
+
+  <!-- Main panel -->
+  <main class="relative flex flex-col flex-1 bg-white">
+    <div class="flex-1 p-4 overflow-y-auto">
+      <h3 id="currentTitle" class="text-xl font-semibold mb-2">No folder selected</h3>
+      <div class="border-t border-[#ffe4e6] mb-4"></div>
+      <ul id="contentList" class="space-y-1"></ul>
+    </div>
+
+    <div id="catSlot" class="absolute bottom-10 right-4"></div>
+    <div class="w-full flex items-center p-4 bg-[#fff1f2] border-t border-[#ffe4e6]"></div>
+
+    <script src="renderer.js"></script>
+    <script type="module">
+      import { AnimeCat } from './animeCat.js';
+      document.addEventListener('DOMContentLoaded', () => {
+        const slot = document.getElementById('catSlot');
+        const cat  = new AnimeCat(slot, {
+          images: {
+            default:    'assets/cat/default.png',
+            eyesClosed: 'assets/cat/eyes_closed.png',
+            mouthOpen:  'assets/cat/mouth_open.png'
+          }
+        });
+        async function simulateStream(text) {
+          cat.beginSpeech();
+          for (let ch of text) {
+            cat.appendSpeech(ch);
+            await new Promise(r => setTimeout(r, 50));
+          }
+          cat.endSpeech();
+        }
+        simulateStream("Hi there! I'm your friendly assistant 👋");
+      });
+    </script>
+  </main>
+</body>
+</html>
