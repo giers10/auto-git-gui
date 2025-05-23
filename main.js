@@ -117,7 +117,7 @@ function startMonitoringWatcher(folderPath, win) {
     awaitWriteFinish: {
       stabilityThreshold: 300,
       pollInterval: 100
-    } //yo
+    } 
   });
 
   // TODO: Optionale .gitignore Logik nachrüsten
@@ -133,10 +133,10 @@ function startMonitoringWatcher(folderPath, win) {
   // Initialer Commit, falls beim Start schon ungestagte Änderungen vorliegen
   (async () => {
     debug(`[MONITOR] Starte initialen Commit-Check für ${folderPath}`);
-    const did = await autoCommit(
-      folderPath,
-      `[auto] startup ${event} ${path.relative(folderPath, folderPath)}`
-    );
+    const event       = 'startup';
+    const changedPath = folderPath;
+    const msg = `[auto] ${event} ${path.relative(folderPath, changedPath)}`;
+    const did = await autoCommit(folderPath, msg);
     if (did) {
       win.webContents.send('repo-updated', folderPath);
       debug(`[MONITOR] Initialer Auto-Commit für ${folderPath} durchgeführt.`);
