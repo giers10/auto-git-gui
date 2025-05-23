@@ -164,7 +164,7 @@ function startMonitoringWatcher(folderPath, win) {
       win.webContents.send('repo-updated', folderPath);
     }
   });
-
+test
   monitoringWatchers.set(folderPath, watcher);
   debug(`[MONITOR] Watcher aktiv für ${folderPath}`);
 }
