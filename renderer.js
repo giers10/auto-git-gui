@@ -72,58 +72,77 @@ window.addEventListener('DOMContentLoaded', async () => {
     const selected = await window.electronAPI.getSelected();
     folderList.innerHTML = '';
 
-    folders.forEach(folderObj => {
-      const folder = folderObj.path;
-      const isMonitoring = folderObj.monitoring;
-      const li = document.createElement('li');
-      li.className = [
-        'flex items-center justify-between px-3 py-2 rounded cursor-pointer',
-        selected && folder === selected.path ? 'selected' : ''
-      ].join(' ');
+folders.forEach(folderObj => {
+  const folder = folderObj.path;
+  const isMonitoring = folderObj.monitoring;
+  const li = document.createElement('li');
+  li.className = [
+    'flex items-center justify-between px-3 py-2 rounded cursor-pointer',
+    selected && folder === selected.path ? 'selected' : ''
+  ].join(' ');
 
-      li.innerHTML = `
-        <div class="flex items-center space-x-2 overflow-hidden">
-          <svg xmlns="http://www.w3.org/2000/svg"
-               class="h-5 w-5 flex-shrink-0"
-               fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/>
-          </svg>
-          <span class="truncate text-sm font-medium">${basename(folder)}</span>
-        </div>
-        <button class="remove-btn">
-          <svg xmlns="http://www.w3.org/2000/svg"
-               class="h-5 w-5"
-               fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-        </button>
-      `;
-
-        // play/pause Button korrekt initialisieren
-        const pausePlayBtn = document.createElement('button');
-        pausePlayBtn.className = 'pause-play-btn ml-2 p-1 rounded';
-        pausePlayBtn.title = isMonitoring ? 'Monitoring pausieren' : 'Monitoring starten';
-        // statt Emoji: SVG-Strings
-        pausePlayBtn.innerHTML = isMonitoring
-          ? /* Pause-Icon */
-            `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  // beide Buttons schon im Template unter „right“
+  li.innerHTML = `
+    <div class="flex items-center space-x-2 overflow-hidden">
+      <!-- links: Icon + Name -->
+      <svg xmlns="http://www.w3.org/2000/svg"
+           class="h-5 w-5 flex-shrink-0"
+           fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/>
+      </svg>
+      <span class="truncate text-sm font-medium">${basename(folder)}</span>
+    </div>
+    <div class="flex items-center space-x-2">
+      <!-- Play/Pause -->
+      <button class="pause-play-btn p-1 rounded" title="${isMonitoring ? 'Monitoring pausieren' : 'Monitoring starten'}">
+        ${isMonitoring
+          ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                <rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/>
                <rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/>
              </svg>`
-          : /* Play-Icon */
-            `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          : `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                <polygon points="7,5 19,12 7,19" fill="currentColor"/>
-             </svg>`;
+             </svg>`
+        }
+      </button>
+      <!-- Entfernen -->
+      <button class="remove-btn p-1 rounded" title="Ordner entfernen">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+  `;
 
-        pausePlayBtn.addEventListener('click', async e => {
-          e.stopPropagation();
-          await window.electronAPI.setMonitoring(folderObj, !isMonitoring);
-          await renderSidebar();
-        });
-      li.appendChild(pausePlayBtn);
+  // jetzt Listener setzen
+  const pauseBtn = li.querySelector('.pause-play-btn');
+  pauseBtn.addEventListener('click', async e => {
+    e.stopPropagation();
+    await window.electronAPI.setMonitoring(folderObj, !isMonitoring);
+    await renderSidebar();
+  });
 
+  const removeBtn = li.querySelector('.remove-btn');
+  removeBtn.addEventListener('click', async e => {
+    e.stopPropagation();
+    // ... dein Remove-Logic hier ...
+  });
+
+  // Kontextmenü / Click zum Select
+  li.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    window.electronAPI.showFolderContextMenu(folderObj.path);
+  });
+  li.addEventListener('click', async e => {
+    if (e.target.closest('.pause-play-btn, .remove-btn')) return;
+    await window.electronAPI.setSelected(folderObj);
+    await renderSidebar();
+    await renderContent(folderObj);
+  });
+
+  folderList.appendChild(li);
       li.addEventListener('contextmenu', e => {
         e.preventDefault();
         window.electronAPI.showFolderContextMenu(folderObj.path);
