@@ -118,7 +118,7 @@ function startMonitoringWatcher(folderPath, win) {
       stabilityThreshold: 300,
       pollInterval: 100
     }
-  });
+  }); yabadabadu
 
   // TODO: Optionale .gitignore Logik nachrüsten
 
