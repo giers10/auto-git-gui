@@ -130,6 +130,19 @@ function startMonitoringWatcher(folderPath, win) {
     win.webContents.send('repo-updated', folderPath);
   });
 
+  // Initialer Commit, falls beim Start schon ungestagte Änderungen vorliegen
+  (async () => {
+    debug(`[MONITOR] Starte initialen Commit-Check für ${folderPath}`);
+    const did = await autoCommit(
+      folderPath,
+      '[auto] initial commit upon monitoring start'
+    );
+    if (did) {
+      win.webContents.send('repo-updated', folderPath);
+      debug(`[MONITOR] Initialer Auto-Commit für ${folderPath} durchgeführt.`);
+    }
+  })();
+
   monitoringWatchers.set(folderPath, watcher);
   debug(`[MONITOR] Watcher aktiv für ${folderPath}`);
 }
