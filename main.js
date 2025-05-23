@@ -159,7 +159,7 @@ function startMonitoringWatcher(folderPath, win) {
       status.deleted.length > 0 ||
       status.renamed.length > 0
     ) {
-      const msg = buildCommitMessageFromStatus(status, 'auto-git');
+      const msg = buildCommitMessageFromStatus(status, 'auto-git: ');
       await autoCommit(folderPath, msg);
       win.webContents.send('repo-updated', folderPath);
     }
