@@ -65,28 +65,27 @@
       accent-color: var(--accent);
       flex-shrink: 0;        /* <-- das ist wichtig! */
     }
- .row {
-  display: flex;
-  align-items: center;
-  gap: 0.7em;
-  margin-bottom: 0.5em;
-}
-.row > span {
-  flex: 2;
-  font-size: 0.97rem;
-  color: #1e293b;
-}
-.row > select {
-  flex: 1;
-  min-width: 110px;
-  max-width: 180px;
-  padding: 0.4em 0.6em;
-  border: 1.2px solid #cbd5e1;
-  border-radius: 6px;
-  background: #f8fafc;
-  color: #334155;
-  font-size: 0.97rem;
-}
+    .row {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .row > span {
+      flex: 1;
+      color: #1e293b;
+      font-weight: 600;
+    }
+    .row > input,
+    .row > select {
+      /* wenn Du es schmaler willst: */
+      min-width: 80px;
+      max-width: 180px;
+      padding: 0.4em 0.4em;
+      border: 1.2px solid #cbd5e1;
+      border-radius: 6px;
+      background: #f8fafc;
+      color: #334155;
+      font-size: 0.9rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
     .row > input:focus,
     .row > select:focus {
       box-shadow: 0 0 0 2px rgba(56,189,248,0.3);
@@ -143,7 +142,7 @@
       color: #334155;
     }
   </style>
-  <script>≈
+  <script>
   window.addEventListener('DOMContentLoaded', async () => {
     const isSky = await window.settingsAPI.getSkyMode();
     document.body.classList.toggle('sky-mode', isSky);
@@ -237,19 +236,12 @@
   if (!qwen.length) {
     // keine qwen2.5-coder → Pull-Buttons
     container.innerHTML = `
-      <div class="row">
-        <span>Model for commit message generation:</span>
-        <select id="commitModelSelect">
-          ${makeOpts(qwen, currentCommit)}
-        </select>
-      </div>
-      <div class="row">
-        <span>Model for README generation:</span>
-        <select id="readmeModelSelect">
-          ${makeOpts(qwen, currentReadme)}
-        </select>
-      </div>
-    `;
+      <button id="pullCommitModelBtn" style="margin-bottom:8px;">
+        ollama pull qwen2.5-coder:7b
+      </button><br>
+      <button id="pullReadmeModelBtn">
+        ollama pull qwen2.5-coder:32b
+      </button>`;
     document.getElementById('pullCommitModelBtn').onclick = async () => {
       await window.electronAPI.ollamaPull('qwen2.5-coder:7b');
       location.reload();
