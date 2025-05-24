@@ -61,10 +61,12 @@
       display: flex; align-items: center; font-size: 1.05rem;
       color: #1e293b;
     }
-    label.option input {
+    label.option input[type="checkbox"] {
       margin-right: 0.8rem;
-      width: 1.3em; height: 1.3em;
+      width: 1.3em;
+      height: 1.3em;
       accent-color: var(--accent);
+      flex-shrink: 0;        /* <-- das ist wichtig! */
     }
     .row {
       display: flex; align-items: center; justify-content: space-between;
