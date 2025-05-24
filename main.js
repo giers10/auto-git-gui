@@ -203,7 +203,7 @@ async function getCommitsForLLM(folderPath, hashes) {
 }
 
 // 2. Prompts für LLM bauen
-async function generateLLMCommitMessages(folderPath, hashes) {
+async function getPrompt(folderPath, hashes) {
   const commits = await getCommitsForLLM(folderPath, hashes);
 
   if (commits.length === 1) {
@@ -313,7 +313,7 @@ async function squashCommitMessages(repoPath, commitMessage, hashes) {
  */
 
 async function runLLMCommitPipeline(folderPath, hashes) {
-  const prompt = await generateLLMCommitMessages(folderPath, hashes);
+  const prompt = await getPrompt(folderPath, hashes);
   const llmOutput = (await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk))).trim();
 
   if (hashes.length === 1) {
