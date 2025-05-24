@@ -618,10 +618,18 @@ app.whenReady().then(() => {
         click: () => { win.webContents.send('tray-add-folder'); }
       },
       {
-        label: monitoringActive ? 'Monitoring (alle) STOPPEN' : 'Monitoring (alle) STARTEN',
+        label: 'Alle Monitorings starten',
         click: () => {
           folders.forEach(f => {
-            win.webContents.send('tray-toggle-monitoring', f.path);
+            if (!f.monitoring) win.webContents.send('tray-toggle-monitoring', f.path);
+          });
+        }
+      },
+      {
+        label: 'Alle Monitorings stoppen',
+        click: () => {
+          folders.forEach(f => {
+            if (f.monitoring) win.webContents.send('tray-toggle-monitoring', f.path);
           });
         }
       },
