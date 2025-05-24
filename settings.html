@@ -210,70 +210,70 @@
     cancel.addEventListener('click', rollback);
 
 
-  const container = document.getElementById('ollama-model-selectors');
-  const res = await window.electronAPI.ollamaList();
+    const container = document.getElementById('ollama-model-selectors');
+    const res = await window.electronAPI.ollamaList();
 
-  if (res.status === 'no-cli') {
+    if (res.status === 'no-cli') {
+      container.innerHTML = `
+        <div style="color:red;font-weight:bold;margin:1em 0;">
+          !! You need to install Ollama to use intelligent message & README generation !!
+        </div>`;
+      return;
+    }
+
+    if (res.status === 'error') {
+      container.innerHTML = `<div style="color:orange">Error fetching models: ${res.msg}</div>`;
+      return;
+    }
+
+    // Liste der Modell-Namen extrahieren
+    const names = res.models.map(m => m.name || m.model).filter(Boolean);
+    const qwen = names.filter(n => /^qwen2\.5-coder(:[\w\-.]+)?$/.test(n));
+
+    if (!qwen.length) {
+      // keine qwen2.5-coder → Pull-Buttons
+      container.innerHTML = `
+        <button id="pullCommitModelBtn" style="margin-bottom:8px;">
+          ollama pull qwen2.5-coder:7b
+        </button><br>
+        <button id="pullReadmeModelBtn">
+          ollama pull qwen2.5-coder:32b
+        </button>`;
+      document.getElementById('pullCommitModelBtn').onclick = async () => {
+        await window.electronAPI.ollamaPull('qwen2.5-coder:7b');
+        location.reload();
+      };
+      document.getElementById('pullReadmeModelBtn').onclick = async () => {
+        await window.electronAPI.ollamaPull('qwen2.5-coder:32b');
+        location.reload();
+      };
+      return;
+    }
+
+    // Dropdowns aufbauen
+    const makeOpts = (arr, sel) =>
+      arr.map(m => `<option ${m===sel?'selected':''}>${m}</option>`).join('');
+
+    // Default-Auswahl aus Settings (oder erstes gefundenes)
+    const commitDefault = qwen.find(m=>m.includes('7b'))||qwen[0];
+    const readmeDefault= qwen.find(m=>m.includes('32b'))||qwen[0];
+    const currentCommit = await window.settingsAPI.getCommitModel?.() || commitDefault;
+    const currentReadme= await window.settingsAPI.getReadmeModel?.() || readmeDefault;
+
     container.innerHTML = `
-      <div style="color:red;font-weight:bold;margin:1em 0;">
-        !! You need to install Ollama to use intelligent message & README generation !!
+      <div class="row">
+        <label>Model for commit message generation:
+          <select id="commitModelSelect">
+            ${makeOpts(qwen, currentCommit)}
+          </select>
+        </label>
+        <label>Model for README generation:
+          <select id="readmeModelSelect">
+            ${makeOpts(qwen, currentReadme)}
+          </select>
+        </label>
       </div>`;
-    return;
-  }
-
-  if (res.status === 'error') {
-    container.innerHTML = `<div style="color:orange">Error fetching models: ${res.msg}</div>`;
-    return;
-  }
-
-  // Liste der Modell-Namen extrahieren
-  const names = res.models.map(m => m.name || m.model).filter(Boolean);
-  const qwen = names.filter(n => /^qwen2\.5-coder(:[\w\-.]+)?$/.test(n));
-
-  if (!qwen.length) {
-    // keine qwen2.5-coder → Pull-Buttons
-    container.innerHTML = `
-      <button id="pullCommitModelBtn" style="margin-bottom:8px;">
-        ollama pull qwen2.5-coder:7b
-      </button><br>
-      <button id="pullReadmeModelBtn">
-        ollama pull qwen2.5-coder:32b
-      </button>`;
-    document.getElementById('pullCommitModelBtn').onclick = async () => {
-      await window.electronAPI.ollamaPull('qwen2.5-coder:7b');
-      location.reload();
-    };
-    document.getElementById('pullReadmeModelBtn').onclick = async () => {
-      await window.electronAPI.ollamaPull('qwen2.5-coder:32b');
-      location.reload();
-    };
-    return;
-  }
-
-  // Dropdowns aufbauen
-  const makeOpts = (arr, sel) =>
-    arr.map(m => `<option ${m===sel?'selected':''}>${m}</option>`).join('');
-
-  // Default-Auswahl aus Settings (oder erstes gefundenes)
-  const commitDefault = qwen.find(m=>m.includes('7b'))||qwen[0];
-  const readmeDefault= qwen.find(m=>m.includes('32b'))||qwen[0];
-  const currentCommit = await window.settingsAPI.getCommitModel?.() || commitDefault;
-  const currentReadme= await window.settingsAPI.getReadmeModel?.() || readmeDefault;
-
-  container.innerHTML = `
-    <div class="row">
-      <label>Model for commit message generation:
-        <select id="commitModelSelect">
-          ${makeOpts(qwen, currentCommit)}
-        </select>
-      </label>
-      <label>Model for README generation:
-        <select id="readmeModelSelect">
-          ${makeOpts(qwen, currentReadme)}
-        </select>
-      </label>
-    </div>`;
-});
+  });
 </script>
 </head>
 <body>
