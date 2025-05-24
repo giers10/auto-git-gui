@@ -201,24 +201,25 @@ async function getCommitsForLLM(folderPath, hashes) {
   return commits;
 }
 
-// 2. Prompt für LLM bauen
+// 2. Prompts für LLM bauen
 async function generateLLMCommitMessages(folderPath, hashes) {
   const commits = await getCommitsForLLM(folderPath, hashes);
-  if(commits.length == 1){
+
+  if (commits.length === 1) {
+    // Only one commit: Prompt LLM for a message just for this diff.
     const diff = commits[0].diff;
-    const prompt = 
-    `Generate a concise git commit message for these changes:
+    return `Generate a concise git commit message for these changes:
     ${diff}
-     Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short.`;
-  } else if (commits.length > 1) {
-    const prompt = `
-    Analyze the following code changes. We will squash them to a single commit and need a concise git commit message for that. 
+    Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short.`;
+      } else if (commits.length > 1) {
+    // Multiple commits: Squash them, give all diffs as a big change.
+    const combinedDiffs = commits.map(c => c.diff).join('\n\n');
+    return `Analyze the following code changes (from multiple commits). We will squash them to a single commit and need a concise git commit message for that. 
     Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short.
-    Here are the commits (as JSON):
-    ${JSON.stringify(commits, null, 2)}`; //actually we only need the diffs here.
-    return prompt;
+    Here are the combined diffs:
+    ${combinedDiffs}`;
   } else {
-    //break, but this should never be reached
+    throw new Error('No commits found for LLM prompt.');
   }
 }
 
@@ -299,7 +300,13 @@ function parseLLMCommitMessages(rawOutput) {
 }
 
 // 5. Rewrite-Logik (mit simple-git, wie oben!)
-async function rewriteCommitMessages(repoPath, messageMap, hashesToRewrite) {
+async function rewriteCommitMessages(repoPath, message) {
+  const git = simpleGit(repoPath);
+  await git.raw(['commit', '--amend', '-m', message, '--no-edit', '--allow-empty']);
+} 
+
+
+/*async function rewriteCommitMessages(repoPath, messageMap, hashesToRewrite) {
   const git = simpleGit(repoPath);
 
   let branchesWithHashes = new Set();
@@ -327,12 +334,14 @@ async function rewriteCommitMessages(repoPath, messageMap, hashesToRewrite) {
     }
     // Kein Push!
   }
-}
+} */
 
 /**
  * Komplett-Workflow: Von Kandidaten bis Rewrite
  */
 //async function runLLMCommitPipeline(folderPath, hashes, win) {
+
+
 async function runLLMCommitPipeline(folderPath, hashes) {
   // 1. Prompt bauen
   const prompt = await generateLLMCommitMessages(folderPath, hashes);
@@ -340,14 +349,23 @@ async function runLLMCommitPipeline(folderPath, hashes) {
   const llmOutput = await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk));
   //console.log('LLM Output:\n', llmOutput); // Nur ein einziges Mal
   // 3. Robust parsen
-  const commitList = parseLLMCommitMessages(llmOutput); // [{commit, newMessage}]
+  //const commitList = parseLLMCommitMessages(llmOutput); // [{commit, newMessage}] - fuck it, maybe later something else
   // 4. Hash->Message Mapping
-  const messageMap = {};
-  for (const entry of commitList) {
-    messageMap[entry.commit] = entry.newMessage;
-  }
+
+  //const messageMap = {};
+  //for (const entry of commitList) {
+  //  messageMap[entry.commit] = entry.newMessage;
+  //}
   // 5. Rewrite
-  await rewriteCommitMessages(folderPath, messageMap, hashes);
+  //await rewriteCommitMessages(folderPath, messageMap, hashes);
+  if(hashes.length == 1){
+    const git = simpleGit(folderPath);
+    await git.raw(['commit', '--amend', '-m', message, '--no-edit', '--allow-empty']);
+  } else if (hashes.length > 1) {
+    await squashCommitMessages(folderPath, llmOutput, hashes); //WE NEED THIS FUNCTION, WRITE IT PLEASE
+  } else {
+    //should never be reached, right?
+  }
 
   // Optional: Notification anzeigen
   //if (win && win.webContents) {
