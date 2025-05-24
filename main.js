@@ -141,21 +141,7 @@ function startMonitoringWatcher(folderPath, win) {
 
 
 /*
-ok
-
-3b ist schnell aber dumm wie scheisse
-7b muss schon sein
-
-besser ises
-
-
-
-
-
-
-
-
-und los
+kleinere models - bessere prompts!
 
 */
 
