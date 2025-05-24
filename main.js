@@ -20,7 +20,6 @@ const store = new Store({
     intelligentCommitThreshold: 100
   }
 });
-
  
 let folders = store.get('folders');
 if (Array.isArray(folders)) {
@@ -197,8 +196,6 @@ function stopMonitoringWatcher(folderPath) {
   }
 }
 
-
-
 // ---- Rewrite Git Messages with LLM generated messages ----
 
 // ---- 1. Commits & Diffs für LLM sammeln ----
@@ -309,9 +306,6 @@ function parseLLMCommitMessages(rawOutput) {
   throw new Error('Could not parse LLM output:\n' + rawOutput);
 }
 
-
-
-
 // --- Hauptfunktion ---
 /**
  * Rewords commit messages for each hash (oldest to newest) using git rebase -i in a loop.
@@ -358,7 +352,6 @@ async function rewordCommitsSequentially(repoPath, commitMessageMap, hashes) {
   }
   console.log('[AutoGit] All specified commit messages updated!');
 }
-
 
 // ---- 6. Komplett-Workflow (Randomized) ----
 async function runLLMCommitRewrite(folderPath, hashes) {
@@ -413,7 +406,6 @@ function createRewriteScript(mapping) {
   fs.writeFileSync(scriptPath, content, 'utf-8');
   return scriptPath;
 }
-
 
 
 async function autoCommit(folderPath, message) {
@@ -549,7 +541,6 @@ app.whenReady().then(() => {
     { role: 'editMenu' }  // <-- hiermit aktivierst du Copy/Paste via Ctrl+C / Cmd+C
   ]);
   Menu.setApplicationMenu(menu);
-
 
   // 1) Beim Start bereits gespeicherte Ordner überwachen und monitoren
   const folders = store.get('folders') || [];
