@@ -198,13 +198,17 @@ folders.forEach(folderObj => {
     });
   }
 
+  function closeDropdown() {
+    folderHierarchyDropdown.classList.add('hidden');
+    folderTitleArrow.classList.remove('open');
+    isDropdownOpen = false;
+  }
+
   async function renderContent(folderObj) {
     const folder = folderObj.path;
     titleEl.textContent = folder;
     const { head, commits } = await window.electronAPI.getCommits(folderObj);
-    window.addEventListener('repo-updated', () => {
-      closeDropdown();
-    });
+    closeDropdown();
 
     contentList.innerHTML = commits.map(c => `
       <li class="w-full p-3 mb-2 bg-white border border-gray-200 rounded shadow-sm
@@ -437,12 +441,6 @@ folders.forEach(folderObj => {
     const tree = await window.electronAPI.getFolderTree(selected.path);
     folderHierarchyDropdown.textContent = renderFolderTreeAscii(tree, '.', '');
   });
-
-  function closeDropdown() {
-    folderHierarchyDropdown.classList.add('hidden');
-    folderTitleArrow.classList.remove('open');
-    isDropdownOpen = false;
-  }
 
   // ASCII-Baum: wie bei ChatGPT!
   function renderFolderTreeAscii(tree, prefix = '', indent = '') {
