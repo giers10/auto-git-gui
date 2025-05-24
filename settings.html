@@ -182,6 +182,7 @@
       document.body.classList.toggle('sky-mode', cbSky.checked);
     });
     // OK: alles final speichern
+    alert("bin da");
     ok.addEventListener('click', async () => {
       await window.settingsAPI.setSkipPrompt(cbSkip.checked);
       await window.settingsAPI.setAutostart(cbAutostart.checked);
@@ -211,7 +212,6 @@
     };
     cancel.addEventListener('click', rollback);
     close.addEventListener('click',  rollback);
-    alert("bin da");
 
   const container = document.getElementById('ollama-model-selectors');
   const res = await window.electronAPI.ollamaList();
