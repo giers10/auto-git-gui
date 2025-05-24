@@ -201,7 +201,7 @@ async function getCommitsForLLM(folderPath, hashes) {
   return commits;
 }
 
-// 2. Prompts für LLM bauen
+// 2. Prompt für LLM bauen
 async function generateLLMCommitMessages(folderPath, hashes) {
   const commits = await getCommitsForLLM(folderPath, hashes);
 
@@ -209,15 +209,15 @@ async function generateLLMCommitMessages(folderPath, hashes) {
     // Only one commit: Prompt LLM for a message just for this diff.
     const diff = commits[0].diff;
     return `Generate a concise git commit message for these changes:
-    ${diff}
-    Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short.`;
-      } else if (commits.length > 1) {
+${diff}
+Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short.`;
+  } else if (commits.length > 1) {
     // Multiple commits: Squash them, give all diffs as a big change.
     const combinedDiffs = commits.map(c => c.diff).join('\n\n');
     return `Analyze the following code changes (from multiple commits). We will squash them to a single commit and need a concise git commit message for that. 
-    Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short.
-    Here are the combined diffs:
-    ${combinedDiffs}`;
+Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short.
+Here are the combined diffs:
+${combinedDiffs}`;
   } else {
     throw new Error('No commits found for LLM prompt.');
   }
