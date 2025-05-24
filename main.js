@@ -214,7 +214,8 @@ Generate a concise git commit message for these changes:
 
     ${diff}
 
-Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short! A commit message MUST NOT exceed 70 characters!`;
+Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short! A commit message MUST NOT BE STRAIGHT TO THE POINT!
+Also reply to my message, just give me the commit message.`;
       } else if (commits.length > 1) {
     // Multiple commits: Squash them, give all diffs as a big change.
     const combinedDiffs = commits.map(c => c.diff).join('\n\n');
@@ -226,52 +227,60 @@ Here are the combined diffs:
 --------------------------------------
 
 Even if this might seem like a lot of code, I need you to answer in a SINGLE SENTENCE. A git commit message to be precise is what I need from you, to protocol these changes.
-Don't give any feedback on the code! Just analyze what changed and write the git commit message. Keep it short! A commit message MUST NOT exceed 70 characters!`;
+Don't give any feedback on the code! Just analyze what changed and write the git commit message. Keep it short! A commit message MUST NOT BE STRAIGHT TO THE POINT!
+Don't reply to my message, just give me the commit message.`;
   } else {
     throw new Error('No commits found for LLM prompt.');
   }
 }
 
 // 3. LLM Streaming Call
-async function streamLLMCommitMessages(prompt, onDataChunk) {
-  console.log(prompt);
-  const response = await fetch('http://localhost:11434/api/generate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'qwen2.5-coder:32b',
-      prompt: prompt,
-      stream: true
-    })
-  });
+async function streamLLMCommitMessages(prompt, onDataChunk, maxLen = 500) {
+  return new Promise((resolve, reject) => {
+    const child = spawn('ollama', [
+      'chat', '--stream',
+      '--model', 'qwen2.5-coder:32b',
+      '--prompt', prompt
+    ]);
 
-  if (!response.body) throw new Error('No stream returned');
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
+    let out = '';
+    let resolved = false;
 
-  let fullOutput = '';
-  let done = false;
-  while (!done) {
-    const { value, done: streamDone } = await reader.read();
-    done = streamDone;
-    if (value) {
-      const chunk = decoder.decode(value, { stream: true });
-      for (const line of chunk.split('\n')) {
-        if (!line.trim()) continue;
-        try {
-          const obj = JSON.parse(line);
-          if (obj.response) {
-            fullOutput += obj.response;
-            if (onDataChunk) onDataChunk(obj.response);
-          }
-          if (obj.done) break;
-        } catch (e) {
-          // ignore malformed chunk
-        }
+    child.stdout.on('data', chunk => {
+      const s = chunk.toString();
+      out += s;
+      if (onDataChunk) onDataChunk(s);
+
+      // Cut at first linebreak OR at maxLen
+      const firstLine = out.split('\n')[0];
+      if (!resolved && (firstLine.length >= maxLen || out.includes('\n'))) {
+        resolved = true;
+        child.kill();
+        resolve(firstLine.slice(0, maxLen).trim());
       }
-    }
-  }
-  return fullOutput;
+    });
+
+    child.stderr.on('data', chunk => {
+      if (!resolved) {
+        resolved = true;
+        reject(chunk.toString());
+      }
+    });
+
+    child.on('close', () => {
+      if (!resolved) {
+        const firstLine = out.split('\n')[0];
+        resolve(firstLine.slice(0, maxLen).trim());
+      }
+    });
+
+    child.on('error', err => {
+      if (!resolved) {
+        resolved = true;
+        reject(err);
+      }
+    });
+  });
 }
 
 async function squashCommitMessages(repoPath, commitMessage, hashes) {
