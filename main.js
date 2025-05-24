@@ -253,20 +253,19 @@ app.whenReady().then(() => {
   const win = createWindow();
 
   // Menüs
-  /*
+  
   const menu = Menu.buildFromTemplate([
     {
       role: 'appMenu',
       submenu: [
-        {
-          label: 'Settings', click: () => openSettings(win)
-        },
+        { label: 'Settings', click: () => openSettings(win) },
         { role: 'quit', label: 'Quit' }
       ]
-    }, // mehr menüs hier
+    },
+    { role: 'editMenu' }  // <-- hiermit aktivierst du Copy/Paste via Ctrl+C / Cmd+C
   ]);
   Menu.setApplicationMenu(menu);
-  */
+
 
   // 1) Beim Start bereits gespeicherte Ordner überwachen und monitoren
   const folders = store.get('folders') || [];
