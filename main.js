@@ -102,8 +102,8 @@ function openSettings(win) {
  settingsWin = new BrowserWindow({
    parent: win,
    modal: true,
-   width: 400,
-   height: 400, 
+   width: 700,
+   height: 700, 
    resizable: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
