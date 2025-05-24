@@ -145,7 +145,12 @@
       -webkit-user-select: none;
       user-select: none;
     }
-
+    #folderHierarchyDropdown.open {
+      display: block;
+    }
+    #folderTitleArrow.open {
+      transform: rotate(90deg);
+    }
   </style>
 </head>
 <body class="flex h-screen bg-white">
@@ -178,10 +183,19 @@
 
     <!-- Content-Area -->
     <div class="flex-1 p-4 overflow-y-auto content-area">
-      <h3 id="currentTitle" class="text-xl font-semibold mb-2"
+      <!--<h3 id="currentTitle" class="text-xl font-semibold mb-2"
           style="color: var(--accent)">
         No folder selected
-      </h3>
+      </h3>-->
+      <div id="folderTitleDrop" class="relative flex items-center space-x-2 cursor-pointer select-none group">
+        <svg id="folderTitleArrow" class="h-4 w-4 transition-transform group-hover:text-blue-500" viewBox="0 0 24 24">
+          <path stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+            d="M9 5l7 7-7 7"/>
+        </svg>
+        <span id="currentTitle" class="font-medium truncate"></span>
+      </div>
+      <div id="folderHierarchyDropdown"
+     class="absolute left-0 top-full z-50 min-w-[22rem] max-w-[32rem] max-h-96 overflow-auto shadow-xl bg-white border border-gray-200 rounded-2xl p-4 mt-2 hidden"></div>
       <div class="border-t mb-4" style="border-color: var(--border)"></div>
       <ul id="contentList" class="space-y-1"></ul>
     </div>
