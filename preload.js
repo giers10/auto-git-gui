@@ -11,7 +11,7 @@ contextBridge.exposeInMainWorld('settingsAPI', {
   setCommitModel: (model) => ipcRenderer.invoke('set-commit-model', model),
   getReadmeModel: () => ipcRenderer.invoke('get-readme-model'),
   setReadmeModel: (model) => ipcRenderer.invoke('set-readme-model', model),
-  close: () => ipcRenderer.send('close-settings')m
+  close: () => ipcRenderer.send('close-settings'),
   getAutostart: () => ipcRenderer.invoke('get-autostart'),
   setAutostart: val => ipcRenderer.invoke('set-autostart', val),
   getCloseToTray: () => ipcRenderer.invoke('get-close-to-tray'),
