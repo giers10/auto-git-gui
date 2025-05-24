@@ -75,6 +75,7 @@ function openSettings(win) {
 }
 
 
+
 /**
  * Startet einen File-Watcher auf .git/refs/heads/master,
  * sendet bei Änderungen 'repo-updated' an den Renderer.
