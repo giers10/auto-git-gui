@@ -214,6 +214,18 @@ lol
 
 lol
 
+lol
+
+lol
+
+lol
+
+lol
+
+lol
+
+lol
+
 */
 
 // ---- 2. Prompt für LLM bauen ----
