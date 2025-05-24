@@ -45,9 +45,11 @@ window.addEventListener('DOMContentLoaded', async () => {
         if (hour >= 18 || hour < 6) {
           titleEl.style.color = '#fff';
           treeviewEl.style.color = '#fff';
+          titleArrow.style.color = '#fff';
         } else {
           titleEl.style.color = '';
           treeviewEl.style.color = '';
+          titleArrow.style.color = '';
         }
       }
       updateTitleColor();
