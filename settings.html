@@ -9,9 +9,9 @@
 
     :root {
       /* Default-Modus: Weißes Panel mit Rosa-Akzenten */
-      --bg-main:    #fff;        /* Hintergrund Content */
+      --bg-main:    #9f1239;        /* Hintergrund Content */
       --bg-sidebar: #fff1f2;     /* Sidebar */
-      --accent:     #9f1239;     /* Rosa */
+      --accent:     #fff;     /* Rosa */
       --border:     #ffe4e6;
     }
     body.sky-mode {
@@ -135,7 +135,7 @@
   window.addEventListener('DOMContentLoaded', async () => {
     const isSky = await window.settingsAPI.getSkyMode();
     document.body.classList.toggle('sky-mode', isSky);
-    
+
     // Elemente holen
     const cbSky       = document.getElementById('skymode');
     const cbSkip      = document.getElementById('skipPrompt');
