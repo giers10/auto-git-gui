@@ -140,6 +140,24 @@ function startMonitoringWatcher(folderPath, win) {
     debug(`[MONITOR] Starte initialen Commit-Check für ${folderPath}`);
 
 
+/*
+ok
+
+3b ist schnell aber dumm wie scheisse
+7b muss schon sein
+
+besser ises
+
+
+
+
+
+
+
+
+und los
+
+*/
 
     const git = simpleGit(folderPath);
     const status = await git.status();
