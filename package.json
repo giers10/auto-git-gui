@@ -10,7 +10,7 @@
     "dist": "electron-builder"
   },
   "build": {
-    "appId": "com.deinname.auto-git",
+    "appId": "com.victorgiers.auto-git",
     "productName": "Auto-Git",
     "files": [
       "**/*"
@@ -32,6 +32,7 @@
     "chokidar": "^4.0.3",
     "electron-store": "^8.2.0",
     "ignore": "^7.0.4",
+    "node-fetch": "^3.3.2",
     "simple-git": "^3.20.0",
     "suncalc": "^1.9.0"
   },

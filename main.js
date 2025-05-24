@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const Store = require('electron-store');
 const simpleGit = require('simple-git');
+//const fetch = require('node-fetch');
 const chokidar = require('chokidar');
 
 const store = new Store({
@@ -179,6 +180,182 @@ function stopMonitoringWatcher(folderPath) {
   }
 }
 
+
+
+// ---- Rewrite Git Messages with LLM generated messages ----
+
+
+// 1. Commits & Diffs für LLM sammeln
+async function getCommitsForLLM(folderPath, hashes) {
+  const git = simpleGit(folderPath);
+  const commits = [];
+  for (const hash of hashes) {
+    const diff = await git.diff([`${hash}^!`]);
+    const msg  = (await git.show(['-s', '--format=%B', hash])).trim();
+    commits.push({
+      hash,
+      message: msg,
+      diff
+    });
+  }
+  return commits;
+}
+
+// 2. Prompt für LLM bauen
+async function generateLLMCommitMessages(folderPath, hashes) {
+  const commits = await getCommitsForLLM(folderPath, hashes);
+  const prompt = `
+Analyze the following git commits. For each commit, generate a concise commit message summarizing the actual change.
+- ONLY output a JSON object mapping each commit hash to its new message.
+- Do NOT add any explanations, greetings, or extra text.
+
+Example Output:
+{
+  "1a2b3c4": "Fix bug in user registration",
+  "2b3c4d5": "Refactor login logic"
+}
+
+COMMITS (as JSON):
+
+${JSON.stringify(commits, null, 2)}
+  `;
+  return prompt;
+}
+
+// 3. LLM Streaming Call
+async function streamLLMCommitMessages(prompt, onDataChunk) {
+  const response = await fetch('http://localhost:11434/api/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'qwen2.5-coder:32b',  // ggf. Modell anpassen
+      prompt: prompt,
+      stream: true
+    })
+  });
+
+  if (!response.body) throw new Error('No stream returned');
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  let fullOutput = '';
+  let done = false;
+  while (!done) {
+    const { value, done: streamDone } = await reader.read();
+    done = streamDone;
+    if (value) {
+      const chunk = decoder.decode(value, { stream: true });
+      for (const line of chunk.split('\n')) {
+        if (!line.trim()) continue;
+        try {
+          const obj = JSON.parse(line);
+          if (obj.response) {
+            fullOutput += obj.response;
+            if (onDataChunk) onDataChunk(obj.response);
+          }
+          if (obj.done) break;
+        } catch (e) {
+          // ignore malformed chunk
+        }
+      }
+    }
+  }
+
+  return fullOutput;
+}
+
+// 4. JSON Output robust parsen
+function parseLLMCommitMessages(rawOutput) {
+  let cleaned = rawOutput.trim();
+  cleaned = cleaned.replace(/^```(?:json)?|```$/gmi, '');
+
+  try {
+    if (cleaned.trim().startsWith('[')) return JSON.parse(cleaned);
+    if (cleaned.trim().startsWith('{')) {
+      const obj = JSON.parse(cleaned);
+      return Object.entries(obj).map(([commit, newMessage]) => ({ commit, newMessage }));
+    }
+    // Zeilenweise Objekte (fuzzy)
+    if (cleaned.includes('\n')) {
+      let lines = cleaned.split('\n').map(l => l.trim()).filter(Boolean);
+      let objs = [];
+      for (let line of lines) {
+        try { let o = JSON.parse(line); objs.push(o); } catch {}
+      }
+      if (objs.length) return objs;
+    }
+  } catch (err) {
+    // Fallback repair
+    try {
+      cleaned = cleaned.replace(/}\s*{/g, '},\n{');
+      if (!cleaned.startsWith('[')) cleaned = '[' + cleaned;
+      if (!cleaned.endsWith(']')) cleaned = cleaned + ']';
+      return JSON.parse(cleaned);
+    } catch (e) {
+      throw new Error('Could not parse LLM output:\n' + rawOutput);
+    }
+  }
+  throw new Error('Could not parse LLM output:\n' + rawOutput);
+}
+
+// 5. Rewrite-Logik (mit simple-git, wie oben!)
+async function rewriteCommitMessages(repoPath, messageMap, hashesToRewrite) {
+  const git = simpleGit(repoPath);
+
+  let branchesWithHashes = new Set();
+  for (let hash of hashesToRewrite) {
+    const branches = await git.branch(['--contains', hash]);
+    Object.keys(branches.branches).forEach(branch => {
+      branchesWithHashes.add(branch);
+    });
+  }
+
+  for (let branch of branchesWithHashes) {
+    await git.checkout(branch);
+
+    const log = await git.log();
+    const commitsInBranch = log.all.map(c => c.hash);
+    const targetHashes = commitsInBranch.filter(hash => hashesToRewrite.includes(hash));
+    if (targetHashes.length === 0) continue;
+    // Von ältestem zum neuesten
+    for (let i = log.all.length - 1; i >= 0; i--) {
+      const c = log.all[i];
+      if (hashesToRewrite.includes(c.hash)) {
+        const newMsg = messageMap[c.hash] || c.message;
+        await git.raw(['commit', '--amend', '-m', newMsg, '--no-edit', '--allow-empty']);
+      }
+    }
+    // Kein Push!
+  }
+}
+
+/**
+ * Komplett-Workflow: Von Kandidaten bis Rewrite
+ */
+//async function runLLMCommitPipeline(folderPath, hashes, win) {
+async function runLLMCommitPipeline(folderPath, hashes) {
+  // 1. Prompt bauen
+  const prompt = await generateLLMCommitMessages(folderPath, hashes);
+  // 2. LLM Call & Streaming Output für die Katze (optional)
+  const llmOutput = await streamLLMCommitMessages(prompt, chunk => { /* Katze usw. */ });
+  console.log('LLM Output:\n', llmOutput); // Nur ein einziges Mal
+  // 3. Robust parsen
+  const commitList = parseLLMCommitMessages(llmOutput); // [{commit, newMessage}]
+  // 4. Hash->Message Mapping
+  const messageMap = {};
+  for (const entry of commitList) {
+    messageMap[entry.commit] = entry.newMessage;
+  }
+  // 5. Rewrite
+  await rewriteCommitMessages(folderPath, messageMap, hashes);
+
+  // Optional: Notification anzeigen
+  //if (win && win.webContents) {
+  //  win.webContents.send('llm-commit-rewrite-finished', { changed: hashes.length });
+  //}
+}
+
+
 async function autoCommit(folderPath, message) {
   const git = simpleGit(folderPath);
   const status = await git.status();
@@ -275,20 +452,20 @@ async function autoCommit(folderPath, message) {
 
     // Nach Commit: neuen HEAD ermitteln und in llmCandidates speichern
     const newHead = (await git.revparse(['HEAD'])).trim();
+    folders[idx].llmCandidates = folders[idx].llmCandidates || [];
     folders[idx].llmCandidates.push(newHead);
 
     // Threshold holen
     const threshold = store.get('intelligentCommitThreshold') || 10;
     if (folders[idx].linesChanged >= threshold) {
-      // → Jetzt ist Zeit für den LLM-Magic-Event
       debug('Congratulations! You changed enough lines of code :)');
-
-      // Hier wird später der LLM-Workflow ausgelöst (siehe nächster Schritt)
-      // Z.B. await runLLMRewrite(folders[idx].llmCandidates, folderPath);
-
-      // Resette Zähler & Candidate-List
+      // **Hier: LLM-Workflow starten**
+      //await runLLMCommitPipeline(folderPath, folders[idx].llmCandidates, win);
+      await runLLMCommitPipeline(folderPath, folders[idx].llmCandidates);
+      // Reset danach:
       folders[idx].linesChanged = 0;
       folders[idx].llmCandidates = [];
+      store.set('folders', folders);
     }
 
     // Folder-Objekt speichern
