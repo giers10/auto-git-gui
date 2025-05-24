@@ -411,6 +411,10 @@ folders.forEach(folderObj => {
   });
 
 
+
+});
+
+
   const folderTitleDrop = document.getElementById('folderTitleDrop');
   const folderTitleArrow = document.getElementById('folderTitleArrow');
   const folderHierarchyDropdown = document.getElementById('folderHierarchyDropdown');
@@ -473,5 +477,3 @@ folders.forEach(folderObj => {
       }
     }).join('') + '</ul>';
   }
-
-});
