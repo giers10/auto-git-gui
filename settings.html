@@ -114,7 +114,6 @@
 
     // OK: alles final speichern
     ok.addEventListener('click', async () => {
-      alert('OK gedrückt');
       await window.settingsAPI.setSkipPrompt(cbSkip.checked);
       // SkyMode haben wir ja schon beim Change gesetzt
 
@@ -130,6 +129,7 @@
       const readmeSel = document.getElementById('readmeModelSelect');
       if (commitSel) await window.settingsAPI.setCommitModel(commitSel.value);
       if (readmeSel)  await window.settingsAPI.setReadmeModel(readmeSel.value);
+      alert('OK gedrückt');
 
       window.settingsAPI.close();
     });
