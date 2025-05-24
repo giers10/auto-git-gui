@@ -124,6 +124,7 @@
       if (threshold > 1000) threshold = 1000;
       await window.settingsAPI.setIntelligentCommitThreshold(threshold);
 
+      alert('OK gedrückt');
       // Dropdowns speichern
       const commitSel = document.getElementById('commitModelSelect');
       const readmeSel = document.getElementById('readmeModelSelect');
