@@ -236,12 +236,19 @@
   if (!qwen.length) {
     // keine qwen2.5-coder → Pull-Buttons
     container.innerHTML = `
-      <button id="pullCommitModelBtn" style="margin-bottom:8px;">
-        ollama pull qwen2.5-coder:7b
-      </button><br>
-      <button id="pullReadmeModelBtn">
-        ollama pull qwen2.5-coder:32b
-      </button>`;
+      <div class="row">
+        <span>Model for commit message generation:</span>
+        <select id="commitModelSelect">
+          ${makeOpts(qwen, currentCommit)}
+        </select>
+      </div>
+      <div class="row">
+        <span>Model for README generation:</span>
+        <select id="readmeModelSelect">
+          ${makeOpts(qwen, currentReadme)}
+        </select>
+      </div>
+    `;
     document.getElementById('pullCommitModelBtn').onclick = async () => {
       await window.electronAPI.ollamaPull('qwen2.5-coder:7b');
       location.reload();
