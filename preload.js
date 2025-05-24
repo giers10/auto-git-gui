@@ -46,18 +46,3 @@ ipcRenderer.on('skymode-changed', (_e, val) => {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
