@@ -847,7 +847,81 @@ app.whenReady().then(() => {
   ipcMain.handle('set-intelligent-commit-threshold', (_e, value) => {
     store.set('intelligentCommitThreshold', value);
   });
+/* lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
+lol
 
+/*
 
 
   // … Ende der IPC-Handler …
