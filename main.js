@@ -251,7 +251,8 @@ async function streamLLMCommitMessages(prompt, onDataChunk) {
     body: JSON.stringify({
       model: selectedModel, // ggf. Modell anpassen
       prompt: prompt,
-      stream: true
+      stream: true,
+      options: { temperature: 0.3 }
     })
   });
 
