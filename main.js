@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, shell, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Tray, Menu, shell, clipboard, nativeImage } = require('electron');
 app.name = 'Auto-Git';
 const { exec } = require('child_process');
 const { spawn } = require('child_process');
@@ -19,7 +19,77 @@ const store = new Store({
     intelligentCommitThreshold: 100
   }
 });
- 
+
+let tray = null;
+const iconPath = path.join(__dirname, 'trayicon.png'); // Passe ggf. an
+tray = new Tray(nativeImage.createFromPath(iconPath));
+
+// --- Context Menu bauen ---
+function buildTrayMenu() {
+  const folders = store.get('folders') || [];
+  const monitoringActive = folders.some(f => f.monitoring);
+
+  return Menu.buildFromTemplate([
+    { label: 'Auto-Git öffnen', click: () => { win.show(); win.focus(); } },
+    { type: 'separator' },
+    ...folders.map(f => ({
+      label: `${f.monitoring ? '🟢' : '🔴'} ${path.basename(f.path)}`,
+      submenu: [
+        {
+          label: f.monitoring ? 'Monitoring stoppen' : 'Monitoring starten',
+          click: () => {
+            win.webContents.send('tray-toggle-monitoring', f.path); // Renderer kann dann toggeln
+          }
+        },
+        {
+          label: 'Ordner entfernen',
+          click: () => {
+            win.webContents.send('tray-remove-folder', f.path);
+          }
+        }
+      ]
+    })),
+    { type: 'separator' },
+    {
+      label: 'Neuen Ordner hinzufügen',
+      click: () => { win.webContents.send('tray-add-folder'); }
+    },
+    {
+      label: monitoringActive ? 'Monitoring (alle) STOPPEN' : 'Monitoring (alle) STARTEN',
+      click: () => {
+        folders.forEach(f => {
+          win.webContents.send('tray-toggle-monitoring', f.path);
+        });
+      }
+    },
+    { type: 'separator' },
+    { label: 'Beenden', role: 'quit' }
+  ]);
+}
+
+tray.setToolTip('Auto-Git läuft im Hintergrund');
+tray.setContextMenu(buildTrayMenu());
+
+// Menu immer wieder aktualisieren, wenn sich Ordner ändern:
+store.onDidChange('folders', () => {
+  tray.setContextMenu(buildTrayMenu());
+});
+
+// Optional: Minimieren auf Tray bei Fenster-Schließen
+win.on('close', (e) => {
+  if (!app.isQuiting) {
+    e.preventDefault();
+    win.hide();
+  }
+});
+
+// Doppelklick aufs Tray: Fenster zeigen
+tray.on('double-click', () => {
+  win.show();
+});
+
+
+
 let folders = store.get('folders');
 if (Array.isArray(folders)) {
   folders = folders.map(f => ({
