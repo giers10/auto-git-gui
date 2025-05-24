@@ -16,11 +16,14 @@ const store = new Store({
     selected: null,
     skymode: true,
     skipGitPrompt: true,
-    intelligentCommitThreshold: 100
+    intelligentCommitThreshold: 20,
+    autostart: false,
+    closeToTray: true
   }
 });
 
 let tray = null;
+let isQuiting = false;
 
 function createTray(win) {
   const iconPath = path.join(__dirname, 'assets/icon/trayicon.png');
@@ -570,17 +573,16 @@ async function autoCommit(folderPath, message) {
 app.whenReady().then(() => {
   const win = createWindow();
 
-  // Menüs
-  
+  // Menubar
   const menu = Menu.buildFromTemplate([
     {
       role: 'appMenu',
       submenu: [
         { label: 'Settings', click: () => openSettings(win) },
-        { role: 'quit', label: 'Quit' }
+        { label: 'Quit', role: 'quit', click: () => { isQuiting = true; app.quit(); } }
       ]
     },
-    { role: 'editMenu' }  // <-- hiermit aktivierst du Copy/Paste via Ctrl+C / Cmd+C
+    { role: 'editMenu' }
   ]);
   Menu.setApplicationMenu(menu);
 
@@ -634,7 +636,7 @@ app.whenReady().then(() => {
         }
       },
       { type: 'separator' },
-      { label: 'Beenden', role: 'quit' }
+      { label: 'Beenden', click: () => { isQuiting = true; app.quit(); } }
     ]);
   }
 
@@ -1016,12 +1018,35 @@ app.whenReady().then(() => {
     store.set('intelligentCommitThreshold', value);
   });
 
+  ipcMain.handle('get-autostart', () => store.get('autostart'));
+  ipcMain.handle('set-autostart', (_e, val) => {
+    store.set('autostart', val);
+    // Optional: System-Autostart umschalten (siehe unten)
+  });
+  ipcMain.handle('get-close-to-tray', () => store.get('closeToTray'));
+  ipcMain.handle('set-close-to-tray', (_e, val) => store.set('closeToTray', val));
+
 
   ipcMain.on('close-settings', () => {
     if (settingsWin) settingsWin.close();
   });
 
+
+
+  ipcMain.handle('set-autostart', (_e, enabled) => {
+    store.set('autostart', enabled);
+    app.setLoginItemSettings({
+      openAtLogin: !!enabled
+    });
+  });
+
+
   win.webContents.openDevTools({ mode: 'detach' });
+
+
+
+
+
   // … Ende der IPC-Handler …
 });
 
@@ -1047,9 +1072,9 @@ ipcMain.on('show-folder-context-menu', (event, folderPath) => {
 }); 
 
 // clean up on exit
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin'){
-    //app.isQuiting = true;
-    app.quit();
+win.on('close', (e) => {
+  if (!isQuiting && store.get('closeToTray')) {
+    e.preventDefault();
+    win.hide();
   }
 });

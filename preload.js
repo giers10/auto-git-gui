@@ -12,6 +12,10 @@ contextBridge.exposeInMainWorld('settingsAPI', {
   getReadmeModel: () => ipcRenderer.invoke('get-readme-model'),
   setReadmeModel: (model) => ipcRenderer.invoke('set-readme-model', model),
   close: () => ipcRenderer.send('close-settings')
+  getAutostart: () => ipcRenderer.invoke('get-autostart'),
+  setAutostart: val => ipcRenderer.invoke('set-autostart', val),
+  getCloseToTray: () => ipcRenderer.invoke('get-close-to-tray'),
+  setCloseToTray: val => ipcRenderer.invoke('set-close-to-tray', val),
 });
 
 contextBridge.exposeInMainWorld('electronAPI', {

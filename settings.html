@@ -149,6 +149,15 @@
     const ok          = document.getElementById('okBtn');
     const cancel      = document.getElementById('cancelBtn');
     const close       = document.getElementById('closeBtn');
+    const cbAutostart  = document.getElementById('autostart');
+    const cbCloseToTray= document.getElementById('closeToTray');
+
+    const [initialAutostart, initialCloseToTray] = await Promise.all([
+      window.settingsAPI.getAutostart(),
+      window.settingsAPI.getCloseToTray()
+    ]);
+    cbAutostart.checked   = initialAutostart;
+    cbCloseToTray.checked = initialCloseToTray;
 
     // Initialwerte parallel laden
     const [initialSky, initialSkip, initialThreshold] = await Promise.all([
@@ -284,7 +293,14 @@
         <!-- Hier kommt das Model-Selector-HTML rein -->
         <div id="ollama-model-selectors"></div>
       </div>
-
+      <label class="option">
+        <input type="checkbox" id="autostart" />
+        Launch on System start
+      </label>
+      <label class="option">
+        <input type="checkbox" id="closeToTray" checked />
+        Close to Tray
+      </label>
       <!-- Weitere Optionen in Zukunft hier hinzufügen -->
     </div>
     <div class="buttons">
