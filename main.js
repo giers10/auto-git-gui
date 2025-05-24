@@ -1041,13 +1041,18 @@ app.whenReady().then(() => {
   });
 
 
-  win.webContents.openDevTools({ mode: 'detach' });
-
-
-
-
 
   // … Ende der IPC-Handler …
+
+  
+  win.webContents.openDevTools({ mode: 'detach' });
+  // clean up on exit
+  win.on('close', (e) => {
+    if (!isQuiting && store.get('closeToTray')) {
+      e.preventDefault();
+      win.hide();
+    }
+  });
 });
 
 ipcMain.on('show-folder-context-menu', (event, folderPath) => {
@@ -1071,10 +1076,4 @@ ipcMain.on('show-folder-context-menu', (event, folderPath) => {
   menu.popup({ window: win });
 }); 
 
-// clean up on exit
-win.on('close', (e) => {
-  if (!isQuiting && store.get('closeToTray')) {
-    e.preventDefault();
-    win.hide();
-  }
-});
+
