@@ -178,6 +178,8 @@
     // OK: alles final speichern
     ok.addEventListener('click', async () => {
       await window.settingsAPI.setSkipPrompt(cbSkip.checked);
+      await window.settingsAPI.setAutostart(cbAutostart.checked);
+      await window.settingsAPI.setCloseToTray(cbCloseToTray.checked);
       // SkyMode haben wir ja schon beim Change gesetzt
 
       // Threshold speichern (immer Wert aus Feld nehmen!)
