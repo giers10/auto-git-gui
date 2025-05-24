@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showFolderContextMenu: folderPath => ipcRenderer.send('show-folder-context-menu', folderPath),
   setMonitoring: (folderObj, monitoring) => ipcRenderer.invoke('set-monitoring', folderObj.path, monitoring),
   getFolderTree: (folderPath) => ipcRenderer.invoke('get-folder-tree', folderPath),
+  getIntelligentCommitThreshold: () => ipcRenderer.invoke('get-intelligent-commit-threshold'),
+  setIntelligentCommitThreshold: value => ipcRenderer.invoke('set-intelligent-commit-threshold', value),
 });
 
 ipcRenderer.on('repo-updated', (_e, folder) => {

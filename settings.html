@@ -74,29 +74,57 @@
     button:hover { background: #f3f4f6; }
   </style>
   <script>
-    window.addEventListener('DOMContentLoaded', async () => {
-      const cbSky   = document.getElementById('skymode');
-      const cbSkip  = document.getElementById('skipPrompt');
-      const ok      = document.getElementById('okBtn');
-      const cancel  = document.getElementById('cancelBtn');
-      const close   = document.getElementById('closeBtn');
+  window.addEventListener('DOMContentLoaded', async () => {
+    // Elemente holen
+    const cbSky       = document.getElementById('skymode');
+    const cbSkip      = document.getElementById('skipPrompt');
+    const thresholdInput = document.getElementById('intelligentCommitThresholdInput');
+    const ok          = document.getElementById('okBtn');
+    const cancel      = document.getElementById('cancelBtn');
+    const close       = document.getElementById('closeBtn');
 
-      const [initialSky, initialSkip] = await Promise.all([
-        window.settingsAPI.getSkyMode(),
-        window.settingsAPI.getSkipPrompt()
-      ]);
+    // Initialwerte parallel laden
+    const [initialSky, initialSkip, initialThreshold] = await Promise.all([
+      window.settingsAPI.getSkyMode(),
+      window.settingsAPI.getSkipPrompt(),
+      window.electronAPI.getIntelligentCommitThreshold()
+    ]);
 
-      cbSky.checked  = initialSky;
-      cbSkip.checked = initialSkip;
+    // Inputs setzen
+    cbSky.checked        = initialSky;
+    cbSkip.checked       = initialSkip;
+    thresholdInput.value = initialThreshold;
 
-      ok.addEventListener('click', async () => {
-        await window.settingsAPI.setSkyMode(cbSky.checked);
-        await window.settingsAPI.setSkipPrompt(cbSkip.checked);
-        window.close();
-      });
-      cancel.addEventListener('click', () => window.close());
-      close.addEventListener('click', () => window.close());
+    // **Vorschau**: Sky-Mode sofort übernehmen
+    cbSky.addEventListener('change', async () => {
+      await window.settingsAPI.setSkyMode(cbSky.checked);
     });
+
+    // Threshold live speichern + clamp
+    thresholdInput.addEventListener('blur', async () => {
+      let v = parseInt(thresholdInput.value, 100);
+      if (isNaN(v))      v = initialThreshold;  // wenn komplett leer gelassen
+      if (v < 1)         v = 1;
+      if (v > 1000)      v = 1000;
+      thresholdInput.value = v;
+      await window.settingsAPI.setIntelligentCommitThreshold(v);
+    });
+
+    // OK: alles final speichern
+    ok.addEventListener('click', async () => {
+      await window.settingsAPI.setSkipPrompt(cbSkip.checked);
+      // SkyMode haben wir ja schon beim Change gesetzt
+      window.close();
+    });
+
+    // Cancel / Close: SkyMode zurücksetzen, dann schließen
+    const rollback = async () => {
+      await window.settingsAPI.setSkyMode(initialSky);
+      window.close();
+    };
+    cancel.addEventListener('click', rollback);
+    close.addEventListener('click',  rollback);
+  });
   </script>
 </head>
 <body>
@@ -109,6 +137,11 @@
       <label class="option">
         <input type="checkbox" id="skymode" />
         Sky Mode
+      </label>
+      <label class="block mb-2 font-semibold">
+        Intelligent commit after
+        <input type="number" id="intelligentCommitThresholdInput" min="1" max="1000" value="10" step="1" class="border rounded px-2 py-1 w-20 mx-1">
+        lines of code changed
       </label>
       <label class="option">
         <input type="checkbox" id="skipPrompt" />

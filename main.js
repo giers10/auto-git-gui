@@ -12,7 +12,8 @@ const store = new Store({
     folders: [],
     selected: null,
     skymode: true,
-    skipGitPrompt: true
+    skipGitPrompt: true,
+    intelligentCommitThreshold: 100
   }
 });
 
@@ -178,8 +179,8 @@ function stopMonitoringWatcher(folderPath) {
   }
 }
 
-async function autoCommit(folder, message) {
-  const git = simpleGit(folder);
+async function autoCommit(folderPath, message) {
+  const git = simpleGit(folderPath);
   const status = await git.status();
   if (
     status.not_added.length === 0 &&
@@ -239,6 +240,36 @@ async function autoCommit(folder, message) {
       await git.checkout(['-b', 'master']);
       debug('[autoCommit] Kein master-Branch vorhanden, neuer master erstellt.');
       currentBranch = 'master';
+    }
+  }
+
+  // *** Zeilenzählung ***
+  let diffOutput = await git.diff(['--numstat']);
+  // Zeilensumme berechnen:
+  let changedLines = 0;
+  for (let line of diffOutput.split('\n')) {
+    // Format: <added> <deleted> <filename>
+    const match = line.match(/^(\d+|\-)\s+(\d+|\-)\s+(.*)$/);
+    if (match) {
+      const added = match[1] === '-' ? 0 : parseInt(match[1], 10);
+      const deleted = match[2] === '-' ? 0 : parseInt(match[2], 10);
+      changedLines += added + deleted;
+    }
+  }
+  // Folder-Objekt holen und aktualisieren
+  let folders = store.get('folders') || [];
+  let idx = folders.findIndex(f => f.path === folderPath);
+  if (idx !== -1) {
+    folders[idx].linesChanged = (folders[idx].linesChanged || 0) + changedLines;
+    store.set('folders', folders);
+
+    // Threshold holen
+    const threshold = store.get('intelligentCommitThreshold') || 10;
+    if (folders[idx].linesChanged >= threshold) {
+      folders[idx].linesChanged = 0;
+      store.set('folders', folders);
+      debug('Congratulations! You changed enough lines of code :)');
+      // Optional: Toast anzeigen, etc.
     }
   }
 
@@ -312,7 +343,7 @@ app.whenReady().then(() => {
     let folders = store.get('folders') || [];
     let folderObj = folders.find(f => f.path === newFolder);
     if (!folderObj) {
-      folderObj = { path: newFolder, monitoring: true };
+      folderObj = { path: newFolder, monitoring: true, linesChanged: 0 };
       folders.push(folderObj);
       store.set('folders', folders);
     }
@@ -618,6 +649,12 @@ app.whenReady().then(() => {
     }
     return monitoring;
   });
+
+  ipcMain.handle('get-intelligent-commit-threshold', () => store.get('intelligentCommitThreshold'));
+  ipcMain.handle('set-intelligent-commit-threshold', (_e, value) => {
+    store.set('intelligentCommitThreshold', value);
+  });
+
 
 
   // … Ende der IPC-Handler …

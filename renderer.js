@@ -5,6 +5,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const folderList  = document.getElementById('folderList');
   const addBtn      = document.getElementById('addFolderBtn');
   const titleEl     = document.getElementById('currentTitle');
+  const treeviewEl  = document.getElementById('folderHierarchyDropdown');
   const contentList = document.getElementById('contentList');
   const panel       = document.querySelector('.flex-1.p-4.overflow-y-auto');
 
@@ -42,8 +43,10 @@ window.addEventListener('DOMContentLoaded', async () => {
         const hour = new Date().getHours();
         if (hour >= 18 || hour < 6) {
           titleEl.style.color = '#fff';
+          treeviewEl.style.color = '#fff';
         } else {
           titleEl.style.color = '';
+          treeviewEl.style.color = '';
         }
       }
       updateTitleColor();
@@ -227,7 +230,7 @@ folders.forEach(folderObj => {
     folderTitleArrow.classList.remove('open');
     isDropdownOpen = false;
   }
-  
+
   // ASCII-Baum: wie bei ChatGPT!
   function renderFolderTreeAscii(tree, prefix = '', indent = '') {
     if (!Array.isArray(tree)) return '';
@@ -464,72 +467,12 @@ folders.forEach(folderObj => {
     commitBtn.textContent = 'Commit';
   });
 
-
-
-
-});
-
-/*
-  const folderTitleDrop = document.getElementById('folderTitleDrop');
-  const folderTitleArrow = document.getElementById('folderTitleArrow');
-  const folderHierarchyDropdown = document.getElementById('folderHierarchyDropdown');
-  const titleEl = document.getElementById('currentTitle');
-  let isDropdownOpen = false;
-
-  folderTitleDrop.addEventListener('click', async () => {
-    if (isDropdownOpen) {
-      closeDropdown();
-      return;
-    }
-    const selected = await window.electronAPI.getSelected();
-    if (!selected || !selected.path) return;
-
-    // Lade die aktuelle Ordnerhierarchie
-    folderHierarchyDropdown.innerHTML = '<div class="text-gray-400 italic">Lade Verzeichnis...</div>';
-    folderHierarchyDropdown.classList.remove('hidden');
-    folderHierarchyDropdown.classList.add('open');
-    folderTitleArrow.classList.add('open');
-    isDropdownOpen = true;
-
-    const tree = await window.electronAPI.getFolderTree(selected.path);
-    folderHierarchyDropdown.innerHTML = renderFolderTree(tree);
+  const inputCommitThreshold = document.getElementById('intelligentCommitThreshold');
+  window.settingsAPI.getIntelligentCommitThreshold().then(val => inputCommitThreshold.value = val);
+  inputCommitThreshold.addEventListener('change', e => {
+    const num = Math.max(1, Math.min(1000, Number(inputCommitThreshold.value)));
+    window.settingsAPI.setIntelligentCommitThreshold(num);
+    inputCommitThreshold.value = num;
   });
 
-  function closeDropdown() {
-    folderHierarchyDropdown.classList.add('hidden');
-    folderHierarchyDropdown.classList.remove('open');
-    folderTitleArrow.classList.remove('open');
-    isDropdownOpen = false;
-  }
-
-  // KEIN automatisches Schließen beim Klick außerhalb!
-
-  function renderFolderTree(tree, level = 0) {
-    if (!Array.isArray(tree)) return '';
-    return `<ul class="${level === 0 ? 'font-mono text-[0.98rem] space-y-1' : 'pl-4 space-y-1'}">` + tree.map(node => {
-      if (node.type === 'dir') {
-        return `
-          <li>
-            <span class="inline-flex items-center font-semibold text-blue-700">
-              <svg class="h-4 w-4 mr-1 inline-block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/>
-              </svg>
-              ${node.name}
-            </span>
-            ${renderFolderTree(node.children, level + 1)}
-          </li>
-        `;
-      } else {
-        return `
-          <li class="flex items-center text-gray-800">
-            <svg class="h-4 w-4 mr-1 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6a2 2 0 012-2h6"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M7 17a2 2 0 002 2h6a2 2 0 002-2V7a2 2 0 00-2-2h-6a2 2 0 00-2 2v10z"/>
-            </svg>
-            <span>${node.name}</span>
-          </li>
-        `;
-      }
-    }).join('') + '</ul>';
-  }
-*/
+});
