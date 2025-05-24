@@ -196,7 +196,6 @@
     document.getElementById('readmeModelSelect').onchange = e =>
       window.settingsAPI.setReadmeModel?.(e.target.value);
   });
-  });
   </script>
 </head>
 <body>
@@ -219,6 +218,11 @@
         <input type="number" id="intelligentCommitThresholdInput" min="1" max="1000" value="10" step="1" class="border rounded px-2 py-1 w-20 mx-1">
         lines of diff
       </label>
+      <div class="options">
+        <!-- Hier kommt das Model-Selector-HTML rein -->
+        <div id="ollama-model-selectors"></div>
+      </div>
+
       <!-- Weitere Optionen in Zukunft hier hinzufügen -->
     </div>
     <div class="buttons">
