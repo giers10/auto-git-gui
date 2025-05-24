@@ -354,7 +354,7 @@ async function runLLMCommitRewrite(folderPath, hashes) {
   const commitList = parseLLMCommitMessages(llmRaw);
   const messageMap = {};
   for (const entry of commitList) messageMap[entry.commit] = entry.newMessage;
-  await cherryPickCommitRewrite(folderPath, messageMap, hashes);
+  await rewordCommitsSequentially(folderPath, messageMap, hashes);
 }
 
 /*
