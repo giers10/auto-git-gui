@@ -133,6 +133,9 @@
   </style>
   <script>
   window.addEventListener('DOMContentLoaded', async () => {
+    const isSky = await window.settingsAPI.getSkyMode();
+    document.body.classList.toggle('sky-mode', isSky);
+    
     // Elemente holen
     const cbSky       = document.getElementById('skymode');
     const cbSkip      = document.getElementById('skipPrompt');
