@@ -122,8 +122,8 @@
       if (isNaN(threshold)) threshold = 10;
       if (threshold < 1) threshold = 1;
       if (threshold > 1000) threshold = 1000;
-      alert('OK gedrückt');
       await window.settingsAPI.setIntelligentCommitThreshold(threshold);
+      alert('OK gedrückt');
 
       // Dropdowns speichern
       const commitSel = document.getElementById('commitModelSelect');
