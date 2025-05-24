@@ -213,7 +213,9 @@ Generate a concise git commit message for these changes:
 
     ${diff}
 
-Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short! A commit message MUST NOT BE STRAIGHT TO THE POINT!
+--------------------------------------
+    
+Answer VERY BRIEFLY. Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short! A commit message MUST NOT BE STRAIGHT TO THE POINT!
 Also reply to my message, just give me the commit message.`;
       } else if (commits.length > 1) {
     // Multiple commits: Squash them, give all diffs as a big change.
@@ -225,7 +227,7 @@ Here are the combined diffs:
 
 --------------------------------------
 
-Even if this might seem like a lot of code, I need you to answer in a SINGLE SENTENCE. A git commit message to be precise is what I need from you, to protocol these changes.
+Even if this might seem like a lot of code, I need you to answer VERY BRIEFLY. A git commit message to be precise is what I need from you, to protocol these changes.
 Don't give any feedback on the code! Just analyze what changed and write the git commit message. Keep it short! A commit message MUST NOT BE STRAIGHT TO THE POINT!
 Don't reply to my message, just give me the commit message.`;
   } else {
