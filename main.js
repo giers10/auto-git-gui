@@ -347,7 +347,18 @@ async function rewordCommitsSequentially(repoPath, commitMessageMap, hashes) {
   console.log('[AutoGit] All specified commit messages updated!');
 }
 
-// ---- 6. Komplett-Workflow (Randomized) ----
+//---- 6. Workflow ----
+async function runLLMCommitRewrite(folderPath, hashes) {
+  const prompt = await generateLLMCommitMessages(folderPath, hashes);
+  const llmRaw = await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk));
+  const commitList = parseLLMCommitMessages(llmRaw);
+  const messageMap = {};
+  for (const entry of commitList) messageMap[entry.commit] = entry.newMessage;
+  await cherryPickCommitRewrite(folderPath, messageMap, hashes);
+}
+
+/*
+// ---- 6. Komplett-Workflow (Random instant messages für debugging) ----
 async function runLLMCommitRewrite(folderPath, hashes) {
   // Generate a mapping { hash: message }
   const messageMap = hashes.reduce((map, hash) => {
@@ -386,6 +397,7 @@ function getRandomMessage() {
   const pick = arr => arr[Math.floor(Math.random() * arr.length)];
   return `${pick(verbs)} ${pick(objects)} ${pick(details)}`;
 }
+*/
 
 // Nutze das Template aus dem Projektordner:
 const TEMPLATE_PATH = path.join(__dirname, 'rewrite-commit-msg.js.template');
