@@ -283,8 +283,16 @@
   <div class="dialog">
     <div class="options">
       <label class="option">
+      <label class="option">
+        <input type="checkbox" id="autostart" />
+        Launch on System start
+      </label>
+      <label class="option">
+        <input type="checkbox" id="closeToTray" checked />
+        Close to Tray
+      </label>
         <input type="checkbox" id="skymode" />
-        Sky Mode
+        Sky Theme
       </label>
       <label class="option">
         <input type="checkbox" id="skipPrompt" class="flex-none" />
@@ -299,14 +307,7 @@
         <!-- Hier kommt das Model-Selector-HTML rein -->
         <div id="ollama-model-selectors"></div>
       </div>
-      <label class="option">
-        <input type="checkbox" id="autostart" />
-        Launch on System start
-      </label>
-      <label class="option">
-        <input type="checkbox" id="closeToTray" checked />
-        Close to Tray
-      </label>
+
       <!-- Weitere Optionen in Zukunft hier hinzufügen -->
     </div>
     <div class="buttons">
