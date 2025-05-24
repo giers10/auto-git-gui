@@ -153,7 +153,6 @@
     const thresholdInput = document.getElementById('intelligentCommitThresholdInput');
     const ok          = document.getElementById('okBtn');
     const cancel      = document.getElementById('cancelBtn');
-    const close       = document.getElementById('closeBtn');
     const cbAutostart  = document.getElementById('autostart');
     const cbCloseToTray= document.getElementById('closeToTray');
 
@@ -209,8 +208,6 @@
       window.settingsAPI.close();
     };
     cancel.addEventListener('click', rollback);
-    alert("bin da");
-    close.addEventListener('click',  rollback);
 
 
   const container = document.getElementById('ollama-model-selectors');
