@@ -214,9 +214,10 @@ async function getCommitsForLLM(folderPath, hashes) {
   const git = simpleGit(folderPath);
   const commits = [];
   for (const hash of hashes) {
+    const shortHash = hash.substring(0, 7);
     const diff = await git.diff([`${hash}^!`]);
     const msg = (await git.show(['-s', '--format=%B', hash])).trim();
-    commits.push({ hash, message: msg, diff });
+    commits.push({ hash: shortHash, message: msg, diff });
   }
   return commits;
 }
@@ -329,7 +330,7 @@ function parseLLMCommitMessages(rawOutput) {
 async function rewordCommitsSequentially(repoPath, commitMessageMap, hashes) {
   const git = simpleGit(repoPath);
 
-  // Sanity: Sort hashes chronologically by git log order (oldest first)
+  // Sort hashes...
   const allCommits = (await git.log()).all;
   const hashesOrdered = hashes
     .map(h => allCommits.find(c => c.hash.startsWith(h)))
@@ -339,15 +340,20 @@ async function rewordCommitsSequentially(repoPath, commitMessageMap, hashes) {
     )
     .map(c => c.hash);
 
-  // Loop over all hashes
+  // EIN Loop!
   for (const hash of hashesOrdered) {
-    // Compose the rebase command: only one commit at a time!
-    await new Promise((resolve, reject) => {
-      // macOS: sed -i '' ...    Linux: sed -i ...
-      // Try macOS style, change '' to '' or nothing if you get errors.
-      const sequenceEditor = `sed -i '' '1s/pick/reword/'`;
-      const commitMsg = commitMessageMap[hash].replace(/(["$`\\])/g, '\\$1'); // Escape quotes etc
+    // --- Lookup: full hash oder short hash
+    let msg = commitMessageMap[hash];
+    if (!msg) msg = commitMessageMap[hash.substring(0, 7)];
+    if (!msg) {
+      console.warn('No commit message found for hash', hash, 'or', hash.substring(0, 7));
+      continue;
+    }
+    const commitMsg = msg.replace(/(["$`\\])/g, '\\$1');
+    const sequenceEditor = `sed -i '' '1s/pick/reword/'`;
 
+    // await auf Promise – aber OHNE zweiten for!
+    await new Promise((resolve, reject) => {
       const proc = spawn('git', [
         'rebase', '-i', `${hash}^`
       ], {
