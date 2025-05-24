@@ -261,16 +261,18 @@
   const currentReadme= await window.settingsAPI.getReadmeModel?.() || readmeDefault;
 
   container.innerHTML = `
-    <label>Model for commit message generation:
-      <select id="commitModelSelect">
-        ${makeOpts(qwen, currentCommit)}
-      </select>
-    </label><br>
-    <label>Model for README generation:
-      <select id="readmeModelSelect">
-        ${makeOpts(qwen, currentReadme)}
-      </select>
-    </label>`;
+    <div class="row">
+      <label>Model for commit message generation:
+        <select id="commitModelSelect">
+          ${makeOpts(qwen, currentCommit)}
+        </select>
+      </label><br>
+      <label>Model for README generation:
+        <select id="readmeModelSelect">
+          ${makeOpts(qwen, currentReadme)}
+        </select>
+      </label>
+    </div>`;
 });
 </script>
 </head>
