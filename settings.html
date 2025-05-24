@@ -199,11 +199,6 @@
         ${makeOpts(qwen, currentReadme)}
       </select>
     </label>`;
-
-  document.getElementById('commitModelSelect')
-    .addEventListener('change', e => window.settingsAPI.setCommitModel(e.target.value));
-  document.getElementById('readmeModelSelect')
-    .addEventListener('change', e => window.settingsAPI.setReadmeModel(e.target.value));
 });
 </script>
 </head>
