@@ -100,17 +100,6 @@
       await window.settingsAPI.setSkyMode(cbSky.checked);
     });
 
-    // Threshold live speichern + clamp
-    /*
-    thresholdInput.addEventListener('blur', async () => {
-      let v = parseInt(thresholdInput.value, 10);
-      if (isNaN(v))      v = initialThreshold;  // wenn komplett leer gelassen
-      if (v < 1)         v = 1;
-      if (v > 1000)      v = 1000;
-      thresholdInput.value = v;
-      await window.settingsAPI.setIntelligentCommitThreshold(v);
-    });
-  */
 
     // OK: alles final speichern
     ok.addEventListener('click', async () => {
