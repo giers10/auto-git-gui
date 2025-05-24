@@ -290,9 +290,24 @@ function cleanRebaseDirs(repoPath) {
   }
 }
 
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const { spawn } = require('child_process');
+const simpleGit = require('simple-git');
+
+function cleanRebaseDirs(repoPath) {
+  const dirs = ['rebase-merge', 'rebase-apply'];
+  for (const d of dirs) {
+    const p = path.join(repoPath, '.git', d);
+    if (fs.existsSync(p)) fs.rmSync(p, { recursive: true, force: true });
+  }
+}
+
 async function squashCommitMessages(repoPath, commitMessage, hashes) {
   cleanRebaseDirs(repoPath);
   const git = simpleGit(repoPath);
+
   // 1. Find the oldest commit in the sequence
   const allCommits = (await git.log()).all;
   const hashIdxs = hashes.map(h => allCommits.findIndex(c => c.hash.startsWith(h)));
@@ -302,9 +317,10 @@ async function squashCommitMessages(repoPath, commitMessage, hashes) {
   // The commit *before* the oldest in the list is the "upstream" for rebase
   const rebaseFrom = oldestIdx + 1 < allCommits.length ? allCommits[oldestIdx + 1].hash : '--root';
 
-  // 2. Create rebase-todo: all commits → squash into first
-  // Pick the oldest, squash the rest
+  // 2. Collect all commits to squash (in reverse = chronological)
   const toSquash = allCommits.slice(0, oldestIdx + 1).reverse();
+  if (toSquash.length < 2) throw new Error("Need at least 2 commits to squash.");
+
   const first = toSquash[0];
   const rest = toSquash.slice(1);
 
@@ -314,29 +330,36 @@ async function squashCommitMessages(repoPath, commitMessage, hashes) {
   ];
 
   // Write the todo file
-  const tmpdir = require('os').tmpdir();
-  const todoPath = require('path').join(tmpdir, `git-rebase-todo-${Date.now()}.txt`);
+  const tmpdir = os.tmpdir();
+  const todoPath = path.join(tmpdir, `git-rebase-todo-${Date.now()}.txt`);
   fs.writeFileSync(todoPath, todoLines.join('\n'));
 
-  // Create a temporary file for the commit message
-  const msgPath = require('path').join(tmpdir, `llm-squash-msg-${Date.now()}.txt`);
-  fs.writeFileSync(msgPath, commitMessage);
+  // Create a temporary script for SEQUENCE_EDITOR
+  const seqScript = path.join(tmpdir, `llm-seq-edit-${Date.now()}.sh`);
+  fs.writeFileSync(seqScript, `#!/bin/sh\ncp "${todoPath}" "$1"\n`);
+  fs.chmodSync(seqScript, 0o755);
 
-  // Use GIT_SEQUENCE_EDITOR to inject the todo file, and GIT_EDITOR to inject the commit message
+  // Create a temporary script for GIT_EDITOR (sets commit message)
+  const msgScript = path.join(tmpdir, `llm-msg-edit-${Date.now()}.sh`);
+  fs.writeFileSync(msgScript, `#!/bin/sh\necho "${commitMessage.replace(/"/g, '\\"')}" > "$1"\n`);
+  fs.chmodSync(msgScript, 0o755);
+
+  // Launch rebase
   await new Promise((resolve, reject) => {
     const proc = spawn('git', ['rebase', '-i', rebaseFrom], {
       cwd: repoPath,
       env: {
         ...process.env,
-        GIT_SEQUENCE_EDITOR: `cat "${todoPath}" >`,
-        GIT_EDITOR: `cat "${msgPath}" >`
+        GIT_SEQUENCE_EDITOR: seqScript,
+        GIT_EDITOR: msgScript
       },
       stdio: 'inherit'
     });
     proc.on('exit', code => {
       try {
         fs.unlinkSync(todoPath);
-        fs.unlinkSync(msgPath);
+        fs.unlinkSync(seqScript);
+        fs.unlinkSync(msgScript);
       } catch {}
       if (code === 0) resolve();
       else reject(new Error('git rebase failed with exit code ' + code));
