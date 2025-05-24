@@ -126,7 +126,7 @@
     close.addEventListener('click',  rollback);
 
 
-   const container = document.getElementById('ollama-model-selectors');
+  const container = document.getElementById('ollama-model-selectors');
   const res = await window.electronAPI.ollamaList();
 
   if (res.status === 'no-cli') {
@@ -137,15 +137,17 @@
     return;
   }
 
-  // Wenn CLI lief, aber Fehler beim Parsen, oder einfach keine Daten:
-  const allModels = Array.isArray(res.models) ? res.models : [];
-  // Filter für qwen2.5-coder
-  const qwenModels = allModels
-    .map(m => m.name || m.model)
-    .filter(name => /^qwen2\.5-coder(:[\w\d\-.]+)?$/.test(name));
+  if (res.status === 'error') {
+    container.innerHTML = `<div style="color:orange">Error fetching models: ${res.msg}</div>`;
+    return;
+  }
 
-  if (!qwenModels.length) {
-    // Keine passenden Modelle → Pull-Buttons zeigen
+  // Liste der Modell-Namen extrahieren
+  const names = res.models.map(m => m.name || m.model).filter(Boolean);
+  const qwen = names.filter(n => /^qwen2\.5-coder(:[\w\-.]+)?$/.test(n));
+
+  if (!qwen.length) {
+    // keine qwen2.5-coder → Pull-Buttons
     container.innerHTML = `
       <button id="pullCommitModelBtn" style="margin-bottom:8px;">
         ollama pull qwen2.5-coder:7b
@@ -164,32 +166,34 @@
     return;
   }
 
-  // Endlich: Dropdowns!
-  const makeOpts = (models, selected) =>
-    models.map(m => `<option value="${m}"${m===selected?' selected':''}>${m}</option>`).join('');
+  // Dropdowns aufbauen
+  const makeOpts = (arr, sel) =>
+    arr.map(m => `<option ${m===sel?'selected':''}>${m}</option>`).join('');
 
-  // Defaults (oder aus Settings lesen)
-  const commitDefault = qwenModels.find(m => m.includes('7b')) || qwenModels[0];
-  const readmeDefault = qwenModels.find(m => m.includes('32b')) || qwenModels[0];
+  // Default-Auswahl aus Settings (oder erstes gefundenes)
+  const commitDefault = qwen.find(m=>m.includes('7b'))||qwen[0];
+  const readmeDefault= qwen.find(m=>m.includes('32b'))||qwen[0];
   const currentCommit = await window.settingsAPI.getCommitModel?.() || commitDefault;
   const currentReadme= await window.settingsAPI.getReadmeModel?.() || readmeDefault;
 
   container.innerHTML = `
-    <label><strong>Model for commit message generation:</strong></label>
-    <select id="commitModelSelect">
-      ${makeOpts(qwenModels, currentCommit)}
-    </select>
-    <br><label><strong>Model for README generation:</strong></label>
-    <select id="readmeModelSelect">
-      ${makeOpts(qwenModels, currentReadme)}
-    </select>
-  `;
-  document.getElementById('commitModelSelect').onchange = e =>
-    window.settingsAPI.setCommitModel(e.target.value);
-  document.getElementById('readmeModelSelect').onchange = e =>
-    window.settingsAPI.setReadmeModel(e.target.value);
+    <label>Model for commit message generation:
+      <select id="commitModelSelect">
+        ${makeOpts(qwen, currentCommit)}
+      </select>
+    </label><br>
+    <label>Model for README generation:
+      <select id="readmeModelSelect">
+        ${makeOpts(qwen, currentReadme)}
+      </select>
+    </label>`;
+
+  document.getElementById('commitModelSelect')
+    .addEventListener('change', e => window.settingsAPI.setCommitModel(e.target.value));
+  document.getElementById('readmeModelSelect')
+    .addEventListener('change', e => window.settingsAPI.setReadmeModel(e.target.value));
 });
-  </script>
+</script>
 </head>
 <body>
   <div class="dialog">

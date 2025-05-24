@@ -69,7 +69,7 @@ function openSettings(win) {
    parent: win,
    modal: true,
    width: 400,
-   height: 300, 
+   height: 400, 
    resizable: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -845,40 +845,56 @@ app.whenReady().then(() => {
     store.set('intelligentCommitThreshold', value);
   });
 
-
-ipcMain.handle('ollama-list', async () => {
-  return new Promise(resolve => {
-    exec('ollama list --json', (err, stdout, stderr) => {
-      if (err) {
-        // Wenn ollama nicht gefunden → ENOENT
-        if (err.code === 'ENOENT') {
-          return resolve({ status: 'no-cli' });
+  ipcMain.handle('ollama-list', async () => {
+    // Versuche erst JSON-Ausgabe
+    return new Promise(resolve => {
+      exec('ollama list --json', (err, stdout, stderr) => {
+        if (err) {
+          // ENOENT → ollama CLI fehlt
+          if (err.code === 'ENOENT') {
+            return resolve({ status: 'no-cli' });
+          }
+          // JSON-Modus nicht unterstützt? Dann Fallback auf plain text
+          return parsePlain();
         }
-        // Anderer Fehler: CLI lief, aber irgendwas ist schiefgelaufen
-        return resolve({ status: 'error', msg: stderr || err.message });
-      }
-      let models = [];
-      try {
-        // JSON pro Zeile parsen
-        stdout.split('\n').forEach(line => {
-          if (line.trim()) models.push(JSON.parse(line));
-        });
-        resolve({ status: 'ok', models });
-      } catch (parseErr) {
-        resolve({ status: 'error', msg: parseErr.message });
-      }
-    });
-  });
-});
+        try {
+          const lines = stdout
+            .split('\n')
+            .filter(l => l.trim())
+            .map(l => JSON.parse(l));
+          return resolve({ status: 'ok', models: lines });
+        } catch (_) {
+          return parsePlain();
+        }
+      });
 
-ipcMain.handle('ollama-pull', async (_e, model) => {
-  return new Promise(resolve => {
-    exec(`ollama pull ${model}`, (err, stdout, stderr) => {
-      if (err) return resolve({ status: 'error', msg: stderr || err.message });
-      resolve({ status: 'ok', msg: stdout });
+      // Fallback-Funktion: parst die tabellarische Ausgabe
+      function parsePlain() {
+        exec('ollama list', (err2, out2, stderr2) => {
+          if (err2) {
+            if (err2.code === 'ENOENT') return resolve({ status: 'no-cli' });
+            return resolve({ status: 'error', msg: stderr2 || err2.message });
+          }
+          const models = [];
+          // Jede Zeile nach HEADER ignorieren, Spalten splitten
+          out2.split('\n').slice(1).forEach(line => {
+            const cols = line.trim().split(/\s{2,}/);
+            if (cols[0]) models.push({ name: cols[0] });
+          });
+          resolve({ status: 'ok', models });
+        });
+      }
     });
   });
-});
+
+  ipcMain.handle('ollama-pull', async (_e, model) => {
+    return new Promise(resolve => {
+      exec(`ollama pull ${model}`, (err, stdout, stderr) => {
+        if (err) return resolve({ status: 'error', msg: stderr || err.message });
+        resolve({ status: 'ok', msg: stdout });
+      });
+    });
+  });
 
   // … Ende der IPC-Handler …
 });
