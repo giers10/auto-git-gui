@@ -1,4 +1,4 @@
-// renderer.js
+const { ipcRenderer } = require('electron');
 
 window.addEventListener('DOMContentLoaded', async () => {
   // Elemente holen
@@ -485,5 +485,32 @@ folders.forEach(folderObj => {
     window.settingsAPI.setIntelligentCommitThreshold(num);
     inputCommitThreshold.value = num;
   });
+
+
+
+  ipcRenderer.on('tray-toggle-monitoring', async (_e, folderPath) => {
+    const folders = await window.electronAPI.getFolders();
+    const folder = folders.find(f => f.path === folderPath);
+    if (folder) {
+      await window.electronAPI.setMonitoring(folder, !folder.monitoring);
+    }
+  });
+
+  ipcRenderer.on('tray-remove-folder', async (_e, folderPath) => {
+    const folders = await window.electronAPI.getFolders();
+    const folder = folders.find(f => f.path === folderPath);
+    if (folder) {
+      await window.electronAPI.removeFolder(folder);
+      // Optional: Feedback oder UI-Update
+    }
+  });
+
+  ipcRenderer.on('tray-add-folder', async () => {
+    await window.electronAPI.addFolder();
+    // Optional: Feedback/UI-Update
+  });
+
+
+  
 
 });
