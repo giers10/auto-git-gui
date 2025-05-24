@@ -463,9 +463,11 @@ folders.forEach(folderObj => {
     return result;
   }
 
-  // **Optional: Bei neuem Ordnerauswahl Dropdown schließen**
-  //window.addEventListener('repo-updated', closeDropdown);
 
+
+  window.addEventListener('repo-updated', () => {
+    closeDropdown();
+  });
 
 });
 
