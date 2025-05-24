@@ -6,7 +6,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const addBtn      = document.getElementById('addFolderBtn');
   const titleEl     = document.getElementById('currentTitle');
   const treeviewEl  = document.getElementById('folderHierarchyDropdown');
-  const titleArrow  = document.getElementById('titleArrow');
+  const titleArrow  = document.getElementById('folderTitleArrow');
   const contentList = document.getElementById('contentList');
   const panel       = document.querySelector('.flex-1.p-4.overflow-y-auto');
 
