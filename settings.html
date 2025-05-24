@@ -23,19 +23,7 @@
     body.night {
       background: linear-gradient(120deg, #fbc2eb 0%, #a6c1ee 70%, #fff 100%);
     }
-    /* Wolken-Overlay */
-    .clouds {
-      position: absolute; top: 0; left: 0;
-      width: 100vw; height: 100vh;
-      pointer-events: none;
-      background: url('data:image/svg+xml;utf8,<svg width="200" height="100" xmlns="http://www.w3.org/2000/svg"><ellipse cx="50" cy="50" rx="50" ry="30" fill="%23ffffff88"/><ellipse cx="120" cy="60" rx="50" ry="25" fill="%23ffffff88"/></svg>') repeat-x;
-      opacity: 0.3;
-      animation: cloudMove 80s linear infinite;
-    }
-    @keyframes cloudMove {
-      from { background-position-x: 0; }
-      to   { background-position-x: -200px; }
-    }
+
 
     /* Dialog-Box */
     .dialog {
