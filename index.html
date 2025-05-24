@@ -140,12 +140,18 @@
     .diff-container pre {
       padding-top: 0 !important;
     }
+
+    .sidebar, .interaction-bar {
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
   </style>
 </head>
 <body class="flex h-screen bg-white">
 
   <!-- Sidebar -->
-  <aside class="w-64 border-r flex flex-col"
+  <aside class="w-64 border-r flex flex-col sidebar"
          style="background: var(--bg-sidebar); border-color: var(--border)">
     <h2 class="px-4 py-3 text-lg font-semibold"
         style="color: var(--accent)">
@@ -169,7 +175,9 @@
 
   <!-- Main panel: wieder p-4 wie gehabt -->
   <main class="relative flex flex-col flex-1" style="background: var(--bg-main)">
-    <div class="flex-1 p-4 overflow-y-auto">
+
+    <!-- Content-Area -->
+    <div class="flex-1 p-4 overflow-y-auto content-area">
       <h3 id="currentTitle" class="text-xl font-semibold mb-2"
           style="color: var(--accent)">
         No folder selected
@@ -178,10 +186,11 @@
       <ul id="contentList" class="space-y-1"></ul>
     </div>
 
+    <!-- Cat -->
     <div id="catSlot" class="absolute bottom-12 right-2"></div>
 
     <!-- Interaction Bar -->
-    <div class="w-full h-16 flex items-center p-4"
+    <div class="w-full h-16 flex items-center p-4 interaction-bar"
          style="background: var(--bg-sidebar); border-top: 1px solid var(--border)">
       <button id="commitBtn"
               class="ml-auto px-4 py-2 border rounded font-semibold"
