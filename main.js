@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu, shell, clipboard } = require('electron');
 app.name = 'Auto-Git';
 const { exec } = require('child_process');
+const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const Store = require('electron-store');
@@ -288,7 +289,6 @@ function parseLLMCommitMessages(rawOutput) {
 }
 
 
-const { spawn } = require('child_process');
 
 async function squashCommitMessages(repoPath, commitMessage, hashes) {
   const git = simpleGit(repoPath);
