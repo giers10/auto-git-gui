@@ -477,27 +477,25 @@ folders.forEach(folderObj => {
   });
 
 
-  ipcRenderer.on('tray-toggle-monitoring', async (_e, folderPath) => {
-    const folders = await window.electronAPI.getFolders();
-    const folder = folders.find(f => f.path === folderPath);
-    if (folder) {
-      await window.electronAPI.setMonitoring(folder, !folder.monitoring);
-    }
-  });
+window.electronAPI.onTrayToggleMonitoring(async (_e, folderPath) => {
+  const folders = await window.electronAPI.getFolders();
+  const folder = folders.find(f => f.path === folderPath);
+  if (folder) {
+    await window.electronAPI.setMonitoring(folder, !folder.monitoring);
+  }
+});
 
-  ipcRenderer.on('tray-remove-folder', async (_e, folderPath) => {
-    const folders = await window.electronAPI.getFolders();
-    const folder = folders.find(f => f.path === folderPath);
-    if (folder) {
-      await window.electronAPI.removeFolder(folder);
-      // Optional: Feedback oder UI-Update
-    }
-  });
+window.electronAPI.onTrayRemoveFolder(async (_e, folderPath) => {
+  const folders = await window.electronAPI.getFolders();
+  const folder = folders.find(f => f.path === folderPath);
+  if (folder) {
+    await window.electronAPI.removeFolder(folder);
+  }
+});
 
-  ipcRenderer.on('tray-add-folder', async () => {
-    await window.electronAPI.addFolder();
-    // Optional: Feedback/UI-Update
-  });
+window.electronAPI.onTrayAddFolder(async () => {
+  await window.electronAPI.addFolder();
+});
 
 
   
