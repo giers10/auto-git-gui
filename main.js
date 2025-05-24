@@ -134,18 +134,7 @@ function startMonitoringWatcher(folderPath, win) {
     depth: 99,
     awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 }
   });
-/*
 
-
-test ob autocommit bei startup noch läuft
-
-
-
-
-
-
-
-*/
   // Initialer Commit
   (async () => {
     debug(`[MONITOR] Starte initialen Commit-Check für ${folderPath}`);
