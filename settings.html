@@ -170,6 +170,7 @@
     // **Vorschau**: Sky-Mode sofort übernehmen
     cbSky.addEventListener('change', async () => {
       await window.settingsAPI.setSkyMode(cbSky.checked);
+      document.body.classList.toggle('sky-mode', cbSky.checked);
     });
     // OK: alles final speichern
     ok.addEventListener('click', async () => {
