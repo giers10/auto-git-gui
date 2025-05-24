@@ -203,6 +203,19 @@ async function getCommitsForLLM(folderPath, hashes) {
   return commits;
 }
 
+/*
+
+
+lol
+
+lol
+
+lol
+
+lol
+
+*/
+
 // ---- 2. Prompt für LLM bauen ----
 async function generateLLMCommitMessages(folderPath, hashes) {
   const commits = await getCommitsForLLM(folderPath, hashes);
