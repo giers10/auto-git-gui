@@ -203,7 +203,7 @@ folders.forEach(folderObj => {
     titleEl.textContent = folder;
     const { head, commits } = await window.electronAPI.getCommits(folderObj);
     closeDropdown();
-    
+
     contentList.innerHTML = commits.map(c => `
       <li class="w-full p-3 mb-2 bg-white border border-gray-200 rounded shadow-sm
                  ${c.hash === head ? 'current-commit' : ''}">
@@ -462,7 +462,7 @@ folders.forEach(folderObj => {
   }
 
   // **Optional: Bei neuem Ordnerauswahl Dropdown schließen**
-  window.addEventListener('repo-updated', closeDropdown);
+  //window.addEventListener('repo-updated', closeDropdown);
 
 
 });
