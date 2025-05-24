@@ -124,6 +124,7 @@
       if (threshold > 1000) threshold = 1000;
       await window.settingsAPI.setIntelligentCommitThreshold(threshold);
       alert('OK gedrückt');
+      window.settingsAPI.close();
 
       // Dropdowns speichern
       const commitSel = document.getElementById('commitModelSelect');
@@ -131,7 +132,6 @@
       if (commitSel) await window.settingsAPI.setCommitModel(commitSel.value);
       if (readmeSel)  await window.settingsAPI.setReadmeModel(readmeSel.value);
 
-      window.settingsAPI.close();
     });
 
     // Cancel / Close: SkyMode zurücksetzen, dann schließen
