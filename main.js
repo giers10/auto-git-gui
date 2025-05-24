@@ -254,42 +254,6 @@ async function streamLLMCommitMessages(prompt, onDataChunk) {
   return fullOutput.trim();
 }
 
-// 4. JSON Output robust parsen
-function parseLLMCommitMessages(rawOutput) {
-  let cleaned = rawOutput.trim();
-  cleaned = cleaned.replace(/^```(?:json)?|```$/gmi, '');
-
-  try {
-    if (cleaned.trim().startsWith('[')) return JSON.parse(cleaned);
-    if (cleaned.trim().startsWith('{')) {
-      const obj = JSON.parse(cleaned);
-      return Object.entries(obj).map(([commit, newMessage]) => ({ commit, newMessage }));
-    }
-    // Zeilenweise Objekte (fuzzy)
-    if (cleaned.includes('\n')) {
-      let lines = cleaned.split('\n').map(l => l.trim()).filter(Boolean);
-      let objs = [];
-      for (let line of lines) {
-        try { let o = JSON.parse(line); objs.push(o); } catch {}
-      }
-      if (objs.length) return objs;
-    }
-  } catch (err) {
-    // Fallback repair
-    try {
-      cleaned = cleaned.replace(/}\s*{/g, '},\n{');
-      if (!cleaned.startsWith('[')) cleaned = '[' + cleaned;
-      if (!cleaned.endsWith(']')) cleaned = cleaned + ']';
-      return JSON.parse(cleaned);
-    } catch (e) {
-      throw new Error('Could not parse LLM output:\n' + rawOutput);
-    }
-  }
-  throw new Error('Could not parse LLM output:\n' + rawOutput);
-}
-
-
-
 async function squashCommitMessages(repoPath, commitMessage, hashes) {
   const git = simpleGit(repoPath);
 
