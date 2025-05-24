@@ -233,6 +233,7 @@ Don't reply to my message, just give me the commit message.`;
   }
 }
 
+
 // 3. LLM Streaming Call
 async function streamLLMCommitMessages(prompt, onDataChunk) {
   console.log(prompt);
