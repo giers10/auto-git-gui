@@ -127,9 +127,9 @@
       // Dropdowns speichern
       const commitSel = document.getElementById('commitModelSelect');
       const readmeSel = document.getElementById('readmeModelSelect');
+      alert('OK gedrückt');
       if (commitSel) await window.settingsAPI.setCommitModel(commitSel.value);
       if (readmeSel)  await window.settingsAPI.setReadmeModel(readmeSel.value);
-      alert('OK gedrückt');
 
       window.settingsAPI.close();
     });
