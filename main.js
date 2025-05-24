@@ -238,7 +238,7 @@ Don't reply to my message, just give me the commit message.`;
 async function streamLLMCommitMessages(prompt, onDataChunk, maxLen = 500) {
   return new Promise((resolve, reject) => {
     const child = spawn('ollama', [
-      'chat', '--stream',
+      '--stream',
       '--model', 'qwen2.5-coder:32b',
       '--prompt', prompt
     ]);
