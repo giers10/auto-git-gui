@@ -845,33 +845,40 @@ app.whenReady().then(() => {
     store.set('intelligentCommitThreshold', value);
   });
 
-  ipcMain.handle('ollama-list', async () => {
-    return new Promise(resolve => {
-      exec('ollama list --json', (err, stdout, stderr) => {
-        if (err) return resolve({ error: true, msg: stderr || err.message });
-        try {
-          // List-Output kann mehrere Zeilen JSON enthalten – eine pro Modell
-          const models = stdout
-            .split('\n')
-            .map(l => l.trim())
-            .filter(Boolean)
-            .map(l => JSON.parse(l));
-          resolve({ error: false, models });
-        } catch (e) {
-          resolve({ error: true, msg: e.message });
-        }
-      });
-    });
-  });
 
-  ipcMain.handle('ollama-pull', async (_e, model) => {
-    return new Promise(resolve => {
-      exec(`ollama pull ${model}`, (err, stdout, stderr) => {
-        if (err) return resolve({ error: true, msg: stderr || err.message });
-        resolve({ error: false, msg: stdout });
-      });
+ipcMain.handle('ollama-list', async () => {
+  return new Promise(resolve => {
+    exec('ollama list --json', (err, stdout, stderr) => {
+      if (err) {
+        // Wenn ollama nicht gefunden → ENOENT
+        if (err.code === 'ENOENT') {
+          return resolve({ status: 'no-cli' });
+        }
+        // Anderer Fehler: CLI lief, aber irgendwas ist schiefgelaufen
+        return resolve({ status: 'error', msg: stderr || err.message });
+      }
+      let models = [];
+      try {
+        // JSON pro Zeile parsen
+        stdout.split('\n').forEach(line => {
+          if (line.trim()) models.push(JSON.parse(line));
+        });
+        resolve({ status: 'ok', models });
+      } catch (parseErr) {
+        resolve({ status: 'error', msg: parseErr.message });
+      }
     });
   });
+});
+
+ipcMain.handle('ollama-pull', async (_e, model) => {
+  return new Promise(resolve => {
+    exec(`ollama pull ${model}`, (err, stdout, stderr) => {
+      if (err) return resolve({ status: 'error', msg: stderr || err.message });
+      resolve({ status: 'ok', msg: stdout });
+    });
+  });
+});
 
   // … Ende der IPC-Handler …
 });
