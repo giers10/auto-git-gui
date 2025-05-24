@@ -253,6 +253,7 @@ app.whenReady().then(() => {
   const win = createWindow();
 
   // Menüs
+  /*
   const menu = Menu.buildFromTemplate([
     {
       role: 'appMenu',
@@ -265,6 +266,7 @@ app.whenReady().then(() => {
     }, // mehr menüs hier
   ]);
   Menu.setApplicationMenu(menu);
+  */
 
   // 1) Beim Start bereits gespeicherte Ordner überwachen und monitoren
   const folders = store.get('folders') || [];
