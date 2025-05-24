@@ -497,7 +497,4 @@ window.electronAPI.onTrayAddFolder(async () => {
   await window.electronAPI.addFolder();
 });
 
-
-  
-
 });
