@@ -2,8 +2,10 @@ const { app, BrowserWindow, ipcMain, dialog, Menu, shell, clipboard } = require(
 app.name = 'Auto-Git';
 const { exec } = require('child_process');
 const { spawn } = require('child_process');
+const { spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const Store = require('electron-store');
 const simpleGit = require('simple-git');
 //const fetch = require('node-fetch');
@@ -18,6 +20,16 @@ const store = new Store({
     intelligentCommitThreshold: 100
   }
 });
+
+let folders = store.get('folders');
+if (Array.isArray(folders)) {
+  folders = folders.map(f => ({
+    ...f,
+    linesChanged: 0,      // zurück auf 0
+    llmCandidates: []     // leeres Array
+  }));
+  store.set('folders', folders);
+}
 
 // Map zum Speichern der Watcher pro Ordner
 const repoWatchers = new Map();
@@ -133,6 +145,9 @@ function startMonitoringWatcher(folderPath, win) {
   // Initialer Commit
   (async () => {
     debug(`[MONITOR] Starte initialen Commit-Check für ${folderPath}`);
+
+
+
     const git = simpleGit(folderPath);
     const status = await git.status();
     if (
@@ -185,65 +200,46 @@ function stopMonitoringWatcher(folderPath) {
 
 // ---- Rewrite Git Messages with LLM generated messages ----
 
-
-// 1. Commits & Diffs für LLM sammeln
+// ---- 1. Commits & Diffs für LLM sammeln ----
 async function getCommitsForLLM(folderPath, hashes) {
   const git = simpleGit(folderPath);
   const commits = [];
   for (const hash of hashes) {
     const diff = await git.diff([`${hash}^!`]);
-    const msg  = (await git.show(['-s', '--format=%B', hash])).trim();
-    commits.push({
-      hash,
-      message: msg,
-      diff
-    });
+    const msg = (await git.show(['-s', '--format=%B', hash])).trim();
+    commits.push({ hash, message: msg, diff });
   }
   return commits;
 }
 
-async function getPrompt(folderPath, hashes) {
+// ---- 2. Prompt für LLM bauen ----
+async function generateLLMCommitMessages(folderPath, hashes) {
   const commits = await getCommitsForLLM(folderPath, hashes);
+  const prompt = `
+Analyze the following git commits. For each commit, generate a concise commit message summarizing the actual change.
+- ONLY output a JSON object mapping each commit hash to its new message.
+- Do NOT add any explanations, greetings, or extra text.
 
-  if (commits.length === 1) {
-    // Only one commit: Prompt LLM for a message just for this diff.
-    const diff = commits[0].diff;
-    return `You're a professional programmer who writes git commit messages all day.
-Generate a concise git commit message for these changes:
-
-    ${diff}
-
---------------------------------------
-    
-Answer VERY BRIEFLY. Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short! A commit message MUST BE STRAIGHT TO THE POINT!
-Also reply to my message, just give me the commit message.`;
-      } else if (commits.length > 1) {
-    // Multiple commits: Squash them, give all diffs as a big change.
-    const combinedDiffs = commits.map(c => c.diff).join('\n\n');
-    return `You're a professional programmer who writes git commit messages all day.
-Analyze the following code changes (from multiple commits). To squash them into a single commit I need a concise git commit message from you describing the changes in a single sentence.
-Here are the combined diffs:
-    ${combinedDiffs}
-
---------------------------------------
-
-Even if this might seem like a lot of code, I need you to answer VERY BRIEFLY. A git commit message to be precise is what I need from you, to protocol these changes.
-Don't give any feedback on the code! Just analyze what changed and write the git commit message. Keep it short! A commit message MUST BE STRAIGHT TO THE POINT!
-Don't reply to my message, just give me the commit message.`;
-  } else {
-    throw new Error('No commits found for LLM prompt.');
-  }
+Example Output:
+{
+  "1a2b3c4": "Fix bug in user registration",
+  "2b3c4d5": "Refactor login logic"
 }
 
+COMMITS (as JSON):
 
-// 3. LLM Streaming Call
+${JSON.stringify(commits, null, 2)}
+  `;
+  return prompt;
+}
+
+// ---- 3. LLM Streaming Call ----
 async function streamLLMCommitMessages(prompt, onDataChunk) {
-  console.log(prompt);
   const response = await fetch('http://localhost:11434/api/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'qwen2.5-coder:32b',
+      model: 'qwen2.5-coder:32b', // ggf. Modell anpassen
       prompt: prompt,
       stream: true
     })
@@ -278,98 +274,225 @@ async function streamLLMCommitMessages(prompt, onDataChunk) {
   return fullOutput;
 }
 
-function cleanRebaseDirs(repoPath) {
-  const gitDir = path.join(repoPath, '.git');
-  const rebaseDirs = ['rebase-merge', 'rebase-apply'];
-  for (const dir of rebaseDirs) {
-    const fullPath = path.join(gitDir, dir);
-    if (fs.existsSync(fullPath)) {
-      fs.rmSync(fullPath, { recursive: true, force: true });
-      console.log(`[AutoGit] Entfernt alte ${dir}-Direktory: ${fullPath}`);
+// ---- 4. JSON Output robust parsen ----
+function parseLLMCommitMessages(rawOutput) {
+  let cleaned = rawOutput.trim();
+  cleaned = cleaned.replace(/^```(?:json)?|```$/gmi, '');
+
+  try {
+    if (cleaned.trim().startsWith('[')) return JSON.parse(cleaned);
+    if (cleaned.trim().startsWith('{')) {
+      const obj = JSON.parse(cleaned);
+      return Object.entries(obj).map(([commit, newMessage]) => ({ commit, newMessage }));
+    }
+    // Zeilenweise Objekte (fuzzy)
+    if (cleaned.includes('\n')) {
+      let lines = cleaned.split('\n').map(l => l.trim()).filter(Boolean);
+      let objs = [];
+      for (let line of lines) {
+        try { let o = JSON.parse(line); objs.push(o); } catch {}
+      }
+      if (objs.length) return objs;
+    }
+  } catch (err) {
+    // Fallback repair
+    try {
+      cleaned = cleaned.replace(/}\s*{/g, '},\n{');
+      if (!cleaned.startsWith('[')) cleaned = '[' + cleaned;
+      if (!cleaned.endsWith(']')) cleaned = cleaned + ']';
+      return JSON.parse(cleaned);
+    } catch (e) {
+      throw new Error('Could not parse LLM output:\n' + rawOutput);
     }
   }
+  throw new Error('Could not parse LLM output:\n' + rawOutput);
 }
 
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const { spawn } = require('child_process');
-const simpleGit = require('simple-git');
 
-function cleanRebaseDirs(repoPath) {
-  const dirs = ['rebase-merge', 'rebase-apply'];
-  for (const d of dirs) {
-    const p = path.join(repoPath, '.git', d);
-    if (fs.existsSync(p)) fs.rmSync(p, { recursive: true, force: true });
-  }
-}
 
-async function squashCommitMessages(repoPath, commitMessage, hashes) {
-  cleanRebaseDirs(repoPath);
+
+// --- Hauptfunktion ---
+/**
+ * Rewords commit messages for each hash (oldest to newest) using git rebase -i in a loop.
+ * @param {string} repoPath - Path to your repo
+ * @param {object} commitMessageMap - { fullHash: newMessage }
+ * @param {string[]} hashes - array of full commit hashes (oldest first!)
+ */
+async function rewordCommitsSequentially(repoPath, commitMessageMap, hashes) {
   const git = simpleGit(repoPath);
 
-  // 1. Find the oldest commit in the sequence
+  // Sanity: Sort hashes chronologically by git log order (oldest first)
   const allCommits = (await git.log()).all;
-  const hashIdxs = hashes.map(h => allCommits.findIndex(c => c.hash.startsWith(h)));
-  if (hashIdxs.includes(-1)) throw new Error('Some commit(s) not found.');
-  const oldestIdx = Math.min(...hashIdxs);
+  const hashesOrdered = hashes
+    .map(h => allCommits.find(c => c.hash.startsWith(h)))
+    .filter(Boolean)
+    .sort((a, b) =>
+      allCommits.findIndex(c => c.hash === a.hash) - allCommits.findIndex(c => c.hash === b.hash)
+    )
+    .map(c => c.hash);
 
-  // The commit *before* the oldest in the list is the "upstream" for rebase
-  const rebaseFrom = oldestIdx + 1 < allCommits.length ? allCommits[oldestIdx + 1].hash : '--root';
+  // Loop over all hashes
+  for (const hash of hashesOrdered) {
+    // Compose the rebase command: only one commit at a time!
+    await new Promise((resolve, reject) => {
+      // macOS: sed -i '' ...    Linux: sed -i ...
+      // Try macOS style, change '' to '' or nothing if you get errors.
+      const sequenceEditor = `sed -i '' '1s/pick/reword/'`;
+      const commitMsg = commitMessageMap[hash].replace(/(["$`\\])/g, '\\$1'); // Escape quotes etc
 
-  // 2. Collect all commits to squash (in reverse = chronological)
-  const toSquash = allCommits.slice(0, oldestIdx + 1).reverse();
-  if (toSquash.length < 2) throw new Error("Need at least 2 commits to squash.");
-
-  const first = toSquash[0];
-  const rest = toSquash.slice(1);
-
-  const todoLines = [
-    `pick ${first.hash} ${first.message.split('\n')[0]}`,
-    ...rest.map(c => `squash ${c.hash} ${c.message.split('\n')[0]}`)
-  ];
-
-  // Write the todo file
-  const tmpdir = os.tmpdir();
-  const todoPath = path.join(tmpdir, `git-rebase-todo-${Date.now()}.txt`);
-  fs.writeFileSync(todoPath, todoLines.join('\n'));
-
-  // Create a temporary script for SEQUENCE_EDITOR
-  const seqScript = path.join(tmpdir, `llm-seq-edit-${Date.now()}.sh`);
-  fs.writeFileSync(seqScript, `#!/bin/sh\ncp "${todoPath}" "$1"\n`);
-  fs.chmodSync(seqScript, 0o755);
-
-  // Create a temporary script for GIT_EDITOR (sets commit message)
-  const msgScript = path.join(tmpdir, `llm-msg-edit-${Date.now()}.sh`);
-  fs.writeFileSync(msgScript, `#!/bin/sh\necho "${commitMessage.replace(/"/g, '\\"')}" > "$1"\n`);
-  fs.chmodSync(msgScript, 0o755);
-
-  // Launch rebase
-  await new Promise((resolve, reject) => {
-    const proc = spawn('git', ['rebase', '-i', rebaseFrom], {
-      cwd: repoPath,
-      env: {
-        ...process.env,
-        GIT_SEQUENCE_EDITOR: seqScript,
-        GIT_EDITOR: msgScript
-      },
-      stdio: 'inherit'
+      const proc = spawn('git', [
+        'rebase', '-i', `${hash}^`
+      ], {
+        cwd: repoPath,
+        env: {
+          ...process.env,
+          GIT_SEQUENCE_EDITOR: sequenceEditor,
+          GIT_EDITOR: `echo "${commitMsg}" >`
+        },
+        stdio: 'inherit'
+      });
+      proc.on('exit', code => code === 0 ? resolve() : reject(new Error(`Failed to reword ${hash}`)));
     });
-    proc.on('exit', code => {
-      try {
-        fs.unlinkSync(todoPath);
-        fs.unlinkSync(seqScript);
-        fs.unlinkSync(msgScript);
-      } catch {}
-      if (code === 0) resolve();
-      else reject(new Error('git rebase failed with exit code ' + code));
-    });
-  });
+    console.log(`[AutoGit] Reworded commit ${hash} ✔`);
+  }
+  console.log('[AutoGit] All specified commit messages updated!');
 }
 
+
+
 /**
- * Komplett-Workflow: Von Kandidaten bis Rewrite
+ * Cherry-picks the given commits, amending each one's message, and replaces master.
+ * @param {string} repoPath
+ * @param {object} commitMessageMap - { [fullHash]: newMessage }
+ * @param {string[]} hashes - list of commit hashes, oldest to newest!
  */
+/*
+async function cherryPickCommitRewrite(repoPath, commitMessageMap, hashes) {
+  // 1. Find parent of the OLDEST commit
+  //const allCommits = (await git.log()).all;
+  //const parentHash = (await git.raw(['rev-parse', `${oldestHash}^`])).trim();
+  // 2. Create a new temp branch from the parent
+  const git = simpleGit(repoPath);
+  if(hashes.length > 1){
+    const branchName = "temp_branch" + Date.now();
+    console.log(commitMessageMap[hashes[0]]);
+    await git.checkout(hashes[0]);
+    console.log("checkout " + hashes[0])
+    await git.checkoutLocalBranch(branchName);
+    console.log("branch " + branchName)
+    await git.commit(commitMessageMap[hashes[0]], undefined, { '--amend': null });
+    console.log("amend")
+    for (let i = 1; i < hashes.length; i++) {
+      await git.raw(['cherry-pick', '--no-commit', hashes[i]]);
+      console.log("cherry " + hashes[i])
+      await git.commit(commitMessageMap[hashes[i]], undefined, { '--amend': null });
+      console.log("amend")
+    }
+    await git.deleteLocalBranch('master', true);
+    console.log("branch del")
+    await git.branch(['-m', branchName, 'master']);
+
+    console.log("branch mov")
+  } else {
+    await git.commit(commitMessageMap[hashes[0]], undefined, { '--amend': null });
+
+  }
+  */
+  //await git.checkoutLocalBranch(NEW_BRANCH);
+  /*
+  // 3. Cherry-pick and amend each commit in order
+  for (const hash of hashes) {
+    // Cherry-pick (commit as is)
+    let res = spawnSync('git', ['cherry-pick', hash], { cwd: repoPath, stdio: 'inherit' });
+    if (res.status !== 0) throw new Error('Cherry-pick failed for ' + hash);
+
+    // Amend commit message
+    const msg = commitMessageMap[hash];
+    if (msg) {
+      res = spawnSync('git', ['commit', '--amend', '-m', msg], { cwd: repoPath, stdio: 'inherit' });
+      if (res.status !== 0) throw new Error('Amend failed for ' + hash);
+    }
+  }
+
+  // 4. Move master to rewritten branch (overwrite)
+  await git.checkout('master'); // just in case we're not already there
+  await git.branch(['-f', 'master', NEW_BRANCH]); // force-move master pointer
+
+  // 5. Checkout master (HEAD on new history)
+  await git.checkout('master');
+
+  // 6. (Optional) Delete the temp branch
+  await git.branch(['-D', NEW_BRANCH]);
+
+  console.log('\n[AutoGit] Master branch has been overwritten with rewritten commits.');
+  */
+//}
+
+// ---- 6. Komplett-Workflow: Von Kandidaten bis Rewrite ----
+/*
+async function runLLMCommitRewrite(folderPath, hashes) {
+  const prompt = await generateLLMCommitMessages(folderPath, hashes);
+  const llmRaw = await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk));
+  const commitList = parseLLMCommitMessages(llmRaw);
+  const messageMap = {};
+  for (const entry of commitList) messageMap[entry.commit] = entry.newMessage;
+  await cherryPickCommitRewrite(folderPath, messageMap, hashes);
+}
+*/
+// ---- 6. Komplett-Workflow (Randomized) ----
+async function runLLMCommitRewrite(folderPath, hashes) {
+  // Generate a mapping { hash: message }
+  const messageMap = hashes.reduce((map, hash) => {
+    map[hash] = getRandomMessage();
+    return map;
+  }, {});
+  console.log(messageMap)
+
+  // Call your existing rewrite step with the fake messages
+  //await cherryPickCommitRewrite(folderPath, messageMap, hashes);
+  await rewordCommitsSequentially(folderPath, messageMap, hashes);
+}
+
+// Helper: returns a “random” placeholder commit message
+function getRandomMessage() {
+  const verbs = [
+    'Update', 'Refactor', 'Fix', 'Add', 'Remove', 'Improve', 'Optimize',
+    'Document', 'Cleanup', 'Configure', 'Upgrade', 'Revert'
+  ];
+  const objects = [
+    'authentication flow', 'API endpoint', 'styling', 'logging',
+    'error handling', 'data model', 'build script', 'test suite',
+    'configuration', 'dependencies', 'README', 'README.md'
+  ];
+  const details = [
+    'for better performance',
+    'to meet new requirements',
+    'after feedback',
+    'as per spec',
+    'to fix typo',
+    'to improve readability',
+    'to avoid regressions',
+    'for consistency'
+  ];
+
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  return `${pick(verbs)} ${pick(objects)} ${pick(details)}`;
+}
+
+// Nutze das Template aus dem Projektordner:
+const TEMPLATE_PATH = path.join(__dirname, 'rewrite-commit-msg.js.template');
+
+function createRewriteScript(mapping) {
+  // Lies das Template
+  let content = fs.readFileSync(TEMPLATE_PATH, 'utf-8');
+  // Ersetze __MESSAGE_MAP__ durch dein Mapping
+  content = content.replace('__MESSAGE_MAP__', JSON.stringify(mapping));
+  // Speichere als temporäre Datei
+  const scriptPath = path.join(__dirname, `rewrite-commit-msg.${Date.now()}.js`);
+  fs.writeFileSync(scriptPath, content, 'utf-8');
+  return scriptPath;
+}
+
 
 
 async function autoCommit(folderPath, message) {
@@ -470,22 +593,18 @@ async function autoCommit(folderPath, message) {
     const newHead = (await git.revparse(['HEAD'])).trim();
     folders[idx].llmCandidates = folders[idx].llmCandidates || [];
     folders[idx].llmCandidates.push(newHead);
+    console.log(folders[idx].llmCandidates)
 
     // Threshold holen
-    const threshold = store.get('intelligentCommitThreshold') || 150;
+    const threshold = store.get('intelligentCommitThreshold') || 10;
     if (folders[idx].linesChanged >= threshold) {
       debug('Congratulations! You changed enough lines of code :)');
-      // **Hier: LLM-Workflow starten**
-      //await runLLMCommitPipeline(folderPath, folders[idx].llmCandidates, win);
       folders[idx].linesChanged = 0;
-      const candidates = folders[idx].llmCandidates;
+      const cands = folders[idx].llmCandidates;
       folders[idx].llmCandidates = [];
-      await runLLMCommitPipeline(folderPath, candidates);
-      // Reset danach:
-      //store.set('folders', folders);
+      await runLLMCommitRewrite(folderPath, cands);
+    store.set('folders', folders);
     }
-
-    // Folder-Objekt speichern
     store.set('folders', folders);
   } else {
     // Folder not found! (Debug)
@@ -854,7 +973,7 @@ app.whenReady().then(() => {
     );
     store.set('folders', folders);
     debug(`[STORE] Monitoring für ${folderPath}: ${monitoring}`);
-    // Monitoring-Watcher starten/stoppen → gleich mehr dazu
+    // Monitoring-Watcher starten/stoppen
     if (monitoring) {
       startMonitoringWatcher(folderPath, win);
     } else {
