@@ -1048,5 +1048,8 @@ ipcMain.on('show-folder-context-menu', (event, folderPath) => {
 
 // clean up on exit
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  if (process.platform !== 'darwin'){
+    
+    app.quit();
+  }
 });
