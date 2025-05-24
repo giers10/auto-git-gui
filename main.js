@@ -229,7 +229,7 @@ async function streamLLMCommitMessages(prompt, onDataChunk) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'qwen2.5-coder:32b',  // ggf. Modell anpassen
+      model: 'qwen2.5-coder:32b',
       prompt: prompt,
       stream: true
     })
@@ -246,23 +246,11 @@ async function streamLLMCommitMessages(prompt, onDataChunk) {
     done = streamDone;
     if (value) {
       const chunk = decoder.decode(value, { stream: true });
-      for (const line of chunk.split('\n')) {
-        if (!line.trim()) continue;
-        try {
-          const obj = JSON.parse(line);
-          if (obj.response) {
-            fullOutput += obj.response;
-            if (onDataChunk) onDataChunk(obj.response);
-          }
-          if (obj.done) break;
-        } catch (e) {
-          // ignore malformed chunk
-        }
-      }
+      if (onDataChunk) onDataChunk(chunk);
+      fullOutput += chunk;
     }
   }
-
-  return fullOutput;
+  return fullOutput.trim();
 }
 
 // 4. JSON Output robust parsen
