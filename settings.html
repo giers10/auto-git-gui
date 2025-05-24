@@ -124,6 +124,78 @@
     };
     cancel.addEventListener('click', rollback);
     close.addEventListener('click',  rollback);
+
+
+    const modelDiv = document.getElementById('ollama-model-selectors');
+    // Vorher: deine Standard-Settings holen
+
+    // 1. Modelle holen
+    const ollamaRes = await window.electronAPI.ollamaList();
+    if (ollamaRes.error) {
+      modelDiv.innerHTML = `
+        <div style="color:red; font-weight:bold; margin:1em 0;">
+          !! You need to install Ollama to use intelligent message & readme generation !!
+        </div>
+      `;
+      return;
+    }
+
+    // 2. qwen2.5-coder-Modelle filtern
+    const qwenModels = ollamaRes.models
+      .filter(m => /^qwen2\.5-coder(:[\w\d\-]+)?$/.test(m.name || m.model))
+      .map(m => m.name || m.model);
+
+    // 3. Kein Modell? Pull-Buttons zeigen!
+    if (!qwenModels.length) {
+      modelDiv.innerHTML = `
+        <button id="pullCommitModelBtn" style="margin-bottom:8px;">
+          ollama pull qwen2.5-coder:7b
+        </button><br>
+        <button id="pullReadmeModelBtn">
+          ollama pull qwen2.5-coder:32b
+        </button>
+      `;
+      document.getElementById('pullCommitModelBtn').onclick = async () => {
+        await window.electronAPI.ollamaPull('qwen2.5-coder:7b');
+        location.reload(); // Reload Settings-Dialog
+      };
+      document.getElementById('pullReadmeModelBtn').onclick = async () => {
+        await window.electronAPI.ollamaPull('qwen2.5-coder:32b');
+        location.reload();
+      };
+      return;
+    }
+
+    // 4. Dropdowns rendern
+    function makeOptions(models, preferred) {
+      return models.map(m => `<option value="${m}"${m.includes(preferred) ? ' selected' : ''}>${m}</option>`).join('');
+    }
+    // Defaults wählen
+    const commitDefault = qwenModels.find(m => m.includes('7b')) || qwenModels[0];
+    const readmeDefault = qwenModels.find(m => m.includes('32b')) || qwenModels[0];
+
+    // Werte ggf. aus dem Store holen!
+    const currentCommitModel = await window.settingsAPI.getCommitModel?.() || commitDefault;
+    const currentReadmeModel = await window.settingsAPI.getReadmeModel?.() || readmeDefault;
+
+    modelDiv.innerHTML = `
+      <label style="font-weight:bold;">Model for commit message generation:</label>
+      <select id="commitModelSelect">
+        ${makeOptions(qwenModels, currentCommitModel)}
+      </select>
+      <br>
+      <label style="font-weight:bold;">Model for README generation:</label>
+      <select id="readmeModelSelect">
+        ${makeOptions(qwenModels, currentReadmeModel)}
+      </select>
+    `;
+
+    // Werte speichern bei Auswahl
+    document.getElementById('commitModelSelect').onchange = e =>
+      window.settingsAPI.setCommitModel?.(e.target.value);
+    document.getElementById('readmeModelSelect').onchange = e =>
+      window.settingsAPI.setReadmeModel?.(e.target.value);
+  });
   });
   </script>
 </head>
