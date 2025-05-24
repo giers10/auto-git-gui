@@ -985,6 +985,7 @@ app.whenReady().then(() => {
     if (settingsWin) settingsWin.close();
   });
 
+  win.webContents.openDevTools({ mode: 'detach' });
   // … Ende der IPC-Handler …
 });
 
