@@ -204,10 +204,10 @@
       window.settingsAPI.close();
     });
     // Cancel / Close: SkyMode zurücksetzen, dann schließen
-    //const rollback = async () => {
-     // await window.settingsAPI.setSkyMode(initialSky);
-      //window.settingsAPI.close();
-    //};
+    const rollback = async () => {
+      await window.settingsAPI.setSkyMode(initialSky);
+      window.settingsAPI.close();
+    };
     //cancel.addEventListener('click', rollback);
     //close.addEventListener('click',  rollback);
     alert("bin da");
