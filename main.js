@@ -287,42 +287,62 @@ function parseLLMCommitMessages(rawOutput) {
   throw new Error('Could not parse LLM output:\n' + rawOutput);
 }
 
-// 5. Rewrite-Logik (mit simple-git, wie oben!)
-async function rewriteCommitMessages(repoPath, message) {
-  const git = simpleGit(repoPath);
-  await git.raw(['commit', '--amend', '-m', message, '--no-edit', '--allow-empty']);
-} 
 
+const { spawn } = require('child_process');
 
-/*async function rewriteCommitMessages(repoPath, messageMap, hashesToRewrite) {
+async function squashCommitMessages(repoPath, commitMessage, hashes) {
   const git = simpleGit(repoPath);
 
-  let branchesWithHashes = new Set();
-  for (let hash of hashesToRewrite) {
-    const branches = await git.branch(['--contains', hash]);
-    Object.keys(branches.branches).forEach(branch => {
-      branchesWithHashes.add(branch);
+  // 1. Find the oldest commit in the sequence
+  const allCommits = (await git.log()).all;
+  const hashIdxs = hashes.map(h => allCommits.findIndex(c => c.hash.startsWith(h)));
+  if (hashIdxs.includes(-1)) throw new Error('Some commit(s) not found.');
+  const oldestIdx = Math.min(...hashIdxs);
+
+  // The commit *before* the oldest in the list is the "upstream" for rebase
+  const rebaseFrom = oldestIdx + 1 < allCommits.length ? allCommits[oldestIdx + 1].hash : '--root';
+
+  // 2. Create rebase-todo: all commits → squash into first
+  // Pick the oldest, squash the rest
+  const toSquash = allCommits.slice(0, oldestIdx + 1).reverse();
+  const first = toSquash[0];
+  const rest = toSquash.slice(1);
+
+  const todoLines = [
+    `pick ${first.hash} ${first.message.split('\n')[0]}`,
+    ...rest.map(c => `squash ${c.hash} ${c.message.split('\n')[0]}`)
+  ];
+
+  // Write the todo file
+  const tmpdir = require('os').tmpdir();
+  const todoPath = require('path').join(tmpdir, `git-rebase-todo-${Date.now()}.txt`);
+  fs.writeFileSync(todoPath, todoLines.join('\n'));
+
+  // Create a temporary file for the commit message
+  const msgPath = require('path').join(tmpdir, `llm-squash-msg-${Date.now()}.txt`);
+  fs.writeFileSync(msgPath, commitMessage);
+
+  // Use GIT_SEQUENCE_EDITOR to inject the todo file, and GIT_EDITOR to inject the commit message
+  await new Promise((resolve, reject) => {
+    const proc = spawn('git', ['rebase', '-i', rebaseFrom], {
+      cwd: repoPath,
+      env: {
+        ...process.env,
+        GIT_SEQUENCE_EDITOR: `cat "${todoPath}" >`,
+        GIT_EDITOR: `cat "${msgPath}" >`
+      },
+      stdio: 'inherit'
     });
-  }
-
-  for (let branch of branchesWithHashes) {
-    await git.checkout(branch);
-
-    const log = await git.log();
-    const commitsInBranch = log.all.map(c => c.hash);
-    const targetHashes = commitsInBranch.filter(hash => hashesToRewrite.includes(hash));
-    if (targetHashes.length === 0) continue;
-    // Von ältestem zum neuesten
-    for (let i = log.all.length - 1; i >= 0; i--) {
-      const c = log.all[i];
-      if (hashesToRewrite.includes(c.hash)) {
-        const newMsg = messageMap[c.hash] || c.message;
-        await git.raw(['commit', '--amend', '-m', newMsg, '--no-edit', '--allow-empty']);
-      }
-    }
-    // Kein Push!
-  }
-} */
+    proc.on('exit', code => {
+      try {
+        fs.unlinkSync(todoPath);
+        fs.unlinkSync(msgPath);
+      } catch {}
+      if (code === 0) resolve();
+      else reject(new Error('git rebase failed with exit code ' + code));
+    });
+  });
+}
 
 /**
  * Komplett-Workflow: Von Kandidaten bis Rewrite
