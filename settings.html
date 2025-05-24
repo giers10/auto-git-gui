@@ -101,6 +101,7 @@
     });
 
     // Threshold live speichern + clamp
+    /*
     thresholdInput.addEventListener('blur', async () => {
       let v = parseInt(thresholdInput.value, 10);
       if (isNaN(v))      v = initialThreshold;  // wenn komplett leer gelassen
@@ -109,7 +110,8 @@
       thresholdInput.value = v;
       await window.settingsAPI.setIntelligentCommitThreshold(v);
     });
-
+  */
+    
     // OK: alles final speichern
     ok.addEventListener('click', async () => {
       await window.settingsAPI.setSkipPrompt(cbSkip.checked);
