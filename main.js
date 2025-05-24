@@ -1018,10 +1018,13 @@ app.whenReady().then(() => {
     store.set('intelligentCommitThreshold', value);
   });
 
+
   ipcMain.handle('get-autostart', () => store.get('autostart'));
-  ipcMain.handle('set-autostart', (_e, val) => {
-    store.set('autostart', val);
-    // Optional: System-Autostart umschalten (siehe unten)
+  ipcMain.handle('set-autostart', (_e, enabled) => {
+    store.set('autostart', enabled);
+    app.setLoginItemSettings({
+      openAtLogin: !!enabled
+    });
   });
   ipcMain.handle('get-close-to-tray', () => store.get('closeToTray'));
   ipcMain.handle('set-close-to-tray', (_e, val) => store.set('closeToTray', val));
@@ -1032,13 +1035,6 @@ app.whenReady().then(() => {
   });
 
 
-
-  ipcMain.handle('set-autostart', (_e, enabled) => {
-    store.set('autostart', enabled);
-    app.setLoginItemSettings({
-      openAtLogin: !!enabled
-    });
-  });
 
 
 
