@@ -204,22 +204,22 @@ async function getCommitsForLLM(folderPath, hashes) {
 // 2. Prompt für LLM bauen
 async function generateLLMCommitMessages(folderPath, hashes) {
   const commits = await getCommitsForLLM(folderPath, hashes);
-  const prompt = `
-Analyze the following git commits. For each commit, generate a concise commit message summarizing the actual change.
-- ONLY output a JSON object mapping each commit hash to its new message.
-- Do NOT add any explanations, greetings, or extra text.
-
-Example Output:
-{
-  "1a2b3c4": "Fix bug in user registration",
-  "2b3c4d5": "Refactor login logic"
-}
-
-COMMITS (as JSON):
-
-${JSON.stringify(commits, null, 2)}
-  `;
-  return prompt;
+  if(commits.length == 1){
+    const diff = commits[0].diff;
+    const prompt = 
+    `Generate a concise git commit message for these changes:
+    ${diff}
+     Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short.`;
+  } else if (commits.length > 1) {
+    const prompt = `
+    Analyze the following code changes. We will squash them to a single commit and need a concise git commit message for that. 
+    Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short.
+    Here are the commits (as JSON):
+    ${JSON.stringify(commits, null, 2)}`; //actually we only need the diffs here.
+    return prompt;
+  } else {
+    //break, but this should never be reached
+  }
 }
 
 // 3. LLM Streaming Call
@@ -338,7 +338,7 @@ async function runLLMCommitPipeline(folderPath, hashes) {
   const prompt = await generateLLMCommitMessages(folderPath, hashes);
   // 2. LLM Call & Streaming Output für die Katze (optional)
   const llmOutput = await streamLLMCommitMessages(prompt, chunk => { /* Katze usw. */ });
-  console.log('LLM Output:\n', llmOutput); // Nur ein einziges Mal
+  //console.log('LLM Output:\n', llmOutput); // Nur ein einziges Mal
   // 3. Robust parsen
   const commitList = parseLLMCommitMessages(llmOutput); // [{commit, newMessage}]
   // 4. Hash->Message Mapping
