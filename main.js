@@ -211,12 +211,12 @@ async function generateLLMCommitMessages(folderPath, hashes) {
     const diff = commits[0].diff;
     return `Generate a concise git commit message for these changes:
     ${diff}
-    Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short.`;
+    Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short! A commit message MUST NOT exceed 70 characters!`;
       } else if (commits.length > 1) {
     // Multiple commits: Squash them, give all diffs as a big change.
     const combinedDiffs = commits.map(c => c.diff).join('\n\n');
     return `Analyze the following code changes (from multiple commits). We will squash them to a single commit and need a concise git commit message for that. 
-    Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short.
+    Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short! A commit message MUST NOT exceed 70 characters!
     Here are the combined diffs:
     ${combinedDiffs}`;
   } else {
