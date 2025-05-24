@@ -4,7 +4,8 @@ contextBridge.exposeInMainWorld('settingsAPI', {
   getSkyMode:  ()    => ipcRenderer.invoke('get-skymode'),
   setSkyMode:  val   => ipcRenderer.invoke('set-skymode', val),
   getSkipPrompt: ()    => ipcRenderer.invoke('get-skip-git-prompt'),
-  setSkipPrompt: val   => ipcRenderer.invoke('set-skip-git-prompt', val)
+  setSkipPrompt: val   => ipcRenderer.invoke('set-skip-git-prompt', val),
+  close: () => ipcRenderer.send('close-settings')
 });
 
 contextBridge.exposeInMainWorld('electronAPI', {

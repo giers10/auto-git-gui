@@ -902,6 +902,11 @@ app.whenReady().then(() => {
     store.set('intelligentCommitThreshold', value);
   });
 
+
+  ipcMain.on('close-settings', () => {
+    if (settingsWin) settingsWin.close();
+  });
+
   // … Ende der IPC-Handler …
 });
 
