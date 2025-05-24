@@ -209,18 +209,24 @@ async function getPrompt(folderPath, hashes) {
   if (commits.length === 1) {
     // Only one commit: Prompt LLM for a message just for this diff.
     const diff = commits[0].diff;
-    return `Generate a concise git commit message for these changes:
+    return `You're a professional programmer who writes git commit messages all day.
+Generate a concise git commit message for these changes:
 
     ${diff}
 
-    Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short! A commit message MUST NOT exceed 70 characters!`;
+Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short! A commit message MUST NOT exceed 70 characters!`;
       } else if (commits.length > 1) {
     // Multiple commits: Squash them, give all diffs as a big change.
     const combinedDiffs = commits.map(c => c.diff).join('\n\n');
-    return `Analyze the following code changes (from multiple commits). We will squash them to a single commit and need a concise git commit message for that. 
-    Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short! A commit message MUST NOT exceed 70 characters!
-    Here are the combined diffs:
-    ${combinedDiffs}`;
+    return `You're a professional programmer who writes git commit messages all day.
+Analyze the following code changes (from multiple commits). To squash them into a single commit I need a concise git commit message from you describing the changes in a single sentence.
+Here are the combined diffs:
+    ${combinedDiffs}
+
+--------------------------------------
+
+Even if this might seem like a lot of code, I need you to answer in a SINGLE SENTENCE. A git commit message to be precise is what I need from you, to protocol these changes.
+Don't give any feedback on the code! Just analyze what changed and write the git commit message. Keep it short! A commit message MUST NOT exceed 70 characters!`;
   } else {
     throw new Error('No commits found for LLM prompt.');
   }
