@@ -8,7 +8,6 @@ const fs = require('fs');
 const os = require('os');
 const Store = require('electron-store');
 const simpleGit = require('simple-git');
-//const fetch = require('node-fetch');
 const chokidar = require('chokidar');
 
 const store = new Store({
@@ -846,7 +845,33 @@ app.whenReady().then(() => {
     store.set('intelligentCommitThreshold', value);
   });
 
+  ipcMain.handle('ollama-list', async () => {
+    return new Promise(resolve => {
+      exec('ollama list --json', (err, stdout, stderr) => {
+        if (err) return resolve({ error: true, msg: stderr || err.message });
+        try {
+          // List-Output kann mehrere Zeilen JSON enthalten – eine pro Modell
+          const models = stdout
+            .split('\n')
+            .map(l => l.trim())
+            .filter(Boolean)
+            .map(l => JSON.parse(l));
+          resolve({ error: false, models });
+        } catch (e) {
+          resolve({ error: true, msg: e.message });
+        }
+      });
+    });
+  });
 
+  ipcMain.handle('ollama-pull', async (_e, model) => {
+    return new Promise(resolve => {
+      exec(`ollama pull ${model}`, (err, stdout, stderr) => {
+        if (err) return resolve({ error: true, msg: stderr || err.message });
+        resolve({ error: false, msg: stdout });
+      });
+    });
+  });
 
   // … Ende der IPC-Handler …
 });
