@@ -36,6 +36,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setIntelligentCommitThreshold: value => ipcRenderer.invoke('set-intelligent-commit-threshold', value),
   ollamaList:   () => ipcRenderer.invoke('ollama-list'),
   ollamaPull:   (model) => ipcRenderer.invoke('ollama-pull', model),
+  onTrayToggleMonitoring: (callback) => ipcRenderer.on('tray-toggle-monitoring', callback),
+  onTrayRemoveFolder: (callback) => ipcRenderer.on('tray-remove-folder', callback),
+  onTrayAddFolder: (callback) => ipcRenderer.on('tray-add-folder', callback),
 });
 
 ipcRenderer.on('repo-updated', (_e, folder) => {
