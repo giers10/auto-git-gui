@@ -487,10 +487,9 @@ app.whenReady().then(() => {
   // Auto-Verzeichnisstruktur
   const IGNORED_NAMES = [
     '.DS_Store', 'node_modules', '.git', 'dist', 'build',
-    '.cache', 'out', '.venv', '.mypy_cache', '__pycache__'
+    '.cache', 'out', '.venv', '.mypy_cache', '__pycache__', 'package-lock.json'
   ];
 
-  // Hilfsfunktion: Dateinamen oder Ordner ignorieren?
   function isIgnored(name) {
     return IGNORED_NAMES.includes(name);
   }
@@ -508,9 +507,7 @@ app.whenReady().then(() => {
           list.push({ name: dirent.name, type: 'file' });
         }
       });
-    } catch (e) {
-      // Permissions o.ä. ignorieren
-    }
+    } catch (e) {}
     return list;
   }
 
