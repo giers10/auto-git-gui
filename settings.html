@@ -115,12 +115,14 @@
       await window.settingsAPI.setSkipPrompt(cbSkip.checked);
       // SkyMode haben wir ja schon beim Change gesetzt
 
-      // NEU: Speichere Threshold & Dropdowns
+      // Threshold speichern (immer Wert aus Feld nehmen!)
       let threshold = parseInt(thresholdInput.value, 10);
       if (isNaN(threshold)) threshold = 10;
+      if (threshold < 1) threshold = 1;
+      if (threshold > 1000) threshold = 1000;
       await window.settingsAPI.setIntelligentCommitThreshold(threshold);
 
-      // Nur wenn Dropdowns existieren!
+      // Dropdowns speichern
       const commitSel = document.getElementById('commitModelSelect');
       const readmeSel = document.getElementById('readmeModelSelect');
       if (commitSel) await window.settingsAPI.setCommitModel(commitSel.value);
