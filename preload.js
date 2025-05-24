@@ -42,3 +42,8 @@ ipcRenderer.on('repo-updated', (_e, folder) => {
 ipcRenderer.on('skymode-changed', (_e, val) => {
   window.dispatchEvent(new CustomEvent('skymode-changed', { detail: val }));
 });
+
+
+
+
+
