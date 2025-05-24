@@ -198,11 +198,58 @@ folders.forEach(folderObj => {
     });
   }
 
+  const folderTitleDrop = document.getElementById('folderTitleDrop');
+  const folderTitleArrow = document.getElementById('folderTitleArrow');
+  const folderHierarchyDropdown = document.getElementById('folderHierarchyDropdown');
+  let isDropdownOpen = false;
+
+  folderTitleDrop.addEventListener('click', async () => {
+    if (isDropdownOpen) {
+      closeDropdown();
+      return;
+    }
+    const selected = await window.electronAPI.getSelected();
+    if (!selected || !selected.path) return;
+
+    // Show loading text
+    folderHierarchyDropdown.textContent = 'Lade Verzeichnis…';
+    folderHierarchyDropdown.classList.remove('hidden');
+    folderTitleArrow.classList.add('open');
+    isDropdownOpen = true;
+
+    // Lade Tree
+    const tree = await window.electronAPI.getFolderTree(selected.path);
+    folderHierarchyDropdown.textContent = renderFolderTreeAscii(tree, '.', '');
+  });
+
   function closeDropdown() {
     folderHierarchyDropdown.classList.add('hidden');
     folderTitleArrow.classList.remove('open');
     isDropdownOpen = false;
   }
+  
+  // ASCII-Baum: wie bei ChatGPT!
+  function renderFolderTreeAscii(tree, prefix = '', indent = '') {
+    if (!Array.isArray(tree)) return '';
+    let result = '';
+    const lastIdx = tree.length - 1;
+    tree.forEach((node, i) => {
+      const isLast = i === lastIdx;
+      const pointer = isLast ? '└── ' : '├── ';
+      if (node.type === 'dir') {
+        result += `${indent}${pointer}${node.name}/\n`;
+        const newIndent = indent + (isLast ? '    ' : '│   ');
+        result += renderFolderTreeAscii(node.children, '', newIndent);
+      } else {
+        result += `${indent}${pointer}${node.name}\n`;
+      }
+    });
+    return result;
+  }
+
+  window.addEventListener('repo-updated', () => {
+    closeDropdown();
+  });
 
   async function renderContent(folderObj) {
     closeDropdown();
@@ -418,54 +465,7 @@ folders.forEach(folderObj => {
   });
 
 
-  const folderTitleDrop = document.getElementById('folderTitleDrop');
-  const folderTitleArrow = document.getElementById('folderTitleArrow');
-  const folderHierarchyDropdown = document.getElementById('folderHierarchyDropdown');
-  let isDropdownOpen = false;
 
-  folderTitleDrop.addEventListener('click', async () => {
-    if (isDropdownOpen) {
-      closeDropdown();
-      return;
-    }
-    const selected = await window.electronAPI.getSelected();
-    if (!selected || !selected.path) return;
-
-    // Show loading text
-    folderHierarchyDropdown.textContent = 'Lade Verzeichnis…';
-    folderHierarchyDropdown.classList.remove('hidden');
-    folderTitleArrow.classList.add('open');
-    isDropdownOpen = true;
-
-    // Lade Tree
-    const tree = await window.electronAPI.getFolderTree(selected.path);
-    folderHierarchyDropdown.textContent = renderFolderTreeAscii(tree, '.', '');
-  });
-
-  // ASCII-Baum: wie bei ChatGPT!
-  function renderFolderTreeAscii(tree, prefix = '', indent = '') {
-    if (!Array.isArray(tree)) return '';
-    let result = '';
-    const lastIdx = tree.length - 1;
-    tree.forEach((node, i) => {
-      const isLast = i === lastIdx;
-      const pointer = isLast ? '└── ' : '├── ';
-      if (node.type === 'dir') {
-        result += `${indent}${pointer}${node.name}/\n`;
-        const newIndent = indent + (isLast ? '    ' : '│   ');
-        result += renderFolderTreeAscii(node.children, '', newIndent);
-      } else {
-        result += `${indent}${pointer}${node.name}\n`;
-      }
-    });
-    return result;
-  }
-
-
-
-  window.addEventListener('repo-updated', () => {
-    closeDropdown();
-  });
 
 });
 
