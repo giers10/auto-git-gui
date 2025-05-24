@@ -20,7 +20,7 @@ const store = new Store({
     intelligentCommitThreshold: 100
   }
 });
-
+ 
 let folders = store.get('folders');
 if (Array.isArray(folders)) {
   folders = folders.map(f => ({
