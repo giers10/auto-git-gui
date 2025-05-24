@@ -143,8 +143,11 @@
       color: #334155;
     }
   </style>
-  <script>
+  <script>≈
   window.addEventListener('DOMContentLoaded', async () => {
+    console.log("Settings HTML geladen!", document.getElementById('ollama-model-selectors'));
+    const container = document.getElementById('ollama-model-selectors');
+    container.innerHTML = "<div>TEST: Hier sollte ein Dropdown erscheinen</div>";
     const isSky = await window.settingsAPI.getSkyMode();
     document.body.classList.toggle('sky-mode', isSky);
 
@@ -204,7 +207,7 @@
 
       window.settingsAPI.close();
     });
-
+alert("BIN HIER!");
     // Cancel / Close: SkyMode zurücksetzen, dann schließen
     const rollback = async () => {
       await window.settingsAPI.setSkyMode(initialSky);
