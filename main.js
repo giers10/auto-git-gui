@@ -210,7 +210,7 @@ async function getPrompt(folderPath, hashes) {
     // Only one commit: Prompt LLM for a message just for this diff.
     const diff = commits[0].diff;
     return `Generate a concise git commit message for these changes:
-    
+
     ${diff}
 
     Don't give any feedback on the code, just analyze what changed and write the git commit message. Keep it short! A commit message MUST NOT exceed 70 characters!`;
@@ -228,6 +228,7 @@ async function getPrompt(folderPath, hashes) {
 
 // 3. LLM Streaming Call
 async function streamLLMCommitMessages(prompt, onDataChunk) {
+  console.log(prompt);
   const response = await fetch('http://localhost:11434/api/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
