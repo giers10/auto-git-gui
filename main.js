@@ -247,11 +247,22 @@ async function streamLLMCommitMessages(prompt, onDataChunk) {
     done = streamDone;
     if (value) {
       const chunk = decoder.decode(value, { stream: true });
-      if (onDataChunk) onDataChunk(chunk);
-      fullOutput += chunk;
+      for (const line of chunk.split('\n')) {
+        if (!line.trim()) continue;
+        try {
+          const obj = JSON.parse(line);
+          if (obj.response) {
+            fullOutput += obj.response;
+            if (onDataChunk) onDataChunk(obj.response);
+          }
+          if (obj.done) break;
+        } catch (e) {
+          // ignore malformed chunk
+        }
+      }
     }
   }
-  return fullOutput.trim();
+  return fullOutput;
 }
 
 async function squashCommitMessages(repoPath, commitMessage, hashes) {
