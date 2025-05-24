@@ -840,11 +840,6 @@ app.whenReady().then(() => {
     return monitoring;
   });
 
-  ipcMain.handle('get-intelligent-commit-threshold', () => store.get('intelligentCommitThreshold'));
-  ipcMain.handle('set-intelligent-commit-threshold', (_e, value) => {
-    store.set('intelligentCommitThreshold', value);
-  });
-
   ipcMain.handle('ollama-list', async () => {
     // Versuche erst JSON-Ausgabe
     return new Promise(resolve => {
@@ -894,6 +889,17 @@ app.whenReady().then(() => {
         resolve({ status: 'ok', msg: stdout });
       });
     });
+  });
+
+  ipcMain.handle('get-commit-model', () => store.get('commitModel') || 'qwen2.5-coder:7b');
+  ipcMain.handle('set-commit-model', (_e, val) => store.set('commitModel', val));
+
+  ipcMain.handle('get-readme-model', () => store.get('readmeModel') || 'qwen2.5-coder:32b');
+  ipcMain.handle('set-readme-model', (_e, val) => store.set('readmeModel', val));
+
+  ipcMain.handle('get-intelligent-commit-threshold', () => store.get('intelligentCommitThreshold'));
+  ipcMain.handle('set-intelligent-commit-threshold', (_e, value) => {
+    store.set('intelligentCommitThreshold', value);
   });
 
   // … Ende der IPC-Handler …
