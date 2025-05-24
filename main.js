@@ -278,9 +278,21 @@ async function streamLLMCommitMessages(prompt, onDataChunk) {
   return fullOutput;
 }
 
-async function squashCommitMessages(repoPath, commitMessage, hashes) {
-  const git = simpleGit(repoPath);
+function cleanRebaseDirs(repoPath) {
+  const gitDir = path.join(repoPath, '.git');
+  const rebaseDirs = ['rebase-merge', 'rebase-apply'];
+  for (const dir of rebaseDirs) {
+    const fullPath = path.join(gitDir, dir);
+    if (fs.existsSync(fullPath)) {
+      fs.rmSync(fullPath, { recursive: true, force: true });
+      console.log(`[AutoGit] Entfernt alte ${dir}-Direktory: ${fullPath}`);
+    }
+  }
+}
 
+async function squashCommitMessages(repoPath, commitMessage, hashes) {
+  cleanRebaseDirs(repoPath);
+  const git = simpleGit(repoPath);
   // 1. Find the oldest commit in the sequence
   const allCommits = (await git.log()).all;
   const hashIdxs = hashes.map(h => allCommits.findIndex(c => c.hash.startsWith(h)));
@@ -847,81 +859,7 @@ app.whenReady().then(() => {
   ipcMain.handle('set-intelligent-commit-threshold', (_e, value) => {
     store.set('intelligentCommitThreshold', value);
   });
-/* lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
-lol
 
-/*
 
 
   // … Ende der IPC-Handler …
