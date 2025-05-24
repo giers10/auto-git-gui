@@ -81,7 +81,7 @@ function createWindow() {
     width: 900,
     height: 600,
     minWidth: 600,
-    minHeight: 400,
+    minHeight: 500,
     title: 'Auto-Git',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -102,8 +102,8 @@ function openSettings(win) {
  settingsWin = new BrowserWindow({
    parent: win,
    modal: true,
-   width: 400,
-   height: 400, 
+   width: 450,
+   height: 450, 
    resizable: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
