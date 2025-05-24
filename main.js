@@ -327,40 +327,22 @@ async function rewriteCommitMessages(repoPath, message) {
 /**
  * Komplett-Workflow: Von Kandidaten bis Rewrite
  */
-//async function runLLMCommitPipeline(folderPath, hashes, win) {
-
 
 async function runLLMCommitPipeline(folderPath, hashes) {
-  // 1. Prompt bauen
   const prompt = await generateLLMCommitMessages(folderPath, hashes);
-  // 2. LLM Call & Streaming Output für die Katze (optional)
-  const llmOutput = await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk));
-  //console.log('LLM Output:\n', llmOutput); // Nur ein einziges Mal
-  // 3. Robust parsen
-  //const commitList = parseLLMCommitMessages(llmOutput); // [{commit, newMessage}] - fuck it, maybe later something else
-  // 4. Hash->Message Mapping
+  const llmOutput = (await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk))).trim();
 
-  //const messageMap = {};
-  //for (const entry of commitList) {
-  //  messageMap[entry.commit] = entry.newMessage;
-  //}
-  // 5. Rewrite
-  //await rewriteCommitMessages(folderPath, messageMap, hashes);
-  if(hashes.length == 1){
+  if (hashes.length === 1) {
+    // For a single commit: amend it in-place
     const git = simpleGit(folderPath);
-    await git.raw(['commit', '--amend', '-m', message, '--no-edit', '--allow-empty']);
+    await git.raw(['commit', '--amend', '-m', llmOutput, '--no-edit', '--allow-empty']);
   } else if (hashes.length > 1) {
-    await squashCommitMessages(folderPath, llmOutput, hashes); //WE NEED THIS FUNCTION, WRITE IT PLEASE
+    // For multiple commits: squash & set message
+    await squashCommitMessages(folderPath, llmOutput, hashes);
   } else {
-    //should never be reached, right?
+    throw new Error('No commits to rewrite.');
   }
-
-  // Optional: Notification anzeigen
-  //if (win && win.webContents) {
-  //  win.webContents.send('llm-commit-rewrite-finished', { changed: hashes.length });
-  //}
 }
-
 
 async function autoCommit(folderPath, message) {
   const git = simpleGit(folderPath);
@@ -471,7 +453,7 @@ async function autoCommit(folderPath, message) {
       // Reset danach:
       folders[idx].linesChanged = 0;
       folders[idx].llmCandidates = [];
-      store.set('folders', folders);
+      //store.set('folders', folders);
     }
 
     // Folder-Objekt speichern
