@@ -433,7 +433,7 @@ folders.forEach(folderObj => {
     const sel = await window.electronAPI.getSelected();
     if (sel) await renderContent(sel);
   });
-//test
+
   // Repo-Update Handling jetzt mit Lookup für folderObj
   window.addEventListener('repo-updated', async e => {
     const obj = await getFolderObjByPath(e.detail);
