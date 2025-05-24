@@ -437,7 +437,15 @@ folders.forEach(folderObj => {
   // Repo-Update Handling jetzt mit Lookup für folderObj
   window.addEventListener('repo-updated', async e => {
     const obj = await getFolderObjByPath(e.detail);
-    if (obj) renderContent(obj);
+    if (!obj) return;
+
+    // Hole aktuell selektierten Ordner
+    const selected = await window.electronAPI.getSelected();
+    if (!selected || selected.path !== obj.path) {
+      await window.electronAPI.setSelected(obj);
+      await renderSidebar();
+    }
+    await renderContent(obj);
   });
 
   titleEl.addEventListener('contextmenu', e => {
