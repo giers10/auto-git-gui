@@ -477,24 +477,41 @@ folders.forEach(folderObj => {
   });
 
 
-window.electronAPI.onTrayToggleMonitoring(async (_e, folderPath) => {
-  const folders = await window.electronAPI.getFolders();
-  const folder = folders.find(f => f.path === folderPath);
-  if (folder) {
-    await window.electronAPI.setMonitoring(folder, !folder.monitoring);
-  }
-});
+  window.electronAPI.onTrayToggleMonitoring(async (_e, folderPath) => {
+    const folders = await window.electronAPI.getFolders();
+    const folder = folders.find(f => f.path === folderPath);
+    if (folder) {
+      await window.electronAPI.setMonitoring(folder, !folder.monitoring);
+      await renderSidebar();                       // <--- UI REFRESH!
+      const selected = await window.electronAPI.getSelected();
+      if (selected && selected.path === folderPath)
+        await renderContent(folder);               // falls im Content aktiv
+    }
+  });
 
-window.electronAPI.onTrayRemoveFolder(async (_e, folderPath) => {
-  const folders = await window.electronAPI.getFolders();
-  const folder = folders.find(f => f.path === folderPath);
-  if (folder) {
-    await window.electronAPI.removeFolder(folder);
-  }
-});
+  window.electronAPI.onTrayRemoveFolder(async (_e, folderPath) => {
+    const folders = await window.electronAPI.getFolders();
+    const folder = folders.find(f => f.path === folderPath);
+    if (folder) {
+      await window.electronAPI.removeFolder(folder);
+      await renderSidebar();                       // <--- UI REFRESH!
+      // Wähle ggf. neuen Folder oder setze UI auf "No folder selected"
+      const all = await window.electronAPI.getFolders();
+      if (all.length === 0) {
+        titleEl.textContent = 'No folder selected';
+        contentList.innerHTML = '';
+      } else {
+        await window.electronAPI.setSelected(all[0]);
+        await renderContent(all[0]);
+      }
+    }
+  });
 
-window.electronAPI.onTrayAddFolder(async () => {
-  await window.electronAPI.addFolder();
-});
+  window.electronAPI.onTrayAddFolder(async () => {
+    await window.electronAPI.addFolder();
+    await renderSidebar();                         // <--- UI REFRESH!
+    const sel = await window.electronAPI.getSelected();
+    if (sel) await renderContent(sel);
+  });
 
 });
