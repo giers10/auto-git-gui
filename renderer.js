@@ -1,5 +1,3 @@
-const { ipcRenderer } = require('electron');
-
 window.addEventListener('DOMContentLoaded', async () => {
   // Elemente holen
   const folderList  = document.getElementById('folderList');
