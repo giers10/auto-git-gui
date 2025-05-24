@@ -243,12 +243,11 @@ async function autoCommit(folderPath, message) {
     }
   }
 
-  // *** Zeilenzählung ***
+  // --- Zeilenzählung ---
   let diffOutput = await git.diff(['--numstat']);
   // Zeilensumme berechnen:
   let changedLines = 0;
   for (let line of diffOutput.split('\n')) {
-    // Format: <added> <deleted> <filename>
     const match = line.match(/^(\d+|\-)\s+(\d+|\-)\s+(.*)$/);
     if (match) {
       const added = match[1] === '-' ? 0 : parseInt(match[1], 10);
@@ -256,28 +255,48 @@ async function autoCommit(folderPath, message) {
       changedLines += added + deleted;
     }
   }
-  // Folder-Objekt holen und aktualisieren
+
+  // Folders aus Store holen
   let folders = store.get('folders') || [];
   let idx = folders.findIndex(f => f.path === folderPath);
   if (idx !== -1) {
     folders[idx].linesChanged = (folders[idx].linesChanged || 0) + changedLines;
-    store.set('folders', folders);
+    folders[idx].llmCandidates = folders[idx].llmCandidates || [];
+
+    // ===> WICHTIG: Wir commiten ja jetzt, daher merken wir uns gleich die neue Commit-Hash
+    // Vor git.commit: Merke alten HEAD
+    const oldHead = (await git.revparse(['HEAD'])).trim();
+
+    // Stagen & Committen
+    await git.add(['-A']);
+    debug('[autoCommit] Alle Änderungen gestaged.');
+    await git.commit(message || '[auto]');
+    debug('[autoCommit] Commit erfolgreich erstellt.');
+
+    // Nach Commit: neuen HEAD ermitteln und in llmCandidates speichern
+    const newHead = (await git.revparse(['HEAD'])).trim();
+    folders[idx].llmCandidates.push(newHead);
 
     // Threshold holen
     const threshold = store.get('intelligentCommitThreshold') || 10;
     if (folders[idx].linesChanged >= threshold) {
-      folders[idx].linesChanged = 0;
-      store.set('folders', folders);
+      // → Jetzt ist Zeit für den LLM-Magic-Event
       debug('Congratulations! You changed enough lines of code :)');
-      // Optional: Toast anzeigen, etc.
-    }
-  }
 
-  await git.add(['-A']);
-  debug('[autoCommit] Alle Änderungen gestaged.');
-  await git.commit(message || '[auto]');
-  debug('[autoCommit] Commit erfolgreich erstellt.');
-  return true;
+      // Hier wird später der LLM-Workflow ausgelöst (siehe nächster Schritt)
+      // Z.B. await runLLMRewrite(folders[idx].llmCandidates, folderPath);
+
+      // Resette Zähler & Candidate-List
+      folders[idx].linesChanged = 0;
+      folders[idx].llmCandidates = [];
+    }
+
+    // Folder-Objekt speichern
+    store.set('folders', folders);
+  } else {
+    // Folder not found! (Debug)
+    debug(`[autoCommit] Warning: Folder ${folderPath} not found in store`);
+  }
 }
 
 app.whenReady().then(() => {
@@ -343,7 +362,7 @@ app.whenReady().then(() => {
     let folders = store.get('folders') || [];
     let folderObj = folders.find(f => f.path === newFolder);
     if (!folderObj) {
-      folderObj = { path: newFolder, monitoring: true, linesChanged: 0 };
+      folderObj = { path: newFolder, monitoring: true, linesChanged: 0, llmCandidates: [] };
       folders.push(folderObj);
       store.set('folders', folders);
     }
