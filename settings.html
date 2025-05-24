@@ -111,9 +111,10 @@
       await window.settingsAPI.setIntelligentCommitThreshold(v);
     });
   */
-    
+
     // OK: alles final speichern
     ok.addEventListener('click', async () => {
+      alert('OK gedrückt');
       await window.settingsAPI.setSkipPrompt(cbSkip.checked);
       // SkyMode haben wir ja schon beim Change gesetzt
 
