@@ -452,15 +452,16 @@ async function autoCommit(folderPath, message) {
     folders[idx].llmCandidates.push(newHead);
 
     // Threshold holen
-    const threshold = store.get('intelligentCommitThreshold') || 10;
+    const threshold = store.get('intelligentCommitThreshold') || 150;
     if (folders[idx].linesChanged >= threshold) {
       debug('Congratulations! You changed enough lines of code :)');
       // **Hier: LLM-Workflow starten**
       //await runLLMCommitPipeline(folderPath, folders[idx].llmCandidates, win);
-      await runLLMCommitPipeline(folderPath, folders[idx].llmCandidates);
-      // Reset danach:
       folders[idx].linesChanged = 0;
+      const candidates = folders[idx].llmCandidates;
       folders[idx].llmCandidates = [];
+      await runLLMCommitPipeline(folderPath, candidates);
+      // Reset danach:
       //store.set('folders', folders);
     }
 
