@@ -476,15 +476,6 @@ folders.forEach(folderObj => {
     commitBtn.textContent = 'Commit';
   });
 
-  const inputCommitThreshold = document.getElementById('intelligentCommitThreshold');
-  window.settingsAPI.getIntelligentCommitThreshold().then(val => inputCommitThreshold.value = val);
-  inputCommitThreshold.addEventListener('change', e => {
-    const num = Math.max(1, Math.min(1000, Number(inputCommitThreshold.value)));
-    window.settingsAPI.setIntelligentCommitThreshold(num);
-    inputCommitThreshold.value = num;
-  });
-
-
 
   ipcRenderer.on('tray-toggle-monitoring', async (_e, folderPath) => {
     const folders = await window.electronAPI.getFolders();
