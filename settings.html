@@ -208,9 +208,9 @@
       await window.settingsAPI.setSkyMode(initialSky);
       window.settingsAPI.close();
     };
-    //cancel.addEventListener('click', rollback);
-    //close.addEventListener('click',  rollback);
+    cancel.addEventListener('click', rollback);
     alert("bin da");
+    close.addEventListener('click',  rollback);
 
 
   const container = document.getElementById('ollama-model-selectors');
