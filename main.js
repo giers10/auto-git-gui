@@ -10,7 +10,6 @@ const Store = require('electron-store');
 const simpleGit = require('simple-git');
 const chokidar = require('chokidar');
 const { contextBridge, ipcRenderer } = require('electron');
-
 const store = new Store({
   defaults: {
     folders: [],
