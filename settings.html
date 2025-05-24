@@ -182,7 +182,6 @@
       document.body.classList.toggle('sky-mode', cbSky.checked);
     });
     // OK: alles final speichern
-    alert("bin da");
     ok.addEventListener('click', async () => {
       await window.settingsAPI.setSkipPrompt(cbSkip.checked);
       await window.settingsAPI.setAutostart(cbAutostart.checked);
@@ -204,6 +203,7 @@
 
       window.settingsAPI.close();
     });
+    alert("bin da");
 
     // Cancel / Close: SkyMode zurücksetzen, dann schließen
     const rollback = async () => {
