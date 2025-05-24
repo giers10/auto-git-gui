@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   commitCurrentFolder: (folderObj, message) => ipcRenderer.invoke('commit-current-folder', folderObj, message),
   showFolderContextMenu: folderPath => ipcRenderer.send('show-folder-context-menu', folderPath),
   setMonitoring: (folderObj, monitoring) => ipcRenderer.invoke('set-monitoring', folderObj.path, monitoring),
+  getFolderTree: (folderPath) => ipcRenderer.invoke('get-folder-tree', folderPath),
 });
 
 ipcRenderer.on('repo-updated', (_e, folder) => {

@@ -484,6 +484,44 @@ app.whenReady().then(() => {
   ipcMain.handle('set-skip-git-prompt', (_e,val) => store.set('skipGitPrompt', val));
 
 
+  // Auto-Verzeichnisstruktur
+  const IGNORED_NAMES = [
+    '.DS_Store', 'node_modules', '.git', 'dist', 'build',
+    '.cache', 'out', '.venv', '.mypy_cache', '__pycache__'
+  ];
+
+  // Hilfsfunktion: Dateinamen oder Ordner ignorieren?
+  function isIgnored(name) {
+    return IGNORED_NAMES.includes(name);
+  }
+
+  function walkDir(base, rel = '.') {
+    const full = path.join(base, rel);
+    let list = [];
+    try {
+      fs.readdirSync(full, { withFileTypes: true }).forEach(dirent => {
+        if (isIgnored(dirent.name)) return;
+        const entry = path.join(rel, dirent.name);
+        if (dirent.isDirectory()) {
+          list.push({ name: dirent.name, type: 'dir', children: walkDir(base, entry) });
+        } else {
+          list.push({ name: dirent.name, type: 'file' });
+        }
+      });
+    } catch (e) {
+      // Permissions o.ä. ignorieren
+    }
+    return list;
+  }
+
+  ipcMain.handle('get-folder-tree', async (_e, folderPath) => {
+    try {
+      return walkDir(folderPath, '.');
+    } catch {
+      return [];
+    }
+  });
+
 
 
 
