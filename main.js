@@ -371,6 +371,21 @@ async function squashCommitMessages(repoPath, commitMessage, hashes) {
  * Komplett-Workflow: Von Kandidaten bis Rewrite
  */
 
+async function runLLMCommitPipeline(folderPath, hashes) {
+  const prompt = await getPrompt(folderPath, hashes);
+  const llmOutput = (await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk))).trim();
+
+  if (hashes.length === 1) {
+    // For a single commit: amend it in-place
+    const git = simpleGit(folderPath);
+    await git.raw(['commit', '--amend', '-m', llmOutput, '--no-edit', '--allow-empty']);
+  } else if (hashes.length > 1) {
+    // For multiple commits: squash & set message
+    await squashCommitMessages(folderPath, llmOutput, hashes);
+  } else {
+    throw new Error('No commits to rewrite.');
+  }
+}
 
 async function autoCommit(folderPath, message) {
   const git = simpleGit(folderPath);
