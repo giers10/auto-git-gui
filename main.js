@@ -51,6 +51,29 @@ function createWindow() {
 }
 
 
+// Settings-Fenster
+let settingsWin;
+function openSettings(win) {
+  if (settingsWin) {
+    settingsWin.focus();
+    return;
+  }
+ settingsWin = new BrowserWindow({
+   parent: win,
+   modal: true,
+   width: 400,
+   height: 300, 
+   resizable: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true
+    }
+  });
+  settingsWin.removeMenu();
+  settingsWin.loadFile('settings.html');
+  settingsWin.on('closed', () => settingsWin = null);
+}
+
 
 /**
  * Startet einen File-Watcher auf .git/refs/heads/master,
