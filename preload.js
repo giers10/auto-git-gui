@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('settingsAPI', {
   setSkyMode:  val   => ipcRenderer.invoke('set-skymode', val),
   getSkipPrompt: ()    => ipcRenderer.invoke('get-skip-git-prompt'),
   setSkipPrompt: val   => ipcRenderer.invoke('set-skip-git-prompt', val),
+  etIntelligentCommitThreshold: () => ipcRenderer.invoke('get-intelligent-commit-threshold'),
+  setIntelligentCommitThreshold: value => ipcRenderer.invoke('set-intelligent-commit-threshold', value),
   close: () => ipcRenderer.send('close-settings')
 });
 
