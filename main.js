@@ -34,13 +34,10 @@ if (Array.isArray(folders)) {
 // Map zum Speichern der Watcher pro Ordner
 const repoWatchers = new Map();
 
-
-
 // Debug Helper
 function debug(msg) {
   console.log(`[DEBUG ${new Date().toISOString()}] ${msg}`);
 }
-
 
 /**
  * Erstellt das BrowserWindow und lädt index.html.
@@ -61,7 +58,6 @@ function createWindow() {
   win.loadFile('index.html');
   return win;
 }
-
 
 // Settings-Fenster
 let settingsWin;
@@ -85,7 +81,6 @@ function openSettings(win) {
   settingsWin.loadFile('settings.html');
   settingsWin.on('closed', () => settingsWin = null);
 }
-
 
 /**
  * Startet einen File-Watcher auf .git/refs/heads/master,
@@ -116,7 +111,6 @@ async function initGitRepo(folder) {
     await git.commit(message);
   }
 }
-
 
 // Map für Monitoring-Watcher (nicht repoWatchers!)
 const monitoringWatchers = new Map();
