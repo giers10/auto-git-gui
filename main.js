@@ -337,7 +337,7 @@ async function runLLMCommitPipeline(folderPath, hashes) {
   // 1. Prompt bauen
   const prompt = await generateLLMCommitMessages(folderPath, hashes);
   // 2. LLM Call & Streaming Output für die Katze (optional)
-  const llmOutput = await streamLLMCommitMessages(prompt, chunk => { /* Katze usw. */ });
+  const llmOutput = await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk));
   //console.log('LLM Output:\n', llmOutput); // Nur ein einziges Mal
   // 3. Robust parsen
   const commitList = parseLLMCommitMessages(llmOutput); // [{commit, newMessage}]
