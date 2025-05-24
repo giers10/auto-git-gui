@@ -123,13 +123,13 @@
       if (threshold < 1) threshold = 1;
       if (threshold > 1000) threshold = 1000;
       await window.settingsAPI.setIntelligentCommitThreshold(threshold);
+      alert('OK gedrückt');
 
       // Dropdowns speichern
       const commitSel = document.getElementById('commitModelSelect');
       const readmeSel = document.getElementById('readmeModelSelect');
       if (commitSel) await window.settingsAPI.setCommitModel(commitSel.value);
       if (readmeSel)  await window.settingsAPI.setReadmeModel(readmeSel.value);
-      alert('OK gedrückt');
 
       window.settingsAPI.close();
     });
