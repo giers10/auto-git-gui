@@ -360,86 +360,6 @@ async function rewordCommitsSequentially(repoPath, commitMessageMap, hashes) {
 }
 
 
-
-/**
- * Cherry-picks the given commits, amending each one's message, and replaces master.
- * @param {string} repoPath
- * @param {object} commitMessageMap - { [fullHash]: newMessage }
- * @param {string[]} hashes - list of commit hashes, oldest to newest!
- */
-/*
-async function cherryPickCommitRewrite(repoPath, commitMessageMap, hashes) {
-  // 1. Find parent of the OLDEST commit
-  //const allCommits = (await git.log()).all;
-  //const parentHash = (await git.raw(['rev-parse', `${oldestHash}^`])).trim();
-  // 2. Create a new temp branch from the parent
-  const git = simpleGit(repoPath);
-  if(hashes.length > 1){
-    const branchName = "temp_branch" + Date.now();
-    console.log(commitMessageMap[hashes[0]]);
-    await git.checkout(hashes[0]);
-    console.log("checkout " + hashes[0])
-    await git.checkoutLocalBranch(branchName);
-    console.log("branch " + branchName)
-    await git.commit(commitMessageMap[hashes[0]], undefined, { '--amend': null });
-    console.log("amend")
-    for (let i = 1; i < hashes.length; i++) {
-      await git.raw(['cherry-pick', '--no-commit', hashes[i]]);
-      console.log("cherry " + hashes[i])
-      await git.commit(commitMessageMap[hashes[i]], undefined, { '--amend': null });
-      console.log("amend")
-    }
-    await git.deleteLocalBranch('master', true);
-    console.log("branch del")
-    await git.branch(['-m', branchName, 'master']);
-
-    console.log("branch mov")
-  } else {
-    await git.commit(commitMessageMap[hashes[0]], undefined, { '--amend': null });
-
-  }
-  */
-  //await git.checkoutLocalBranch(NEW_BRANCH);
-  /*
-  // 3. Cherry-pick and amend each commit in order
-  for (const hash of hashes) {
-    // Cherry-pick (commit as is)
-    let res = spawnSync('git', ['cherry-pick', hash], { cwd: repoPath, stdio: 'inherit' });
-    if (res.status !== 0) throw new Error('Cherry-pick failed for ' + hash);
-
-    // Amend commit message
-    const msg = commitMessageMap[hash];
-    if (msg) {
-      res = spawnSync('git', ['commit', '--amend', '-m', msg], { cwd: repoPath, stdio: 'inherit' });
-      if (res.status !== 0) throw new Error('Amend failed for ' + hash);
-    }
-  }
-
-  // 4. Move master to rewritten branch (overwrite)
-  await git.checkout('master'); // just in case we're not already there
-  await git.branch(['-f', 'master', NEW_BRANCH]); // force-move master pointer
-
-  // 5. Checkout master (HEAD on new history)
-  await git.checkout('master');
-
-  // 6. (Optional) Delete the temp branch
-  await git.branch(['-D', NEW_BRANCH]);
-
-  console.log('\n[AutoGit] Master branch has been overwritten with rewritten commits.');
-  */
-//}
-
-// ---- 6. Komplett-Workflow: Von Kandidaten bis Rewrite ----
-/*
-async function runLLMCommitRewrite(folderPath, hashes) {
-  const prompt = await generateLLMCommitMessages(folderPath, hashes);
-  const llmRaw = await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk));
-  const commitList = parseLLMCommitMessages(llmRaw);
-  const messageMap = {};
-  for (const entry of commitList) messageMap[entry.commit] = entry.newMessage;
-  await cherryPickCommitRewrite(folderPath, messageMap, hashes);
-}
-*/
 // ---- 6. Komplett-Workflow (Randomized) ----
 async function runLLMCommitRewrite(folderPath, hashes) {
   // Generate a mapping { hash: message }
@@ -685,28 +605,7 @@ app.whenReady().then(() => {
     startMonitoringWatcher(newFolder, win);
     return store.get('folders');
   });
-/*
-  ipcMain.handle('add-folder', async () => {
-    const { canceled, filePaths } = await dialog.showOpenDialog({ properties: ['openDirectory'] });
-    if (canceled || !filePaths[0]) return store.get('folders');
-    const newFolder = filePaths[0];
 
-    // Repo initialisieren
-    await initGitRepo(newFolder);
-
-    // Im Store ablegen
-    const current = store.get('folders');
-    if (!current.includes(newFolder)) {
-      store.set('folders', [...current, newFolder]);
-    }
-    store.set('selected', newFolder);
-
-    // und watchen
-    watchRepo(newFolder, win);
-
-    return store.get('folders');
-  });
-*/
   // Ordner entfernen: Watcher schließen, Store-Update
   ipcMain.handle('remove-folder', (_e, folderObj) => {
     const folders = store.get('folders') || [];
@@ -718,30 +617,6 @@ app.whenReady().then(() => {
     if (watcher) watcher.close(), repoWatchers.delete(folderObj.path);
     return updated;
   });
-
-/*
-  ipcMain.handle('get-selected', () => store.get('selected'));
-  ipcMain.handle('set-selected', (_e, folderPath) => {
-    store.set('selected', folderPath);
-    return folderPath;
-  });
-  */
-  /*
-  ipcMain.handle('remove-folder', (_e, folder) => {
-    const watcher = repoWatchers.get(folder);
-    if (watcher) {
-      watcher.close();
-      repoWatchers.delete(folder);
-    }
-    const updated = store.get('folders').filter(f => f !== folder);
-    store.set('folders', updated);
-    if (store.get('selected') === folder) {
-      store.set('selected', null);
-    }
-    return updated;
-  });
-  */
-
 
   // Zähle Commits
     ipcMain.handle('get-commit-count', async (_e, folderObj) => {
@@ -766,15 +641,6 @@ app.whenReady().then(() => {
     }
     return;
   });
-
-/*
-  // Selected
-  ipcMain.handle('get-selected', () => store.get('selected'));
-  ipcMain.handle('set-selected', (_e, folder) => {
-    store.set('selected', folder);
-    return folder;
-  });
-  */
 
   // Commits holen
   ipcMain.handle('get-commits', async (_e, folderObj) => {
@@ -834,7 +700,6 @@ app.whenReady().then(() => {
     });
   });
 
-
    // IPC für skymode
   ipcMain.handle('get-skymode', () => store.get('skymode'));
   ipcMain.handle('set-skymode', (_e, val) => {
@@ -846,7 +711,6 @@ app.whenReady().then(() => {
   });
   ipcMain.handle('get-skip-git-prompt', ()    => store.get('skipGitPrompt'));
   ipcMain.handle('set-skip-git-prompt', (_e,val) => store.set('skipGitPrompt', val));
-
 
   // Auto-Verzeichnisstruktur
   const IGNORED_NAMES = [
@@ -882,9 +746,6 @@ app.whenReady().then(() => {
       return [];
     }
   });
-
-
-
 
   ipcMain.handle('commit-current-folder', async (_e, folderObj, message) => {
     folder = folderObj.path;
