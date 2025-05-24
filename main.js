@@ -585,9 +585,7 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(menu);
 
 
-  let img = nativeImage.createFromPath(path.join(__dirname, 'assets/icon/trayicon.png'))
-  .resize({ width: 22, height: 22 });   
-  tray = new Tray(img);
+  const tray = createTray(win);
 
   // --- Context Menu bauen ---
   function buildTrayMenu() {
