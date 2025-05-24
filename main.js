@@ -556,7 +556,7 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(menu);
 
 
-  const trayIconPath = path.join(__dirname, '/assets/icon/trayicon.png'); // Passe ggf. an
+  const trayIconPath = path.join(__dirname, 'assets/icon/trayicon.png'); // Passe ggf. an
   tray = new Tray(nativeImage.createFromPath(trayIconPath));
 
   // --- Context Menu bauen ---
@@ -626,7 +626,7 @@ app.whenReady().then(() => {
 
 
   // 1) Beim Start bereits gespeicherte Ordner überwachen und monitoren
-  const folders = store.get('folders') || [];
+  //const folders = store.get('folders') || [];
   folders.forEach(folderObj => {
     if (fs.existsSync(path.join(folderObj.path, '.git', 'refs', 'heads', 'master'))) {
       watchRepo(folderObj.path, win);
@@ -871,7 +871,7 @@ app.whenReady().then(() => {
           // ----> Das ist die Zeile die du wahrscheinlich vergessen hast!
           // Beende hier die Branch-Logik
           return { success: true };
-        }b
+        }
 
         // Ansonsten wie gehabt:
         if (hasMaster) {
