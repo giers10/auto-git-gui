@@ -796,7 +796,10 @@ function buildTrayMenu() {
       folderObj = { path: newFolder, monitoring: true, linesChanged: 0, llmCandidates: [], lastHeadHash };
       folders.push(folderObj);
       store.set('folders', folders);
-    } 
+    } else {
+      folderObj.lastHeadHash = lastHeadHash;
+      store.set('folders', folders);
+    }
     store.set('selected', newFolder);
     watchRepo(newFolder, win);
     startMonitoringWatcher(newFolder, win);
