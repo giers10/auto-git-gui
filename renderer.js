@@ -124,6 +124,47 @@ folders.forEach(folderObj => {
   `;
 
   // jetzt Listener setzen
+
+  // relocate missing folder
+  li.addEventListener('click', async e => { 
+    if (e.target.closest('.pause-play-btn, .remove-btn')) return;
+
+    // Nur wenn Folder fehlt
+    if (folderObj.needsRelocation) {
+      // Öffne Ordner-Auswahldialog
+      const paths = await window.electronAPI.pickFolder(); // Sollte ein Array zurückgeben
+      const newPath = paths && paths[0];
+      if (!newPath) return;
+
+      // Prüfe auf gültiges Git-Repo
+      const isGit = await window.electronAPI.isGitRepo(newPath);
+      if (!isGit) {
+        alert('Das ist kein gültiges Git-Repository.');
+        return;
+      }
+
+      // Folder umziehen
+      await window.electronAPI.relocateFolder(folderObj.path, newPath);
+
+      // UI aktualisieren
+      await renderSidebar();
+      // Ggf. neuen Ordner direkt selektieren:
+      const newFolderObj = (await window.electronAPI.getFolders())
+        .find(f => f.path === newPath);
+      if (newFolderObj) {
+        await window.electronAPI.setSelected(newFolderObj);
+        await renderContent(newFolderObj);
+      }
+      return;
+    }
+
+    // Sonst Standardverhalten (Folder auswählen)
+    await window.electronAPI.setSelected(folderObj);
+    await renderSidebar();
+    await renderContent(folderObj);
+  });
+
+
   const pauseBtn = li.querySelector('.pause-play-btn');
   pauseBtn.addEventListener('click', async e => {
     e.stopPropagation();
