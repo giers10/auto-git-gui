@@ -647,7 +647,7 @@ async function autoCommit(folderPath, message) {
     folders[idx].llmCandidates.push(newHead);
     if(folders[idx].llmCandidates.length == 1){
       folders[idx].firstCandidateBirthday = Date.now();
-      debug('[autoCommit] Erster Commit aufgenommen. Automatischer message-rewrite spätestens: ' Date.now() + (store.get('minutesCommitThreshold')*60*1000) );
+      debug('[autoCommit] Erster Commit aufgenommen. Automatischer message-rewrite spätestens: ' + Date.now() + (store.get('minutesCommitThreshold')*60*1000) );
     }
     folders[idx].lastHeadHash = newHead;
     console.log(folders[idx].llmCandidates)
@@ -684,7 +684,7 @@ async function main() {
   const minutesThreshold = store.get('minutesCommitThreshold');
   const now = Date.now();
 
-  folders = folders.map(folderObj => {
+  folders.forEach(folderObj => {
     if (folderObj.firstCandidateBirthday != null) {
       const elapsedMin = (now - folderObj.firstCandidateBirthday) / 1000 / 60;
       if (elapsedMin >= minutesThreshold) {
