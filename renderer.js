@@ -528,8 +528,13 @@ folders.forEach(folderObj => {
     const selector = `[data-folder-id="${encodeURIComponent(folderObj.path)}"]`;
     const li = document.querySelector(selector);
     if (li) {
-      li.classList.toggle('needs-relocation', folderObj.needsRelocation);
-      // etc.
+      if (folderObj.needsRelocation) {
+        li.classList.add('needs-relocation');
+        // evtl. !-Icon einblenden
+      } else {
+        li.classList.remove('needs-relocation');
+        // evtl. !-Icon ausblenden
+      }
     }
   });
 });
