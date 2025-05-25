@@ -1087,7 +1087,22 @@ app.whenReady().then(() => {
     if (settingsWin) settingsWin.close();
   });
 
+  ipcMain.handle('is-git-repo', async (_e, folderPath) => {
+    const gitFolder = path.join(folderPath, '.git');
+    return fs.existsSync(gitFolder);
+  });
 
+  // Setzt für ein Folder-Objekt den neuen Pfad, needsRelocation => false
+  ipcMain.handle('relocate-folder', async (_e, oldPath, newPath) => {
+    let folders = store.get('folders') || [];
+    folders = folders.map(f => 
+      f.path === oldPath 
+        ? { ...f, path: newPath, needsRelocation: false } 
+        : f
+    );
+    store.set('folders', folders);
+    return folders.find(f => f.path === newPath);
+  });
 
 
 

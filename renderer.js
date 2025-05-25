@@ -81,15 +81,13 @@ folders.forEach(folderObj => {
   const folder = folderObj.path;
   const isMonitoring = folderObj.monitoring;
   const li = document.createElement('li');
-  if (folderObj.needsRelocation) {
-    li.classList.add('needs-relocation');
-  }
   li.setAttribute('data-folder-id', encodeURIComponent(folder));
   li.className = [
     'flex items-center justify-between px-3 py-2 rounded cursor-pointer',
-    selected && folder === selected.path ? 'selected' : ''
+    selected && folder === selected.path ? 'selected' : '',
+    folderObj.needsRelocation ? 'needs-relocation' : ''
   ].join(' ');
-
+  
   // beide Buttons schon im Template unter „right“
   li.innerHTML = `
     <div class="flex items-center space-x-2 overflow-hidden">
