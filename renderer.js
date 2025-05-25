@@ -164,6 +164,38 @@ folders.forEach(folderObj => {
     await renderContent(folderObj);
   });
 
+  if (folderObj.needsRelocation) {
+    // 1. Ordner wählen
+    const paths = await window.electronAPI.pickFolder();
+    const newPath = paths && paths[0];
+    if (!newPath) return;
+
+    // 2. Prüfen ob Git-Repo
+    const isGit = await window.electronAPI.isGitRepo(newPath);
+    if (!isGit) {
+      alert('Das ist kein gültiges Git-Repository.');
+      return;
+    }
+
+    // 3. Hash-Vergleich
+    const lastKnownHash = folderObj.lastHeadHash;
+    if (!lastKnownHash) {
+      alert('Kein gespeicherter Hash – Vergleich nicht möglich.');
+      return;
+    }
+    const isMatch = await window.electronAPI.repoHasCommit(newPath, lastKnownHash);
+    if (!isMatch) {
+      alert('Das ist nicht das ursprüngliche Repo (Commit-Hash fehlt).');
+      return;
+    }
+
+    // 4. Folder umziehen
+    await window.electronAPI.relocateFolder(folderObj.path, newPath);
+    await renderSidebar();
+    // ggf. noch weitere UI-Updates...
+  }
+
+
 
   const pauseBtn = li.querySelector('.pause-play-btn');
   pauseBtn.addEventListener('click', async e => {
