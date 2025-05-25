@@ -803,10 +803,18 @@ app.whenReady().then(() => {
   });
 
   // Prüfe, ob es ungestagte Änderungen gibt
-  ipcMain.handle('has-diffs', async (_e, folderObj) => {
+  /*ipcMain.handle('has-diffs', async (_e, folderObj) => {
     const git = simpleGit(folderObj.path);
     const status = await git.status();
     // modified, not_added, deleted, etc.
+    return status.files.length > 0;
+  });*/
+  ipcMain.handle('has-diffs', async (_e, folderObj) => {
+    if (folderObj.needsRelocation || !fs.existsSync(folderObj.path)) {
+      return false;
+    }
+    const git = simpleGit(folderObj.path);
+    const status = await git.status();
     return status.files.length > 0;
   });
 
