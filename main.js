@@ -887,6 +887,9 @@ app.whenReady().then(() => {
 
   // Snapshot
   ipcMain.handle('snapshot-commit', async (_e, folderObj, hash) => {
+    if (folderObj.needsRelocation || !fs.existsSync(folderObj.path)) {
+      return null;
+    }
     const { canceled, filePaths } = await dialog.showOpenDialog({
       title: 'Ordner auswählen zum Speichern des Snapshots',
       properties: ['openDirectory']
