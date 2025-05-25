@@ -683,7 +683,6 @@ async function main() {
   const now = Date.now();
 
   folders = folders.map(folderObj => {
-    // only if we’re monitoring and have a birthday timestamp
     if (folderObj.firstCandidateBirthday != null) {
       const elapsedMin = (now - folderObj.firstCandidateBirthday) / 1000 / 60;
       if (elapsedMin >= minutesThreshold) {
@@ -735,7 +734,6 @@ async function main() {
       stopMonitoringWatcher(f.path);
       return { ...f, needsRelocation: true, monitoring: false };
     }
-
     // Keine Änderung an needsRelocation
     return f;
   }));
