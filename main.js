@@ -550,7 +550,18 @@ async function autoCommit(folderPath, message) {
     // Vor git.commit: Merke alten HEAD
     const oldHead = (await git.revparse(['HEAD'])).trim();
 
+    // Stagen & Committen
+    await git.add(['-A']);
+    debug('[autoCommit] Alle Änderungen gestaged.');
+    await git.commit(message || '[auto]');
+    debug('[autoCommit] Commit erfolgreich erstellt.');
 
+    // Nach Commit: neuen HEAD ermitteln und in llmCandidates speichern
+    const newHead = (await git.revparse(['HEAD'])).trim();
+    folders[idx].llmCandidates = folders[idx].llmCandidates || [];
+    folders[idx].llmCandidates.push(newHead);
+    folders[idx].lastHeadHash = newHead;
+    console.log(folders[idx].llmCandidates)
 
     // Threshold holen
     const threshold = store.get('intelligentCommitThreshold') || 10;
