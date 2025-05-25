@@ -636,6 +636,10 @@ async function autoCommit(folderPath, message) {
     const newHead = (await git.revparse(['HEAD'])).trim();
     folders[idx].llmCandidates = folders[idx].llmCandidates || [];
     folders[idx].llmCandidates.push(newHead);
+    if(folders[idx].llmCandidates.length == 1){
+      //HIER SOLL DIE DATE-TIME INFORMATION VOM JETZIGEN MOMENT IN DAS FOLDER OBJEKT GESPEICHERT WERDEN
+      debug('[autoCommit] Erster Commit aufgenommen. Automatischer message-rewrite spätestens: ');
+    }
     folders[idx].lastHeadHash = newHead;
     console.log(folders[idx].llmCandidates)
 
