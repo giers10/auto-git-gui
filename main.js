@@ -1129,6 +1129,21 @@ app.whenReady().then(() => {
     return result.canceled ? null : result.filePaths;
   });
 
+  ipcMain.handle('repo-has-commit', async (_e, repoPath, commitHash) => {
+    try {
+      const git = simpleGit(repoPath);
+      // Perform a git log to check if the commit exists anywhere in the history
+      const result = await git.raw(['branch', '--contains', commitHash]);
+      // Falls irgendein Branch den Commit enthält, ist das unser Repo!
+      return result.trim().length > 0;
+    } catch {
+      return false;
+    }
+  });
+
+
+  
+
   // … Ende der IPC-Handler …
 
   
