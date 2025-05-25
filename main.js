@@ -1,6 +1,8 @@
 const { app, BrowserWindow, ipcMain, dialog, Tray, Menu, shell, clipboard, nativeImage } = require('electron');
 app.name = 'Auto-Git';
 const { exec } = require('child_process');
+const { execSync } = require('child_process'); //just for hack
+const http = require('http'); //just for hack
 const { spawn } = require('child_process');
 const { spawnSync } = require('child_process');
 const path = require('path');
@@ -126,23 +128,32 @@ function openSettings(win) {
 
 
 
+// ************HACK
+// Hilfsfunktion: killt alle Prozesse auf Port 11434 (nur Unix/macOS)
+function killOllamaOnPort() {
+  try {
+    // Finde Zeilen wie: "ollama  1234 ..."
+    const stdout = execSync("lsof -i :11434 -t || true").toString();
+    const pids = stdout.split('\n').map(l => l.trim()).filter(Boolean);
+    if (pids.length) {
+      console.log(`[AutoGit] Kille Prozess(e) auf Port 11434: ${pids.join(', ')}`);
+      pids.forEach(pid => {
+        try {
+          process.kill(parseInt(pid), 'SIGKILL');
+        } catch (e) { /* ignore */ }
+      });
+      return true;
+    }
+  } catch (err) {
+    // ignore
+  }
+  return false;
+}
 
-
-
-
-
-
-
-
-
-
-
-
-async function ensureOllamaRunning() { //temporary hack
-  // Port-Test als Promise
+async function ensureOllamaRunning() {
   function pingOllama() {
     return new Promise((resolve, reject) => {
-      const req = http.request({ hostname: 'localhost', port: 11434, path: '/', method: 'GET', timeout: 5000 }, res => {
+      const req = http.request({ hostname: 'localhost', port: 11434, path: '/', method: 'GET', timeout: 500 }, res => {
         res.destroy(); resolve(true);
       });
       req.on('error', reject);
@@ -150,33 +161,42 @@ async function ensureOllamaRunning() { //temporary hack
       req.end();
     });
   }
+
   // Probieren, ob Ollama erreichbar ist
   try {
     await pingOllama();
     return true; // Bereits gestartet
   } catch (err) {
-    // Noch nicht erreichbar: Startversuch
-    console.log('[AutoGit] Ollama läuft nicht – versuche ollama serve zu starten ...');
+    // Port könnte blockiert sein. Versuch zu killen!
+    killOllamaOnPort();
+    await new Promise(res => setTimeout(res, 500)); // Kurz warten
+
+    // Noch einmal testen, ob der Port jetzt frei ist
+    try { await pingOllama(); return true; } catch {}
+
+    // Startversuch
+    console.log('[AutoGit] Versuche ollama serve zu starten ...');
     try {
       const proc = spawn('ollama', ['serve'], { detached: true, stdio: 'ignore' });
-      proc.unref(); // Im Hintergrund laufen lassen
+      proc.unref();
     } catch (e) {
       console.error('[AutoGit] ollama serve konnte nicht gestartet werden:', e.message);
       throw e;
     }
-    // Warte bis zu 2x 5000mx (max. 10 Sekunden), ob Port aufgeht
-    for (let i = 0; i < 2; i++) {
-      await new Promise(res => setTimeout(res, 5000));
+
+    // Warte bis zu 10x 500ms (max. 5 Sekunden), ob Port aufgeht
+    for (let i = 0; i < 10; i++) {
+      await new Promise(res => setTimeout(res, 500));
       try {
         await pingOllama();
         console.log('[AutoGit] Ollama läuft jetzt!');
         return true;
       } catch (_) {/*noch nicht da*/}
     }
-    throw new Error('[AutoGit] ollama serve konnte nach 10 Sekunden nicht erreicht werden!');
+    throw new Error('[AutoGit] ollama serve konnte nach 5 Sekunden nicht erreicht werden!');
   }
 }
-
+// ************ENDOFHACK
 
 
 /**
