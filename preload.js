@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('settingsAPI', {
   setSkipPrompt: val   => ipcRenderer.invoke('set-skip-git-prompt', val),
   getIntelligentCommitThreshold: () => ipcRenderer.invoke('get-intelligent-commit-threshold'),
   setIntelligentCommitThreshold: value => ipcRenderer.invoke('set-intelligent-commit-threshold', value),
+  getMinutesCommitThreshold: () => ipcRenderer.invoke('get-intelligent-commit-threshold'),
+  setMinutesCommitThreshold: value => ipcRenderer.invoke('set-intelligent-commit-threshold', value),
   getCommitModel: () => ipcRenderer.invoke('get-commit-model'),
   setCommitModel: (model) => ipcRenderer.invoke('set-commit-model', model),
   getReadmeModel: () => ipcRenderer.invoke('get-readme-model'),
