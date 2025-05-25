@@ -672,6 +672,11 @@ async function main() {
 
   async function updateFoldersListener(win) {
   let folders = store.get('folders') || [];
+
+  /* NEXT BLOCK: MONITOR FOLDERS INITIAL CANDIDATE-COMMITS BIRTHDAY FOR AUTOCOMMIT */
+  
+
+  /* NEXT BLOCK: MONITOR FOLDER MISSING / RELOCATED */
   let updatedFolders = [];
   let anyChanged = false;
 
