@@ -124,6 +124,48 @@ function openSettings(win) {
   settingsWin.on('closed', () => settingsWin = null);
 }
 
+async function ensureOllamaRunning() { //temporary hack
+  // Port-Test als Promise
+  function pingOllama() {
+    return new Promise((resolve, reject) => {
+      const req = http.request({ hostname: 'localhost', port: 11434, path: '/', method: 'GET', timeout: 500 }, res => {
+        res.destroy(); resolve(true);
+      });
+      req.on('error', reject);
+      req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
+      req.end();
+    });
+  }
+
+  // Probieren, ob Ollama erreichbar ist
+  try {
+    await pingOllama();
+    return true; // Bereits gestartet
+  } catch (err) {
+    // Noch nicht erreichbar: Startversuch
+    console.log('[AutoGit] Ollama läuft nicht – versuche ollama serve zu starten ...');
+    try {
+      const proc = spawn('ollama', ['serve'], { detached: true, stdio: 'ignore' });
+      proc.unref(); // Im Hintergrund laufen lassen
+    } catch (e) {
+      console.error('[AutoGit] ollama serve konnte nicht gestartet werden:', e.message);
+      throw e;
+    }
+    // Warte bis zu 10x 500ms (max. 5 Sekunden), ob Port aufgeht
+    for (let i = 0; i < 10; i++) {
+      await new Promise(res => setTimeout(res, 500));
+      try {
+        await pingOllama();
+        console.log('[AutoGit] Ollama läuft jetzt!');
+        return true;
+      } catch (_) {/*noch nicht da*/}
+    }
+    throw new Error('[AutoGit] ollama serve konnte nach 5 Sekunden nicht erreicht werden!');
+  }
+
+
+
+
 /**
  * Startet einen File-Watcher auf .git/refs/heads/master,
  * sendet bei Änderungen 'repo-updated' an den Renderer.
@@ -268,6 +310,7 @@ ${JSON.stringify(commits, null, 2)}
 
 // ---- 3. LLM Streaming Call ----
 async function streamLLMCommitMessages(prompt, onDataChunk) {
+  await ensureOllamaRunning(); // temporary hack
   const selectedModel = store.get('commitModel') || 'qwen2.5-coder:32b';
   const response = await fetch('http://localhost:11434/api/generate', {
     method: 'POST',
