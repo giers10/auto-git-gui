@@ -29,7 +29,7 @@ folders = folders.map(f => ({
   needsRelocation: !fs.existsSync(f.path)
 }));
 store.set('folders', folders);
-
+console.log("Startup-Folders:", store.get('folders'));
 
 let tray = null;
 let isQuiting = false;
