@@ -71,6 +71,29 @@ window.addEventListener('DOMContentLoaded', async () => {
     return folders.find(f => f.path === path) || null;
   }
 
+  document.body.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+
+  document.body.addEventListener('drop', async e => {
+    e.preventDefault();
+    const files = [...e.dataTransfer.files];
+    if (!files.length) return;
+    // Prüfe, ob Ordner:
+    for (let f of files) {
+      // f ist File, hat .path und .type, aber bei Folders oft type="" (leerer String)
+      if (f.type === "" /* = Ordner (bei DnD) */) {
+        await window.electronAPI.addFolderByPath(f.path);
+        await renderSidebar();
+        const sel = await window.electronAPI.getSelected();
+        if (sel) await renderContent(sel);
+      }
+    }
+  });
+
+
+
   async function renderSidebar() {
     const folders  = await window.electronAPI.getFolders();
     console.log("Renderer-Folders:", folders);
