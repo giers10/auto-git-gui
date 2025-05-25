@@ -124,6 +124,20 @@ function openSettings(win) {
   settingsWin.on('closed', () => settingsWin = null);
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 async function ensureOllamaRunning() { //temporary hack
   // Port-Test als Promise
   function pingOllama() {
