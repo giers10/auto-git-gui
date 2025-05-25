@@ -595,7 +595,12 @@ app.whenReady().then(() => {
       if (needsRelocation !== missing) {
         anyChanged = true;
         updatedFolders.push({ ...f, needsRelocation: missing });
-        return { ...f, needsRelocation: missing };
+        // NEU: Monitoring beenden, falls missing
+        if (missing) {
+          stopMonitoringWatcher(f.path);
+          f.monitoring = false;
+        }
+        return { ...f, needsRelocation: missing, monitoring: missing ? false : f.monitoring };
       }
       return f;
     });
