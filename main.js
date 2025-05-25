@@ -664,55 +664,61 @@ async function main() {
   const tray = createTray(win);
 
   // --- Context Menu bauen ---
-  function buildTrayMenu() {
-    const folders = store.get('folders') || [];
-    const monitoringActive = folders.some(f => f.monitoring);
+function buildTrayMenu() {
+  const folders = store.get('folders') || [];
+  const monitoringActive = folders.some(f => f.monitoring);
 
-    return Menu.buildFromTemplate([
-      { label: 'Auto-Git öffnen', click: () => { win.show(); win.focus(); } },
-      { type: 'separator' },
-      ...folders.map(f => ({
-        label: `${f.monitoring ? '🟢' : '🔴'} ${path.basename(f.path)}`,
-        submenu: [
-          {
-            label: f.monitoring ? 'Monitoring stoppen' : 'Monitoring starten',
-            click: () => {
-              win.webContents.send('tray-toggle-monitoring', f.path); // Renderer kann dann toggeln
+  return Menu.buildFromTemplate([
+    { label: 'Auto-Git öffnen', click: () => { win.show(); win.focus(); } },
+    { type: 'separator' },
+    ...folders.map(f => ({
+      label: `${f.monitoring ? '🟢' : '🔴'} ${path.basename(f.path)}`,
+      submenu: [
+        {
+          label: f.monitoring ? 'Monitoring stoppen' : 'Monitoring starten',
+          enabled: !f.needsRelocation,  // <--- HIER!
+          click: () => {
+            if (!f.needsRelocation) {
+              win.webContents.send('tray-toggle-monitoring', f.path);
             }
-          },
-          {
-            label: 'Ordner entfernen',
-            click: () => {
-              win.webContents.send('tray-remove-folder', f.path);
-            }
+            // Optional: Feedback anzeigen, falls doch geklickt wird.
           }
-        ]
-      })),
-      { type: 'separator' },
-      {
-        label: 'Neuen Ordner hinzufügen',
-        click: () => { win.webContents.send('tray-add-folder'); }
-      },
-      {
-        label: 'Alle Monitorings starten',
-        click: () => {
-          folders.forEach(f => {
-            if (!f.monitoring) win.webContents.send('tray-toggle-monitoring', f.path);
-          });
+        },
+        {
+          label: 'Ordner entfernen',
+          click: () => {
+            win.webContents.send('tray-remove-folder', f.path);
+          }
         }
-      },
-      {
-        label: 'Alle Monitorings stoppen',
-        click: () => {
-          folders.forEach(f => {
-            if (f.monitoring) win.webContents.send('tray-toggle-monitoring', f.path);
-          });
-        }
-      },
-      { type: 'separator' },
-      { label: 'Beenden', click: () => { isQuiting = true; app.quit(); } }
-    ]);
-  }
+      ]
+    })),
+    { type: 'separator' },
+    {
+      label: 'Neuen Ordner hinzufügen',
+      click: () => { win.webContents.send('tray-add-folder'); }
+    },
+    {
+      label: 'Alle Monitorings starten',
+      click: () => {
+        folders.forEach(f => {
+          if (!f.monitoring && !f.needsRelocation) {
+            win.webContents.send('tray-toggle-monitoring', f.path);
+          }
+        });
+      }
+    },
+    {
+      label: 'Alle Monitorings stoppen',
+      click: () => {
+        folders.forEach(f => {
+          if (f.monitoring) win.webContents.send('tray-toggle-monitoring', f.path);
+        });
+      }
+    },
+    { type: 'separator' },
+    { label: 'Beenden', click: () => { isQuiting = true; app.quit(); } }
+  ]);
+}
 
   tray.setToolTip('Auto-Git läuft im Hintergrund');
   tray.setContextMenu(buildTrayMenu());
