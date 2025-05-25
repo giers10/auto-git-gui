@@ -594,6 +594,7 @@ folders.forEach(folderObj => {
         li.classList.remove('needs-relocation');
         // evtl. !-Icon ausblenden
       }
+      renderSidebar();
     }
   });
 
