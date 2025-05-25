@@ -38,6 +38,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getFolderTree: (folderPath) => ipcRenderer.invoke('get-folder-tree', folderPath),
   getIntelligentCommitThreshold: () => ipcRenderer.invoke('get-intelligent-commit-threshold'),
   setIntelligentCommitThreshold: value => ipcRenderer.invoke('set-intelligent-commit-threshold', value),
+  getMinutesCommitThreshold: () => ipcRenderer.invoke('get-intelligent-commit-threshold'),
+  setMinutesCommitThreshold: value => ipcRenderer.invoke('set-intelligent-commit-threshold', value),
   ollamaList:   () => ipcRenderer.invoke('ollama-list'),
   ollamaPull:   (model) => ipcRenderer.invoke('ollama-pull', model),
   onTrayToggleMonitoring: (callback) => ipcRenderer.on('tray-toggle-monitoring', callback),
