@@ -73,18 +73,6 @@ if (Array.isArray(folders)) {
   }));
   store.set('folders', folders);
 }
-//test
-//test
-//test
-//test
-//test
-//test
-//test
-//test
-//test
-//test
-//test
-//test
 // Map zum Speichern der Watcher pro Ordner
 const repoWatchers = new Map();
 
@@ -579,10 +567,12 @@ async function autoCommit(folderPath, message) {
     const threshold = store.get('intelligentCommitThreshold') || 10;
     if (folders[idx].linesChanged >= threshold) {
       debug('Congratulations! You changed enough lines of code :)');
-      folders[idx].linesChanged = 0;
-      const cands = folders[idx].llmCandidates;
-      folders[idx].llmCandidates = [];
+      //folders[idx].linesChanged = 0;
+      //const cands = folders[idx].llmCandidates;
+      //folders[idx].llmCandidates = [];
       await runLLMCommitRewrite(folderPath, cands);
+      folders[idx].linesChanged = 0; // !!!!!!!!!!!!!!!!!!!
+      folders[idx].llmCandidates = [];
     store.set('folders', folders);
     }
     store.set('folders', folders);
