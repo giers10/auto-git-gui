@@ -89,16 +89,14 @@
       filter: grayscale(1);
       pointer-events: auto !important; /* Damit Buttons weiter gehen */
     }
-    .needs-relocation::after {
-      content: "!";
+    .relocation-warning-symbol {
       color: #e11d48;
       font-weight: bold;
       font-size: 1.2em;
-      left: 8px;
-      top: 8px;
-      background: #fff1f2;
-      border-radius: 50%;
-      padding: 0 5px;
+      margin-right: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     #currentTitle {
