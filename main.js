@@ -495,7 +495,7 @@ async function runLLMCommitRewrite(folderObj) {
     await rewordCommitsSequentially(folderPath, messageMap, hashes);
   }
 }
-
+//
 /*
 // ---- 6. Komplett-Workflow (Random instant messages für debugging) ----
 async function runLLMCommitRewrite(folderPath, hashes) {
