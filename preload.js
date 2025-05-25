@@ -46,7 +46,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onFoldersLocationUpdated: (callback) => ipcRenderer.on('folders-location-updated', (e, folderObj) => callback(folderObj)),
   isGitRepo: (path) => ipcRenderer.invoke('is-git-repo', path),
   relocateFolder: (oldPath, newPath) => ipcRenderer.invoke('relocate-folder', oldPath, newPath),
-  pickFolder: () => ipcRenderer.invoke('pick-folder') // Picker muss im Main auch exposed sein!
+  pickFolder: () => ipcRenderer.invoke('pick-folder'),
+  repoHasCommit: (repoPath, commitHash) => ipcRenderer.invoke('repo-has-commit', repoPath, commitHash),
 });
 
 ipcRenderer.on('repo-updated', (_e, folder) => {
