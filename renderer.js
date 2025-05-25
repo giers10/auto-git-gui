@@ -101,8 +101,14 @@ folders.forEach(folderObj => {
       <span class="truncate text-sm font-medium">${basename(folder)}</span>
     </div>
     <div class="flex items-center space-x-2">
-      <!-- Play/Pause -->
-      <button class="pause-play-btn p-1 rounded" title="${isMonitoring ? 'Monitoring pausieren' : 'Monitoring starten'}">
+      ${
+        folderObj.needsRelocation
+          ? `<span class="relocation-warning-symbol" title="Ordner fehlt / verschoben">!</span>`
+          : ''
+      }
+      <button class="pause-play-btn p-1 rounded${folderObj.needsRelocation ? ' disabled' : ''}"
+        title="${isMonitoring ? 'Monitoring pausieren' : 'Monitoring starten'}"
+        ${folderObj.needsRelocation ? 'disabled' : ''}>
         ${isMonitoring
           ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                <rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/>
@@ -113,7 +119,6 @@ folders.forEach(folderObj => {
              </svg>`
         }
       </button>
-      <!-- Entfernen -->
       <button class="remove-btn p-1 rounded" title="Ordner entfernen">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
