@@ -1260,6 +1260,10 @@ function buildTrayMenu() {
     store.set('intelligentCommitThreshold', value);
   });
 
+  ipcMain.handle('get-minutes-commit-threshold', () => store.get('minutesCommitThreshold'));
+  ipcMain.handle('set-minutes-commit-threshold', (_e, value) => {
+    store.set('minutesCommitThreshold', value);
+  });
 
   ipcMain.handle('get-autostart', () => store.get('autostart'));
   ipcMain.handle('set-autostart', (_e, enabled) => {
