@@ -8,6 +8,30 @@ window.addEventListener('DOMContentLoaded', async () => {
   const contentList = document.getElementById('contentList');
   const panel       = document.querySelector('.flex-1.p-4.overflow-y-auto');
 
+
+  // Drag and Drop
+  document.body.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+
+  document.body.addEventListener('drop', async e => {
+    e.preventDefault();
+    const files = [...e.dataTransfer.files];
+    if (!files.length) return;
+    // Prüfe, ob Ordner:
+    for (let f of files) {
+      // f ist File, hat .path und .type, aber bei Folders oft type="" (leerer String)
+      if (f.type === "" /* = Ordner (bei DnD) */) {
+        await window.electronAPI.addFolderByPath(f.path);
+        await renderSidebar();
+        const sel = await window.electronAPI.getSelected();
+        if (sel) await renderContent(sel);
+      }
+    }
+  });
+
+
   // Farben für Sky-Mode
   const DAY_COLOR   = [173, 216, 230];
   const NIGHT_COLOR = [0,   0,   50];
@@ -71,26 +95,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     return folders.find(f => f.path === path) || null;
   }
 
-  document.body.addEventListener('dragover', e => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-  });
-
-  document.body.addEventListener('drop', async e => {
-    e.preventDefault();
-    const files = [...e.dataTransfer.files];
-    if (!files.length) return;
-    // Prüfe, ob Ordner:
-    for (let f of files) {
-      // f ist File, hat .path und .type, aber bei Folders oft type="" (leerer String)
-      if (f.type === "" /* = Ordner (bei DnD) */) {
-        await window.electronAPI.addFolderByPath(f.path);
-        await renderSidebar();
-        const sel = await window.electronAPI.getSelected();
-        if (sel) await renderContent(sel);
-      }
-    }
-  });
 
 
 
