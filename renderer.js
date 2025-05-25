@@ -525,11 +525,11 @@ folders.forEach(folderObj => {
   });
 
   window.electronAPI.onFoldersLocationUpdated(folderObj => {
-    const selector = `[data-folder-path="${folderObj.path.replace(/"/g, '\\"')}"]`;
+    const selector = `[data-folder-id="${encodeURIComponent(folderObj.path)}"]`;
     const li = document.querySelector(selector);
     if (li) {
       li.classList.toggle('needs-relocation', folderObj.needsRelocation);
-      // evtl. noch ein !-Icon sichtbar machen
+      // etc.
     }
   });
 });
