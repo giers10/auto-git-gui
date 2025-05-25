@@ -745,11 +745,28 @@ app.whenReady().then(() => {
     }
     const newFolder = filePaths[0];
     await initGitRepo(newFolder);
+
+    // HEAD-Hash holen
+    let lastHeadHash = null;
+    try {
+      const git = simpleGit(newFolder);
+      lastHeadHash = (await git.revparse(['HEAD'])).trim();
+    } catch {}
+
     let folders = store.get('folders') || [];
     let folderObj = folders.find(f => f.path === newFolder);
     if (!folderObj) {
-      folderObj = { path: newFolder, monitoring: true, linesChanged: 0, llmCandidates: [] };
+      folderObj = {
+        path: newFolder,
+        monitoring: true,
+        linesChanged: 0,
+        llmCandidates: [],
+        lastHeadHash // <--- Hinzufügen!
+      };
       folders.push(folderObj);
+      store.set('folders', folders);
+    } else {
+      folderObj.lastHeadHash = lastHeadHash;
       store.set('folders', folders);
     }
     store.set('selected', newFolder);
