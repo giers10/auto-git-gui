@@ -474,18 +474,20 @@ async function rewordCommitsSequentially(repoPath, commitMessageMap, hashes) {
 
 //---- 6. Workflow ----
 async function runLLMCommitRewrite(folderObj) {
-  const hashes = folderObj.llmCandidates;
-  const birthday = folderObj.firstCandidateBirthday;
-  const folderPath = folderObj.path;
-  folderObj.llmCandidates = [];
-  folderObj.firstCandidateBirthday = null;
-  folders[idx].linesChanged = 0;
-  const prompt = await generateLLMCommitMessages(folderPath, hashes);
-  const llmRaw = await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk));
-  const commitList = parseLLMCommitMessages(llmRaw);
-  const messageMap = {};
-  for (const entry of commitList) messageMap[entry.commit] = entry.newMessage;
-  await rewordCommitsSequentially(folderPath, messageMap, hashes);
+  if(!folderObj.needsRelocation){
+    const hashes = folderObj.llmCandidates;
+    const birthday = folderObj.firstCandidateBirthday;
+    const folderPath = folderObj.path;
+    folderObj.llmCandidates = [];
+    folderObj.firstCandidateBirthday = null;
+    folders[idx].linesChanged = 0;
+    const prompt = await generateLLMCommitMessages(folderPath, hashes);
+    const llmRaw = await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk));
+    const commitList = parseLLMCommitMessages(llmRaw);
+    const messageMap = {};
+    for (const entry of commitList) messageMap[entry.commit] = entry.newMessage;
+    await rewordCommitsSequentially(folderPath, messageMap, hashes);
+  }
 }
 
 /*
