@@ -876,6 +876,9 @@ app.whenReady().then(() => {
    * Checkt das Arbeitsverzeichnis auf exakt den Zustand von `hash` aus.
    */
   ipcMain.handle('checkout-commit', async (_e, folderObj, hash) => {
+    if (folderObj.needsRelocation || !fs.existsSync(folderObj.path)) {
+      return false;
+    }
     const git = simpleGit(folderObj.path);
     // clean mode: alle lokalen Veränderungen verwerfen
     await git.checkout([hash, '--force']);
