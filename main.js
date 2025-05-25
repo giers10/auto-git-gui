@@ -68,8 +68,8 @@ function createTray(win) {
 if (Array.isArray(folders)) {
   folders = folders.map(f => ({
     ...f,
-    linesChanged: 0,      // zurück auf 0
-    llmCandidates: []     // leeres Array
+    //linesChanged: 0,      // zurück auf 0
+    //llmCandidates: []     // leeres Array
   }));
   store.set('folders', folders);
 }
