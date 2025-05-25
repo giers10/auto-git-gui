@@ -27,34 +27,7 @@ let tray = null;
 let isQuiting = false;
 
 
-function updateMissingFolders(win) {
-  let folders = store.get('folders') || [];
-  let updatedFolders = [];
-  let anyChanged = false;
 
-  folders = folders.map(f => {
-    const missing = !fs.existsSync(f.path);
-    const needsRelocation = f.needsRelocation || false;
-    if (needsRelocation !== missing) {
-      anyChanged = true;
-      updatedFolders.push({ ...f, needsRelocation: missing });
-      return { ...f, needsRelocation: missing };
-    }
-    return f;
-  });
-
-  if (anyChanged) {
-    store.set('folders', folders);
-    console.log("change detected");
-    // Für jeden betroffenen Folder Event schicken:
-    updatedFolders.forEach(folderObj => {
-      win.webContents.send('folders-location-updated', folderObj);
-    });
-  }
-}
-
-updateMissingFolders(win);
-setInterval(updateMissingFolders(win), 3000);
 
 
 
@@ -605,6 +578,36 @@ async function autoCommit(folderPath, message) {
 
 app.whenReady().then(() => {
   const win = createWindow();
+
+  function updateMissingFolders(win) {
+    let folders = store.get('folders') || [];
+    let updatedFolders = [];
+    let anyChanged = false;
+
+    folders = folders.map(f => {
+      const missing = !fs.existsSync(f.path);
+      const needsRelocation = f.needsRelocation || false;
+      if (needsRelocation !== missing) {
+        anyChanged = true;
+        updatedFolders.push({ ...f, needsRelocation: missing });
+        return { ...f, needsRelocation: missing };
+      }
+      return f;
+    });
+
+    if (anyChanged) {
+      store.set('folders', folders);
+      console.log("change detected");
+      // Für jeden betroffenen Folder Event schicken:
+      updatedFolders.forEach(folderObj => {
+        win.webContents.send('folders-location-updated', folderObj);
+      });
+    }
+  }
+
+  updateMissingFolders(win);
+  setInterval(() => updateMissingFolders(win), 3000);
+
 
   // Menubar
   const menu = Menu.buildFromTemplate([
