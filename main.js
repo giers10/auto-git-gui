@@ -53,8 +53,8 @@ function updateMissingFolders(win) {
   }
 }
 
-updateMissingFolders();
-setInterval(updateMissingFolders, 3000);
+updateMissingFolders(win);
+setInterval(updateMissingFolders(win), 3000);
 
 
 
