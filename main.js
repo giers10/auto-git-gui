@@ -857,7 +857,7 @@ app.whenReady().then(() => {
   // Diff
   ipcMain.handle('diff-commit', async (_e, folderObj, hash) => {
     if (folderObj.needsRelocation || !fs.existsSync(folderObj.path)) {
-      return;
+      return null;
     }
     const git = simpleGit(folderObj.path);
     return git.diff([`${hash}^!`]);
@@ -865,6 +865,9 @@ app.whenReady().then(() => {
 
   // Revert
   ipcMain.handle('revert-commit', async (_e, folderObj, hash) => {
+    if (folderObj.needsRelocation || !fs.existsSync(folderObj.path)) {
+      return;
+    }
     const git = simpleGit(folderObj.path);
     await git.revert(hash, ['--no-edit']);
   });
