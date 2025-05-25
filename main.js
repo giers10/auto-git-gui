@@ -571,7 +571,7 @@ async function autoCommit(folderPath, message) {
       //const cands = folders[idx].llmCandidates;
       //folders[idx].llmCandidates = [];
       await runLLMCommitRewrite(folderPath, cands);
-      folders[idx].linesChanged = 0; // !!!!!!!!!!!!!!!!!!!! 
+      folders[idx].linesChanged = 0; // !!!!!!!!!!!!!!!!!!!!  needs logic to handle several llm runs called at the same time
       folders[idx].llmCandidates = [];
     store.set('folders', folders);
     }
