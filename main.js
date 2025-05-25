@@ -670,7 +670,7 @@ async function main() {
 
   const win = createWindow();
 
-  async function updateMissingFolders(win) {
+  async function updateFoldersListener(win) {
   let folders = store.get('folders') || [];
   let updatedFolders = [];
   let anyChanged = false;
@@ -727,8 +727,8 @@ async function main() {
 }
 
 
-  await updateMissingFolders(win);
-  setInterval(() => { updateMissingFolders(win); }, 3000);
+  await updateFoldersListener(win); 
+  setInterval(() => { updateFoldersListener(win); }, 3000);
 
 
   // Menubar
