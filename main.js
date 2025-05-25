@@ -887,7 +887,7 @@ function buildTrayMenu() {
     let folders = store.get('folders') || [];
     let folderObj = folders.find(f => f.path === newFolder);
     if (!folderObj) {
-      folderObj = { path: newFolder, monitoring: true, linesChanged: 0, llmCandidates: [], lastHeadHash };
+      folderObj = { path: newFolder, monitoring: true, linesChanged: 0, llmCandidates: [], firstCandidateBirthday: null, lastHeadHash };
       folders.push(folderObj);
       store.set('folders', folders);
     } else {
