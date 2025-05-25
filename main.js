@@ -163,7 +163,7 @@ async function ensureOllamaRunning() { //temporary hack
       throw e;
     }
     // Warte bis zu 10x 500ms (max. 5 Sekunden), ob Port aufgeht
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 20; i++) {
       await new Promise(res => setTimeout(res, 500));
       try {
         await pingOllama();
