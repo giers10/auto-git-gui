@@ -209,6 +209,12 @@
       if (threshold > 1000) threshold = 1000;
       await window.settingsAPI.setIntelligentCommitThreshold(threshold);
 
+      let minutes = parseInt(minutesInput.value, 10);
+      if (isNaN(minutes)) minutes = 10;
+      if (minutes < 1) minutes = 1;
+      if (minutes > 1000) minutes = 60;
+      await window.settingsAPI.setMinutesCommitThreshold(minutes);
+
       // Dropdowns speichern
       const commitSel = document.getElementById('commitModelSelect');
       const readmeSel = document.getElementById('readmeModelSelect');
