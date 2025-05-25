@@ -480,7 +480,7 @@ async function runLLMCommitRewrite(folderObj) {
     const folderPath = folderObj.path;
     folderObj.llmCandidates = [];
     folderObj.firstCandidateBirthday = null;
-    folders[idx].linesChanged = 0;
+    folderObj.linesChanged = 0;
     const prompt = await generateLLMCommitMessages(folderPath, hashes);
     const llmRaw = await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk));
     const commitList = parseLLMCommitMessages(llmRaw);
@@ -692,7 +692,7 @@ async function main() {
       }
     }
   });
-  
+
 
   /* ──────────────────────────────────────────────────── */
 
