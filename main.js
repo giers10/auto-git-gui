@@ -123,24 +123,7 @@ function openSettings(win) {
   settingsWin.loadFile('settings.html');
   settingsWin.on('closed', () => settingsWin = null);
 }
-/*
-test
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-*/
 /**
  * Startet einen File-Watcher auf .git/refs/heads/master,
  * sendet bei Änderungen 'repo-updated' an den Renderer.
