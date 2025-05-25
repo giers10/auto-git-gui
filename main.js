@@ -162,7 +162,7 @@ async function ensureOllamaRunning() { //temporary hack
     }
     throw new Error('[AutoGit] ollama serve konnte nach 5 Sekunden nicht erreicht werden!');
   }
-
+}
 
 
 
