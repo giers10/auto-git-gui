@@ -526,7 +526,9 @@ folders.forEach(folderObj => {
 
   window.electronAPI.onFoldersLocationUpdated(folderObj => {
     const selector = `[data-folder-id="${encodeURIComponent(folderObj.path)}"]`;
+    console.log('Selector:', selector);
     const li = document.querySelector(selector);
+    console.log('Gefundenes li:', li);
     if (li) {
       if (folderObj.needsRelocation) {
         li.classList.add('needs-relocation');
