@@ -136,7 +136,18 @@ async function ensureOllamaRunning() { //temporary hack
       req.end();
     });
   }
+/* test
 
+
+
+
+
+
+
+
+
+
+*/
   // Probieren, ob Ollama erreichbar ist
   try {
     await pingOllama();
