@@ -26,7 +26,12 @@ const store = new Store({
 let tray = null;
 let isQuiting = false;
 
-
+let folders = store.get('folders') || [];
+folders = folders.map(f => ({
+  ...f,
+  needsRelocation: !fs.existsSync(f.path)
+}));
+store.set('folders', folders);
 
 
 
@@ -60,7 +65,6 @@ function createTray(win) {
   return tray;
 }
 
-let folders = store.get('folders');
 if (Array.isArray(folders)) {
   folders = folders.map(f => ({
     ...f,
