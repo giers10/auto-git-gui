@@ -954,6 +954,9 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('commit-current-folder', async (_e, folderObj, message) => {
+    if (folderObj.needsRelocation || !fs.existsSync(folderObj.path)) {
+      return {};
+    }
     folder = folderObj.path;
     try {
       debug(`Commit-Vorgang für ${folder} gestartet…`);
