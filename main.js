@@ -150,16 +150,16 @@ async function ensureOllamaRunning() { //temporary hack
       console.error('[AutoGit] ollama serve konnte nicht gestartet werden:', e.message);
       throw e;
     }
-    // Warte bis zu 10x 500ms (max. 5 Sekunden), ob Port aufgeht
-    for (let i = 0; i < 20; i++) {
-      await new Promise(res => setTimeout(res, 500));
+    // Warte bis zu 2x 5000mx (max. 10 Sekunden), ob Port aufgeht
+    for (let i = 0; i < 2; i++) {
+      await new Promise(res => setTimeout(res, 5000));
       try {
         await pingOllama();
         console.log('[AutoGit] Ollama läuft jetzt!');
         return true;
       } catch (_) {/*noch nicht da*/}
     }
-    throw new Error('[AutoGit] ollama serve konnte nach 5 Sekunden nicht erreicht werden!');
+    throw new Error('[AutoGit] ollama serve konnte nach 10 Sekunden nicht erreicht werden!');
   }
 }
 
