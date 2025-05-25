@@ -821,7 +821,7 @@ app.whenReady().then(() => {
   // Entferne das .git-Verzeichnis
   ipcMain.handle('remove-git-folder', async (_e, folderObj) => {
   if (folderObj.needsRelocation || !fs.existsSync(folderObj.path)) {
-    return false;
+    return;
   }
     const gitDir = path.join(folderObj.path, '.git');
     if (fs.existsSync(gitDir)) {
