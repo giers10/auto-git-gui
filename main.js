@@ -877,7 +877,7 @@ app.whenReady().then(() => {
    */
   ipcMain.handle('checkout-commit', async (_e, folderObj, hash) => {
     if (folderObj.needsRelocation || !fs.existsSync(folderObj.path)) {
-      return false;
+      return;
     }
     const git = simpleGit(folderObj.path);
     // clean mode: alle lokalen Veränderungen verwerfen
