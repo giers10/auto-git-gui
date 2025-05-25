@@ -231,24 +231,6 @@ function stopMonitoringWatcher(folderPath) {
   }
 }
 
-// (1) Die Kernfunktion
-async function addFolderByPath(newFolder) {
-  await initGitRepo(newFolder);
-  let folders = store.get('folders') || [];
-  let folderObj = folders.find(f => f.path === newFolder);
-  if (!folderObj) {
-    folderObj = { path: newFolder, monitoring: true, linesChanged: 0, llmCandidates: [] };
-    folders.push(folderObj);
-    store.set('folders', folders);
-  }
-  store.set('selected', newFolder);
-  watchRepo(newFolder, win);
-  startMonitoringWatcher(newFolder, win);
-  return store.get('folders');
-}
-
-
-
 
 // ---- Rewrite Git Messages with LLM generated messages ----
 
@@ -795,6 +777,22 @@ function buildTrayMenu() {
 
 
 
+  // (1) Die Kernfunktion
+  async function addFolderByPath(newFolder) {
+    await initGitRepo(newFolder);
+    let folders = store.get('folders') || [];
+    let folderObj = folders.find(f => f.path === newFolder);
+    if (!folderObj) {
+      folderObj = { path: newFolder, monitoring: true, linesChanged: 0, llmCandidates: [] };
+      folders.push(folderObj);
+      store.set('folders', folders);
+    }
+    store.set('selected', newFolder);
+    watchRepo(newFolder, win);
+    startMonitoringWatcher(newFolder, win);
+    return store.get('folders');
+  }
+
   // (2) Die IPC-Handler anpassen:
   ipcMain.handle('add-folder', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -809,7 +807,6 @@ function buildTrayMenu() {
   ipcMain.handle('add-folder-by-path', async (_e, folderPath) => {
     return await addFolderByPath(folderPath);
   });
-
 
   // Ordner hinzufügen: Open-Dialog, init, Store-Update, watchen, monitoren
   ipcMain.handle('add-folder', async () => {
