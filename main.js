@@ -473,7 +473,13 @@ async function rewordCommitsSequentially(repoPath, commitMessageMap, hashes) {
 }
 
 //---- 6. Workflow ----
-async function runLLMCommitRewrite(folderPath, hashes) {
+async function runLLMCommitRewrite(folderObj) {
+  const hashes = folderObj.llmCandidates;
+  const birthday = folderObj.firstCandidateBirthday;
+  const folderPath = folderObj.path;
+  folderObj.llmCandidates = [];
+  folderObj.firstCandidateBirthday = null;
+  folders[idx].linesChanged = 0;
   const prompt = await generateLLMCommitMessages(folderPath, hashes);
   const llmRaw = await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk));
   const commitList = parseLLMCommitMessages(llmRaw);
@@ -639,7 +645,7 @@ async function autoCommit(folderPath, message) {
     folders[idx].llmCandidates.push(newHead);
     if(folders[idx].llmCandidates.length == 1){
       folders[idx].firstCandidateBirthday = Date.now();
-      debug('[autoCommit] Erster Commit aufgenommen. Automatischer message-rewrite spätestens: ');
+      debug('[autoCommit] Erster Commit aufgenommen. Automatischer message-rewrite spätestens: ' Date.now() + (store.get('minutesCommitThreshold')*60*1000) );
     }
     folders[idx].lastHeadHash = newHead;
     console.log(folders[idx].llmCandidates)
@@ -648,11 +654,9 @@ async function autoCommit(folderPath, message) {
     const threshold = store.get('intelligentCommitThreshold') || 10;
     if (folders[idx].linesChanged >= threshold) {
       debug('Congratulations! You changed enough lines of code :)');
-      folders[idx].linesChanged = 0;
-      const cands = folders[idx].llmCandidates;
-      folders[idx].llmCandidates = [];
-      folders[idx].firstCandidateBirthday = null;
-      await runLLMCommitRewrite(folderPath, cands);
+      
+      //const cands = folders[idx].llmCandidates;
+      await runLLMCommitRewrite(folders[idx]);
       //folders[idx].linesChanged = 0; // !!!!!!!!!!!!!!!!!!!!  needs logic to handle several llm runs called at the same time
       //folders[idx].llmCandidates = [];
       //folders.[idx].firstCandidateBirthday = null
@@ -674,7 +678,21 @@ async function main() {
   let folders = store.get('folders') || [];
 
   /* NEXT BLOCK: MONITOR FOLDERS INITIAL CANDIDATE-COMMITS BIRTHDAY FOR AUTOCOMMIT */
-  
+  /* ─── NEXT BLOCK: MONITOR “BIRTHDAY” FOR AUTOCOMMIT ─── */
+  const minutesThreshold = store.get('minutesCommitThreshold');
+  const now = Date.now();
+
+  folders = folders.map(folderObj => {
+    // only if we’re monitoring and have a birthday timestamp
+    if (folderObj.firstCandidateBirthday != null) {
+      const elapsedMin = (now - folderObj.firstCandidateBirthday) / 1000 / 60;
+      if (elapsedMin >= minutesThreshold) {
+        runLLMCommitRewrite(folderObj);
+      }
+    }
+  });
+
+  /* ──────────────────────────────────────────────────── */
 
   /* NEXT BLOCK: MONITOR FOLDER MISSING / RELOCATED */
   let updatedFolders = [];
