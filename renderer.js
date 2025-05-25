@@ -144,7 +144,7 @@ folders.forEach(folderObj => {
       }
 
       // 3. Hash-Vergleich
-      const lastKnownHash = folderObj.lastHeadHash;
+      const lastKnownHash = folderObj.lastHeadHash; // WAKE UP MR. FREEMAN! WAKE UP AND... SMELL THE HASHES
       if (!lastKnownHash) {
         alert('Kein gespeicherter Hash – Vergleich nicht möglich.');
         return;
