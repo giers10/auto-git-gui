@@ -784,6 +784,8 @@ function buildTrayMenu() {
       return store.get('folders');
     }
     const newFolder = filePaths[0];
+
+    
     await initGitRepo(newFolder);
 
     // HEAD-Hash holen
