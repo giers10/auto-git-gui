@@ -561,6 +561,7 @@ async function autoCommit(folderPath, message) {
     const newHead = (await git.revparse(['HEAD'])).trim();
     folders[idx].llmCandidates = folders[idx].llmCandidates || [];
     folders[idx].llmCandidates.push(newHead);
+    folders[idx].lastHeadHash = newHead;
     console.log(folders[idx].llmCandidates)
 
     // Threshold holen
