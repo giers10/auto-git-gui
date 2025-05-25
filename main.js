@@ -45,6 +45,7 @@ function updateMissingFolders(win) {
 
   if (anyChanged) {
     store.set('folders', folders);
+    console.log("change detected");
     // Für jeden betroffenen Folder Event schicken:
     updatedFolders.forEach(folderObj => {
       win.webContents.send('folders-location-updated', folderObj);
