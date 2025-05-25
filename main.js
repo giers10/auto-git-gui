@@ -73,7 +73,7 @@ if (Array.isArray(folders)) {
   }));
   store.set('folders', folders);
 }
-
+//test
 // Map zum Speichern der Watcher pro Ordner
 const repoWatchers = new Map();
 
