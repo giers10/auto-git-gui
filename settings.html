@@ -177,10 +177,11 @@
     cbCloseToTray.checked = initialCloseToTray;
 
     // Initialwerte parallel laden
-    const [initialSky, initialSkip, initialThreshold] = await Promise.all([
+    const [initialSky, initialSkip, initialThreshold, initialMinutes] = await Promise.all([
       window.settingsAPI.getSkyMode(),
       window.settingsAPI.getSkipPrompt(),
-      window.electronAPI.getIntelligentCommitThreshold()
+      window.electronAPI.getIntelligentCommitThreshold(),
+      window.electronAPI.getMinutesCommitThreshold()
     ]);
 
     // Inputs setzen
