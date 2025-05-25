@@ -596,4 +596,9 @@ folders.forEach(folderObj => {
       }
     }
   });
+
+  window.electronAPI.onFolderUpdated(folderObj => {
+    // Render Sidebar neu, um den Monitoring-Button sofort zu aktualisieren
+    renderSidebar();
+  });
 });
