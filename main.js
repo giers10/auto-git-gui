@@ -567,12 +567,12 @@ async function autoCommit(folderPath, message) {
     const threshold = store.get('intelligentCommitThreshold') || 10;
     if (folders[idx].linesChanged >= threshold) {
       debug('Congratulations! You changed enough lines of code :)');
-      //folders[idx].linesChanged = 0;
-      //const cands = folders[idx].llmCandidates;
-      //folders[idx].llmCandidates = [];
-      await runLLMCommitRewrite(folderPath, cands);
-      folders[idx].linesChanged = 0; // !!!!!!!!!!!!!!!!!!!!  needs logic to handle several llm runs called at the same time
+      folders[idx].linesChanged = 0;
+      const cands = folders[idx].llmCandidates;
       folders[idx].llmCandidates = [];
+      await runLLMCommitRewrite(folderPath, cands);
+      //folders[idx].linesChanged = 0; // !!!!!!!!!!!!!!!!!!!!  needs logic to handle several llm runs called at the same time
+      //folders[idx].llmCandidates = [];
     store.set('folders', folders);
     }
     store.set('folders', folders);
