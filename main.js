@@ -19,7 +19,7 @@ const store = new Store({
     intelligentCommitThreshold: 20,
     autostart: false,
     closeToTray: true,
-    needsRelocation: true
+    needsRelocation: false
   }
 });
 
