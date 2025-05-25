@@ -19,6 +19,7 @@ const store = new Store({
     skymode: true,
     skipGitPrompt: true,
     intelligentCommitThreshold: 20,
+    minutesCommitThreshold: 5,
     autostart: false,
     closeToTray: true,
     needsRelocation: false
@@ -637,6 +638,18 @@ async function autoCommit(folderPath, message) {
     folders[idx].llmCandidates = folders[idx].llmCandidates || [];
     folders[idx].llmCandidates.push(newHead);
     if(folders[idx].llmCandidates.length == 1){
+
+
+
+
+
+
+
+
+
+
+
+
       //HIER SOLL DIE DATE-TIME INFORMATION VOM JETZIGEN MOMENT IN DAS FOLDER OBJEKT GESPEICHERT WERDEN
       debug('[autoCommit] Erster Commit aufgenommen. Automatischer message-rewrite spätestens: ');
     }
