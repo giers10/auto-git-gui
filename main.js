@@ -18,12 +18,44 @@ const store = new Store({
     skipGitPrompt: true,
     intelligentCommitThreshold: 20,
     autostart: false,
-    closeToTray: true
+    closeToTray: true,
+    needsRelocation: true
   }
 });
 
 let tray = null;
 let isQuiting = false;
+
+
+function updateMissingFolders(win) {
+  let folders = store.get('folders') || [];
+  let updatedFolders = [];
+  let anyChanged = false;
+
+  folders = folders.map(f => {
+    const missing = !fs.existsSync(f.path);
+    const needsRelocation = f.needsRelocation || false;
+    if (needsRelocation !== missing) {
+      anyChanged = true;
+      updatedFolders.push({ ...f, needsRelocation: missing });
+      return { ...f, needsRelocation: missing };
+    }
+    return f;
+  });
+
+  if (anyChanged) {
+    store.set('folders', folders);
+    // Für jeden betroffenen Folder Event schicken:
+    updatedFolders.forEach(folderObj => {
+      win.webContents.send('folders-location-updated', folderObj);
+    });
+  }
+}
+
+updateMissingFolders();
+setInterval(updateMissingFolders, 3000);
+
+
 
 function createTray(win) {
   const iconPath = path.join(__dirname, 'assets/icon/trayicon.png');
@@ -731,10 +763,17 @@ app.whenReady().then(() => {
   });
 
   // Zähle Commits
-    ipcMain.handle('get-commit-count', async (_e, folderObj) => {
-    const git = simpleGit(folderObj.path);
-    const log = await git.log();
-    return log.total; // Anzahl der Commits
+  ipcMain.handle('get-commit-count', async (_e, folderObj) => {
+    try {
+      if (folderObj.needsRelocation || !fs.existsSync(folderObj.path)) {
+        return 0;
+      }
+      const git = simpleGit(folderObj.path);
+      const log = await git.log();
+      return log.total;
+    } catch (err) {
+      return 0;
+    }
   });
 
   // Prüfe, ob es ungestagte Änderungen gibt
@@ -756,22 +795,28 @@ app.whenReady().then(() => {
 
   // Commits holen
   ipcMain.handle('get-commits', async (_e, folderObj) => {
-    const git = simpleGit(folderObj.path);
-    // alle Commits holen
-    const log = await git.log(['--all']);
-    // aktuellen HEAD‐Hash ermitteln
-    const fullHead = (await git.revparse(['--verify', 'HEAD'])).trim();
-    const head     = fullHead.substring(0, 7);
-    return {
-      head, 
-      commits: log.all.map(c => ({
-        hash:    c.hash.substring(0, 7),
-        date:    c.date,
-        message: c.message
-      }))
-    };
+    try {
+      if (folderObj.needsRelocation || !fs.existsSync(folderObj.path)) {
+        // Folder nicht vorhanden, geben wir leere Liste zurück
+        return { head: null, commits: [] };
+      }
+      const git = simpleGit(folderObj.path);
+      const log = await git.log(['--all']);
+      const fullHead = (await git.revparse(['--verify', 'HEAD'])).trim();
+      const head = fullHead.substring(0, 7);
+      return {
+        head,
+        commits: log.all.map(c => ({
+          hash: c.hash.substring(0, 7),
+          date: c.date,
+          message: c.message
+        }))
+      };
+    } catch (err) {
+      // Im Fehlerfall (z.B. Verzeichnis gelöscht)
+      return { head: null, commits: [] };
+    }
   });
-
   // Diff
   ipcMain.handle('diff-commit', async (_e, folderObj, hash) => {
     const git = simpleGit(folderObj.path);

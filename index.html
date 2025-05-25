@@ -84,6 +84,23 @@
       border-style: solid !important;
       border-color: gold !important;
     }
+    .needs-relocation {
+      opacity: 0.5;
+      pointer-events: auto; /* Wichtig: trotzdem klickbar lassen! */
+      position: relative;
+    }
+    .needs-relocation::after {
+      content: "!";
+      color: #e11d48;
+      font-weight: bold;
+      font-size: 1.2em;
+      position: absolute;
+      left: 8px;
+      top: 8px;
+      background: #fff1f2;
+      border-radius: 50%;
+      padding: 0 5px;
+    }
 
     #currentTitle {
       /* erlauben, dass der Text umbricht */
@@ -211,11 +228,11 @@
     <!-- Interaction Bar -->
     <div class="w-full h-16 flex items-center p-4 interaction-bar"
          style="background: var(--bg-sidebar); border-top: 1px solid var(--border)">
-      <button id="commitBtn"
+      <!--<button id="commitBtn"
               class="ml-auto px-4 py-2 border rounded font-semibold"
               style="background: var(--accent); color: #fff; border-color: var(--border)">
         Commit
-      </button>
+      </button>-->
     </div>
 
     <script src="renderer.js"></script>

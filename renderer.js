@@ -260,6 +260,9 @@ folders.forEach(folderObj => {
     const folder = folderObj.path;
     titleEl.textContent = folder;
     const { head, commits } = await window.electronAPI.getCommits(folderObj);
+    if (!commits || !commits.length) {
+      return;
+    }
 
     contentList.innerHTML = commits.map(c => `
       <li class="w-full p-3 mb-2 bg-white border border-gray-200 rounded shadow-sm
@@ -452,7 +455,7 @@ folders.forEach(folderObj => {
       window.electronAPI.showFolderContextMenu(titleEl.textContent);
     }
   });
-
+/*
   const commitBtn = document.getElementById('commitBtn');
   commitBtn.addEventListener('click', async () => {
     const folderObj = await window.electronAPI.getSelected();
@@ -475,7 +478,7 @@ folders.forEach(folderObj => {
     commitBtn.disabled   = false;
     commitBtn.textContent = 'Commit';
   });
-
+*/
 
   window.electronAPI.onTrayToggleMonitoring(async (_e, folderPath) => {
     const folders = await window.electronAPI.getFolders();
@@ -514,4 +517,12 @@ folders.forEach(folderObj => {
     if (sel) await renderContent(sel);
   });
 
+  window.electronAPI.onFoldersLocationUpdated(folderObj => {
+    const selector = `[data-folder-path="${folderObj.path.replace(/"/g, '\\"')}"]`;
+    const li = document.querySelector(selector);
+    if (li) {
+      li.classList.toggle('needs-relocation', folderObj.needsRelocation);
+      // evtl. noch ein !-Icon sichtbar machen
+    }
+  });
 });

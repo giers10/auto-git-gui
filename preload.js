@@ -43,6 +43,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onTrayToggleMonitoring: (callback) => ipcRenderer.on('tray-toggle-monitoring', callback),
   onTrayRemoveFolder: (callback) => ipcRenderer.on('tray-remove-folder', callback),
   onTrayAddFolder: (callback) => ipcRenderer.on('tray-add-folder', callback),
+  onFoldersLocationUpdated: (callback) => ipcRenderer.on('folders-location-updated', (e, folderObj) => callback(folderObj)),
 });
 
 ipcRenderer.on('repo-updated', (_e, folder) => {
