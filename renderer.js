@@ -131,23 +131,35 @@ folders.forEach(folderObj => {
 
     // Nur wenn Folder fehlt
     if (folderObj.needsRelocation) {
-      // Öffne Ordner-Auswahldialog
-      const paths = await window.electronAPI.pickFolder(); // Sollte ein Array zurückgeben
+      // 1. Ordner wählen
+      const paths = await window.electronAPI.pickFolder();
       const newPath = paths && paths[0];
       if (!newPath) return;
 
-      // Prüfe auf gültiges Git-Repo
+      // 2. Prüfen ob Git-Repo
       const isGit = await window.electronAPI.isGitRepo(newPath);
       if (!isGit) {
         alert('Das ist kein gültiges Git-Repository.');
         return;
       }
 
-      // Folder umziehen
-      await window.electronAPI.relocateFolder(folderObj.path, newPath);
+      // 3. Hash-Vergleich
+      const lastKnownHash = folderObj.lastHeadHash;
+      if (!lastKnownHash) {
+        alert('Kein gespeicherter Hash – Vergleich nicht möglich.');
+        return;
+      }
+      const isMatch = await window.electronAPI.repoHasCommit(newPath, lastKnownHash);
+      if (!isMatch) {
+        alert('Das ist nicht das ursprüngliche Repo (Commit-Hash fehlt).');
+        return;
+      }
 
-      // UI aktualisieren
+      // 4. Folder umziehen
+      await window.electronAPI.relocateFolder(folderObj.path, newPath);
       await renderSidebar();
+
+      
       // Ggf. neuen Ordner direkt selektieren:
       const newFolderObj = (await window.electronAPI.getFolders())
         .find(f => f.path === newPath);
@@ -164,36 +176,6 @@ folders.forEach(folderObj => {
     await renderContent(folderObj);
   });
 
-  if (folderObj.needsRelocation) {
-    // 1. Ordner wählen
-    const paths = await window.electronAPI.pickFolder();
-    const newPath = paths && paths[0];
-    if (!newPath) return;
-
-    // 2. Prüfen ob Git-Repo
-    const isGit = await window.electronAPI.isGitRepo(newPath);
-    if (!isGit) {
-      alert('Das ist kein gültiges Git-Repository.');
-      return;
-    }
-
-    // 3. Hash-Vergleich
-    const lastKnownHash = folderObj.lastHeadHash;
-    if (!lastKnownHash) {
-      alert('Kein gespeicherter Hash – Vergleich nicht möglich.');
-      return;
-    }
-    const isMatch = await window.electronAPI.repoHasCommit(newPath, lastKnownHash);
-    if (!isMatch) {
-      alert('Das ist nicht das ursprüngliche Repo (Commit-Hash fehlt).');
-      return;
-    }
-
-    // 4. Folder umziehen
-    await window.electronAPI.relocateFolder(folderObj.path, newPath);
-    await renderSidebar();
-    // ggf. noch weitere UI-Updates...
-  }
 
 
 
