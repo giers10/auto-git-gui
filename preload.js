@@ -44,6 +44,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onTrayRemoveFolder: (callback) => ipcRenderer.on('tray-remove-folder', callback),
   onTrayAddFolder: (callback) => ipcRenderer.on('tray-add-folder', callback),
   onFoldersLocationUpdated: (callback) => ipcRenderer.on('folders-location-updated', (e, folderObj) => callback(folderObj)),
+  isGitRepo: (path) => ipcRenderer.invoke('is-git-repo', path),
+  relocateFolder: (oldPath, newPath) => ipcRenderer.invoke('relocate-folder', oldPath, newPath),
+  pickFolder: () => ipcRenderer.invoke('pick-folder'),
 });
 
 ipcRenderer.on('repo-updated', (_e, folder) => {
