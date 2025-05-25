@@ -23,9 +23,6 @@ const store = new Store({
   }
 });
 
-let tray = null;
-let isQuiting = false;
-
 let folders = store.get('folders') || [];
 folders = folders.map(f => ({
   ...f,
@@ -33,6 +30,9 @@ folders = folders.map(f => ({
 }));
 store.set('folders', folders);
 
+
+let tray = null;
+let isQuiting = false;
 
 
 
