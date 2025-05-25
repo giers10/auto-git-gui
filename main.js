@@ -638,19 +638,7 @@ async function autoCommit(folderPath, message) {
     folders[idx].llmCandidates = folders[idx].llmCandidates || [];
     folders[idx].llmCandidates.push(newHead);
     if(folders[idx].llmCandidates.length == 1){
-
-
-
-
-
-
-
-
-
-
-
-
-      //HIER SOLL DIE DATE-TIME INFORMATION VOM JETZIGEN MOMENT IN DAS FOLDER OBJEKT GESPEICHERT WERDEN
+      folders[idx].firstCandidateBirthday
       debug('[autoCommit] Erster Commit aufgenommen. Automatischer message-rewrite spätestens: ');
     }
     folders[idx].lastHeadHash = newHead;
@@ -663,6 +651,7 @@ async function autoCommit(folderPath, message) {
       folders[idx].linesChanged = 0;
       const cands = folders[idx].llmCandidates;
       folders[idx].llmCandidates = [];
+      folders[idx].firstCandidateBirthday = null;
       await runLLMCommitRewrite(folderPath, cands);
       //folders[idx].linesChanged = 0; // !!!!!!!!!!!!!!!!!!!!  needs logic to handle several llm runs called at the same time
       //folders[idx].llmCandidates = [];
