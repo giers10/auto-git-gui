@@ -73,6 +73,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   async function renderSidebar() {
     const folders  = await window.electronAPI.getFolders();
+    console.log("Renderer-Folders:", folders);
     const selected = await window.electronAPI.getSelected();
     folderList.innerHTML = '';
 
