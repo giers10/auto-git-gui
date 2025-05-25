@@ -589,6 +589,7 @@ folders.forEach(folderObj => {
     if (li) {
       if (folderObj.needsRelocation) {
         li.classList.add('needs-relocation');
+        li.setAttribute.disabled;
         // evtl. !-Icon einblenden
       } else {
         li.classList.remove('needs-relocation');
