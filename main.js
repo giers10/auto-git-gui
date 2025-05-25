@@ -1104,7 +1104,12 @@ app.whenReady().then(() => {
     return folders.find(f => f.path === newPath);
   });
 
-
+  ipcMain.handle('pick-folder', async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openDirectory']
+    });
+    return result.canceled ? null : result.filePaths;
+  });
 
   // … Ende der IPC-Handler …
 
