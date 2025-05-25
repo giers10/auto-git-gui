@@ -856,6 +856,9 @@ app.whenReady().then(() => {
   });
   // Diff
   ipcMain.handle('diff-commit', async (_e, folderObj, hash) => {
+    if (folderObj.needsRelocation || !fs.existsSync(folderObj.path)) {
+      return;
+    }
     const git = simpleGit(folderObj.path);
     return git.diff([`${hash}^!`]);
   });
