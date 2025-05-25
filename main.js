@@ -822,22 +822,6 @@ function buildTrayMenu() {
     return await addFolderByPath(folderPath);
   });
 
-
-  // Ordner hinzufügen: Open-Dialog, init, Store-Update, watchen, monitoren
-  ipcMain.handle('add-folder', async () => {
-    const { canceled, filePaths } = await dialog.showOpenDialog({
-      properties: ['openDirectory']
-    });
-    if (canceled || !filePaths[0]) {
-      return store.get('folders');
-    }
-    const newFolder = filePaths[0];
-
-
-
-
-
-
   // Ordner entfernen: Watcher schließen, Store-Update
   ipcMain.handle('remove-folder', (_e, folderObj) => {
     const folders = store.get('folders') || [];
