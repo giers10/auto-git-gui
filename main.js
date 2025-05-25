@@ -1078,6 +1078,11 @@ function buildTrayMenu() {
 
   ipcMain.handle('set-monitoring', async (_e, folderPath, monitoring) => {
     let folders = store.get('folders') || [];
+    const folderObj = folders.find(f => f.path === folderPath);
+    if (!folderObj || folderObj.needsRelocation) {
+      // Monitoring-Start für fehlenden Ordner: Ignorieren!
+      return false;
+    }
     folders = folders.map(f =>
       f.path === folderPath ? { ...f, monitoring } : f
     );
