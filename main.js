@@ -128,7 +128,7 @@ async function ensureOllamaRunning() { //temporary hack
   // Port-Test als Promise
   function pingOllama() {
     return new Promise((resolve, reject) => {
-      const req = http.request({ hostname: 'localhost', port: 11434, path: '/', method: 'GET', timeout: 500 }, res => {
+      const req = http.request({ hostname: 'localhost', port: 11434, path: '/', method: 'GET', timeout: 5000 }, res => {
         res.destroy(); resolve(true);
       });
       req.on('error', reject);
@@ -136,22 +136,6 @@ async function ensureOllamaRunning() { //temporary hack
       req.end();
     });
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
   // Probieren, ob Ollama erreichbar ist
   try {
     await pingOllama();
