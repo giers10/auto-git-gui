@@ -48,7 +48,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   relocateFolder: (oldPath, newPath) => ipcRenderer.invoke('relocate-folder', oldPath, newPath),
   pickFolder: () => ipcRenderer.invoke('pick-folder'),
   repoHasCommit: (repoPath, commitHash) => ipcRenderer.invoke('repo-has-commit', repoPath, commitHash),
-  onFolderUpdated: callback => ipcRenderer.on('folder-updated', (_e, folderObj) => callback(folderObj)),
 });
 
 ipcRenderer.on('repo-updated', (_e, folder) => {
