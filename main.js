@@ -481,6 +481,12 @@ async function runLLMCommitRewrite(folderObj) {
     folderObj.llmCandidates = [];
     folderObj.firstCandidateBirthday = null;
     folderObj.linesChanged = 0;
+    const folders = store.get('folders') || [];
+    const idx = folders.findIndex(f => f.path === folderObj.path);
+    if (idx !== -1) {
+      folders[idx] = folderObj;
+      store.set('folders', folders);
+    }
     const prompt = await generateLLMCommitMessages(folderPath, hashes);
     const llmRaw = await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk));
     const commitList = parseLLMCommitMessages(llmRaw);
