@@ -86,8 +86,8 @@
     }
     .needs-relocation {
       opacity: 0.5;
-      pointer-events: auto; /* Wichtig: trotzdem klickbar lassen! */
-      position: relative;
+      filter: grayscale(1);
+      pointer-events: auto !important; /* Damit Buttons weiter gehen */
     }
     .needs-relocation::after {
       content: "!";
