@@ -144,12 +144,12 @@ folders.forEach(folderObj => {
       }
 
       // 3. Hash-Vergleich
-      const lastKnownHash = folderObj.lastHeadHash; // WAKE UP MR. FREEMAN! WAKE UP AND... SMELL THE HASHES
+      const lastKnownHash = folderObj.lastHeadHash;
       if (!lastKnownHash) {
         alert('Kein gespeicherter Hash – Vergleich nicht möglich.');
         return;
       }
-      const isMatch = await window.electronAPI.repoHasCommit(newPath, lastKnownHash);
+      const isMatch = await window.electronAPI.repoHasCommit(newPath, lastKnownHash); // WAKE UP MR. FREEMAN! WAKE UP AND... SMELL THE HASHES
       if (!isMatch) {
         alert('Das ist nicht das ursprüngliche Repo (Commit-Hash fehlt).');
         return;
