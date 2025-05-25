@@ -581,42 +581,70 @@ async function autoCommit(folderPath, message) {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(main);
+async function main() {
+
   const win = createWindow();
 
-  function updateMissingFolders(win) {
-    let folders = store.get('folders') || [];
-    let updatedFolders = [];
-    let anyChanged = false;
+  async function updateMissingFolders(win) {
+  let folders = store.get('folders') || [];
+  let updatedFolders = [];
+  let anyChanged = false;
 
-    folders = folders.map(f => {
-      const missing = !fs.existsSync(f.path);
-      const needsRelocation = f.needsRelocation || false;
-      if (needsRelocation !== missing) {
-        anyChanged = true;
-        updatedFolders.push({ ...f, needsRelocation: missing });
-        // NEU: Monitoring beenden, falls missing
-        if (missing) {
-          stopMonitoringWatcher(f.path);
-          f.monitoring = false;
+  // Wir müssen auf asynchrone Checks warten (wegen simple-git)
+  folders = await Promise.all(folders.map(async f => {
+    const wasRelocated = f.needsRelocation || false;
+    const nowExists    = fs.existsSync(f.path);
+
+    // EdgeCase: Ordner taucht "wieder" auf
+    if (wasRelocated && nowExists) {
+      let hashFound = false;
+      if (f.lastHeadHash) {
+        try {
+          const git = simpleGit(f.path);
+          // Prüfe, ob Commit irgendwo im Repo existiert
+          const result = await git.raw(['branch', '--contains', f.lastHeadHash]);
+          hashFound = result.trim().length > 0;
+        } catch (err) {
+          hashFound = false;
         }
-        return { ...f, needsRelocation: missing, monitoring: missing ? false : f.monitoring };
       }
-      return f;
-    });
-
-    if (anyChanged) {
-      store.set('folders', folders);
-      console.log("change detected");
-      // Für jeden betroffenen Folder Event schicken:
-      updatedFolders.forEach(folderObj => {
-        win.webContents.send('folders-location-updated', folderObj);
-      });
+      if (hashFound) {
+        // Repo validiert → needsRelocation zurücknehmen, Monitoring bleibt wie es war
+        anyChanged = true;
+        updatedFolders.push({ ...f, needsRelocation: false });
+        return { ...f, needsRelocation: false };
+      } else {
+        // Commit-Hash nicht gefunden → Ordner bleibt in Relocation
+        return { ...f, needsRelocation: true };
+      }
     }
-  }
 
-  updateMissingFolders(win);
-  setInterval(() => updateMissingFolders(win), 3000);
+    // EdgeCase: Ordner verschwindet
+    if (!nowExists && !wasRelocated) {
+      anyChanged = true;
+      updatedFolders.push({ ...f, needsRelocation: true, monitoring: false });
+      // Monitoring sofort beenden!
+      stopMonitoringWatcher(f.path);
+      return { ...f, needsRelocation: true, monitoring: false };
+    }
+
+    // Keine Änderung an needsRelocation
+    return f;
+  }));
+
+  if (anyChanged) {
+    store.set('folders', folders);
+    // Benachrichtige Renderer für alle betroffenen Folder
+    updatedFolders.forEach(folderObj => {
+      win.webContents.send('folders-location-updated', folderObj);
+    });
+  }
+}
+
+
+  await updateMissingFolders(win);
+  setInterval(() => { updateMissingFolders(win); }, 3000);
 
 
   // Menubar
@@ -1186,7 +1214,7 @@ app.whenReady().then(() => {
       win.hide();
     }
   });
-});
+};
 
 ipcMain.on('show-folder-context-menu', (event, folderPath) => {
   const win = BrowserWindow.fromWebContents(event.sender);
