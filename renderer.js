@@ -316,21 +316,21 @@ folders.forEach(folderObj => {
     return `${m}:${sec}`;
   }
 
-async function updateContentList(folderObj) {
-  // 1. Commits Today (global)
+async function updateInteractionBar(folderObj) {
+  // Commits Today
   const stats = await window.electronAPI.getDailyCommitStats();
   const today = new Date().toISOString().slice(0, 10);
   const commitsToday = stats[today] || 0;
 
-  // 2. Globale Werte
+  // Globale Variablen (falls du sie irgendwo setzt)
   const intelligentCommitThreshold = window.intelligentCommitThreshold || 50;
   const minutesCommitThreshold = window.minutesCommitThreshold || 20;
 
-  // 3. Lines until next Rewrite
+  // Lines until next Rewrite
   const linesChanged = folderObj?.linesChanged || 0;
   const linesUntilRewrite = Math.max(0, intelligentCommitThreshold - linesChanged);
 
-  // 4. Time until next Rewrite
+  // Time until next Rewrite
   let countdown = "00:00";
   if (folderObj?.firstCandidateBirthday) {
     const msThreshold = minutesCommitThreshold * 60 * 1000;
@@ -339,12 +339,19 @@ async function updateContentList(folderObj) {
     countdown = formatCountdown(msLeft);
   }
 
-  // 5. Schreibe Werte ins UI
-  document.getElementById('contentList').innerHTML = `
-    <div>Commits Today: <b>${commitsToday}</b></div>
-    <div>Lines until next Rewrite: <b>${linesUntilRewrite}</b></div>
-    <div>Time until next Rewrite: <b>${countdown}</b></div>
-  `;
+  // Einsetzen in die Bar
+  document.getElementById('commitsToday').textContent = commitsToday;
+  document.getElementById('linesUntilRewrite').textContent = linesUntilRewrite;
+  document.getElementById('countdown').textContent = countdown;
+}
+
+// Zeit-Formatter (wie gehabt)
+function formatCountdown(ms) {
+  if (!ms || ms < 0) return "00:00";
+  const totalSec = Math.floor(ms / 1000);
+  const min = Math.floor(totalSec / 60).toString().padStart(2, "0");
+  const sec = (totalSec % 60).toString().padStart(2, "0");
+  return `${min}:${sec}`;
 }
 
 // Helfer für mm:ss
