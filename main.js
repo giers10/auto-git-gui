@@ -1372,6 +1372,25 @@ function buildTrayMenu() {
   ipcMain.handle('get-daily-commit-stats', () => store.get('dailyCommitStats') || {});
   
 
+  ipcMain.handle('get-all-commit-hashes', async (_e, folderObj) => {
+    try {
+      if (folderObj.needsRelocation || !fs.existsSync(folderObj.path)) {
+        return [];
+      }
+      const git = simpleGit(folderObj.path);
+      // Wir holen ALLE Commits, HEAD → root
+      const log = await git.log(['--all']);
+      // Rückgabe: Array mit vollständigen Hashes (du kannst auch .substring(0, 7) nehmen, falls du überall Short-Hashes verwendest)
+      return log.all.map(c => c.hash);
+    } catch (err) {
+      return [];
+    }
+  });
+
+
+
+
+
   // … Ende der IPC-Handler …
 
   
