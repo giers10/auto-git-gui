@@ -138,6 +138,20 @@ _bindMouseHold() {
   let lastPos = null;
   let moveDist = 0;
 
+  // Wieviel Pixel Abstand ist ok für "über der Katze"?
+  const CAT_TOLERANCE = 24;
+
+  // Helper: Check if Mouse is "über der Katze" (mit Toleranz)
+  const isMouseNearCat = (e) => {
+    const rect = this.img.getBoundingClientRect();
+    return (
+      e.clientX >= rect.left - CAT_TOLERANCE &&
+      e.clientX <= rect.right + CAT_TOLERANCE &&
+      e.clientY >= rect.top - CAT_TOLERANCE &&
+      e.clientY <= rect.bottom + CAT_TOLERANCE
+    );
+  };
+
   const closeEyes = () => {
     this.img.src = this.images.eyesClosed;
   };
@@ -147,28 +161,15 @@ _bindMouseHold() {
     }
   };
 
-  // Helper: Check if Mouse is over the cat image
-  const isMouseOverCat = (e) => {
-    const rect = this.img.getBoundingClientRect();
-    return (
-      e.clientX >= rect.left &&
-      e.clientX <= rect.right &&
-      e.clientY >= rect.top &&
-      e.clientY <= rect.bottom
-    );
-  };
-
-  // on mousedown: only if over cat
   this.img.addEventListener('mousedown', (e) => {
     if (this._isSpeaking || joyActive) return;
-    if (!isMouseOverCat(e)) return;
+    if (!isMouseNearCat(e)) return;
 
     mouseDown = true;
     lastPos = { x: e.clientX, y: e.clientY };
     moveDist = 0;
     closeEyes();
 
-    // Timer für Joy-Animation, aber NUR wenn genug gestreichelt
     holdTimer = setTimeout(() => {
       if (moveDist >= 75) { // mind. 75px gestreichelt!
         joyActive = true;
@@ -176,20 +177,17 @@ _bindMouseHold() {
           joyActive = false;
           reopenEyes();
         });
-      }
-      // Falls NICHT genug gestreichelt: Augen wieder auf
-      else {
+      } else {
         reopenEyes();
       }
       mouseDown = false;
     }, 4000);
   });
 
-  // Mausbewegung tracken nur während gedrückt und über der Katze
   this.img.addEventListener('mousemove', (e) => {
     if (!mouseDown || joyActive) return;
-    if (!isMouseOverCat(e)) {
-      // Sofort abbrechen wenn Maus nicht mehr über der Katze
+    if (!isMouseNearCat(e)) {
+      // Sofort abbrechen, wenn außerhalb des "Toleranzbereichs"
       clearTimeout(holdTimer);
       holdTimer = null;
       reopenEyes();
@@ -204,9 +202,8 @@ _bindMouseHold() {
     }
   });
 
-  // Wenn Maus losgelassen wird oder verlässt das Bild
   ['mouseup', 'mouseleave'].forEach(evt =>
-    this.img.addEventListener(evt, (e) => {
+    this.img.addEventListener(evt, () => {
       if (holdTimer) clearTimeout(holdTimer);
       holdTimer = null;
       if (!joyActive) reopenEyes();
