@@ -305,56 +305,47 @@ _runJoyAnimation(onFinish) {
   const origImgTransition     = img.style.transition;
   const origImgTransform      = img.style.transform;
 
-  // Bild auf joy.png setzen:
   img.src = this.images.joy || this.images.default;
 
-  // 20% Chance auf Salto!
   const salto = Math.random() < 0.2;
+  // Dauer Sprung+Drehung nach oben
+  const upTime = 600;
+  // Zeit "oben bleiben" (stand)
+  const hangTime = salto ? 500 : 1800;
+  // Dauer Rückkehr nach unten
+  const downTime = 800;
 
-  // Erst: Wrapper nach oben bewegen (Katze springt hoch)
-  wrapper.style.transition = 'transform 0.4s cubic-bezier(.19,1,.22,1)';
+  // Herzchen-Explosion starten
+  this._spawnHearts(12);
+
+  // Sofort beide gleichzeitig animieren!
+  wrapper.style.transition = `transform ${upTime}ms cubic-bezier(.19,1,.22,1)`;
   wrapper.style.transform  = 'translateY(-40px)';
-  img.style.transition     = '';
-  img.style.transform      = '';
+  img.style.transition     = `transform ${upTime}ms cubic-bezier(.19,1,.22,1)`;
+  img.style.transform      = salto ? 'rotate(360deg)' : 'rotate(12deg)';
 
   setTimeout(() => {
-    if (salto) {
-      // Salto: Drehe NUR das Katzenbild um 360°!
-      img.style.transition = 'transform 0.6s cubic-bezier(.19,1,.22,1)';
-      img.style.transform  = 'rotate(360deg)';
-    } else {
-      // Normale Joy-Animation: Drehe NUR das Katzenbild leicht!
-      img.style.transition = 'transform 0.6s cubic-bezier(.19,1,.22,1)';
-      img.style.transform  = 'rotate(12deg)';
-    }
-
+    // Katze bleibt kurz oben, keine weitere Rotation
+    // Jetzt: runter + zurückdrehen
+    wrapper.style.transition = `transform ${downTime}ms cubic-bezier(.19,1,.22,1)`;
+    wrapper.style.transform  = 'translateY(0)';
+    img.src = this.images.mouthOpen || this.images.default;
+    img.style.transition = `transform ${downTime}ms cubic-bezier(.19,1,.22,1)`;
+    img.style.transform  = 'rotate(0deg)';
     setTimeout(() => {
-      // Rücksprung: Wrapper wieder runter, Drehung zurücksetzen
-      wrapper.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
-      wrapper.style.transform  = 'translateY(0)';
-      img.src = this.images.mouthOpen || this.images.default;
-      img.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
-      img.style.transform  = 'rotate(0deg)';
-
+      if (!this._pettingActive) {
+        this.img.src = this.images.default;
+      }
       setTimeout(() => {
-        if (!this._pettingActive) {
-          this.img.src = this.images.default;
-        }
-        setTimeout(() => {
-          // Alles zurücksetzen
-          wrapper.style.transition  = origWrapperTransition || '';
-          wrapper.style.transform   = origWrapperTransform  || '';
-          img.style.transition      = origImgTransition     || '';
-          img.style.transform       = origImgTransform      || '';
-          if (typeof onFinish === 'function') onFinish();
-        }, 700);
-      }, 2000);
-    }, salto ? 600 : 2200);
-
-  }, 400);
-
-  // Herzchen-Explosion unabhängig vom Salto
-  this._spawnHearts(12);
+        // Reset auf Original-Styles
+        wrapper.style.transition  = origWrapperTransition || '';
+        wrapper.style.transform   = origWrapperTransform  || '';
+        img.style.transition      = origImgTransition     || '';
+        img.style.transform       = origImgTransform      || '';
+        if (typeof onFinish === 'function') onFinish();
+      }, 700);
+    }, downTime);
+  }, upTime + hangTime);
 }
 
   _spawnHearts(count = 10) {
