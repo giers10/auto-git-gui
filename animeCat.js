@@ -11,6 +11,7 @@ window.AnimeCat = class AnimeCat {
     this.images        = Object.assign({
       default:     'default.png',
       eyesClosed:  'eyes_closed.png',
+      blink:       'blink.png',
       mouthOpen:   'mouth_open.png',
       joy:         'joy.png' 
     }, options.images);
