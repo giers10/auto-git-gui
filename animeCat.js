@@ -307,82 +307,83 @@ window.AnimeCat = class AnimeCat {
     }
   }
 
-  _runJoyAnimation(onFinish) {
-    const wrapper = this.wrapper;
-    const img     = this.img;
-    const origTransition = wrapper.style.transition;
-    const origTransform  = wrapper.style.transform;
-    const origOrigin     = wrapper.style.transformOrigin;
+_runJoyAnimation(onFinish) {
+  const img     = this.img;
+  const origTransition = img.style.transition;
+  const origTransform  = img.style.transform;
+  const origOrigin     = img.style.transformOrigin;
 
-    img.src = this.images.joy || this.images.default;
+  img.src = this.images.joy || this.images.default;
 
-    // 20% Chance auf Salto!
-    const salto = Math.random() < 1;
+  // 20% Chance auf Salto!
+  const salto = Math.random() < 1;
 
-    // Bubble abkoppeln wie gehabt
-    this.container.appendChild(this.bubble);
-    this._positionBubbleDetached();
+  // Bubble abkoppeln wie gehabt
+  this.container.appendChild(this.bubble);
+  this._positionBubbleDetached();
 
-    // Herz-Emitter sauber platzieren
-    const catRect = this.img.getBoundingClientRect();
-    const contRect = this.container.getBoundingClientRect();
-    this.heartEmitter.style.left = (catRect.right - contRect.left + 10) + 'px';
-    this.heartEmitter.style.bottom = (contRect.bottom - catRect.bottom + 13) + 'px';
+  // Herz-Emitter richtig platzieren
+  const catRect = this.img.getBoundingClientRect();
+  const contRect = this.container.getBoundingClientRect();
+  // <-- Hier kannst du x/y anpassen!
+  const emitterX = catRect.right - contRect.left + 16; // <-- X-Versatz, mehr = weiter rechts
+  const emitterY = contRect.bottom - catRect.bottom + 10; // <-- Y-Versatz, mehr = weiter oben
+  this.heartEmitter.style.left = emitterX + 'px';
+  this.heartEmitter.style.bottom = emitterY + 'px';
 
-    const spawnHearts = () => this._spawnHearts(12);
+  const spawnHearts = () => this._spawnHearts(12);
 
-    if (salto) {
-      // Setzt das Zentrum der Drehung auf Mitte-Unten
-      wrapper.style.transformOrigin = '50% 70%';
+  if (salto) {
+    // Setzt das Zentrum der Drehung auf die Bildmitte
+    img.style.transformOrigin = '50% 70%';
+    // Salto und Sprung gleichzeitig
+    img.style.transition = 'transform 1.2s cubic-bezier(.19,1,.22,1)';
+    img.style.transform  = 'translateY(-40px) rotate(360deg)';
+    spawnHearts();
 
-      // Sprung und Drehung gleichzeitig
-      wrapper.style.transition = 'transform 1.2s cubic-bezier(.19,1,.22,1)';
-      wrapper.style.transform  = 'translateY(-40px) rotate(360deg)';
-      spawnHearts();
-
+    setTimeout(() => {
+      // Nur runterfallen, Drehung bleibt auf 360°
+      img.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
+      img.style.transform  = 'translateY(0) rotate(360deg)';
+      img.src = this.images.mouthOpen || this.images.default;
       setTimeout(() => {
-        // Nur runterfallen, Drehung bleibt auf 360°
-        wrapper.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
-        wrapper.style.transform  = 'translateY(0) rotate(360deg)';
+        if (!this._pettingActive) img.src = this.images.default;
+        setTimeout(() => {
+          img.style.transition = origTransition || '';
+          img.style.transform = origTransform || '';
+          img.style.transformOrigin = origOrigin || '';
+          this.wrapper.appendChild(this.bubble);
+          this._resetBubbleAttach();
+          if (typeof onFinish === 'function') onFinish();
+        }, 700);
+      }, 2000);
+    }, 1200); // Erst springen + drehen, dann runterfallen
+  } else {
+    // Normale Joy-Animation
+    img.style.transformOrigin = '50% 70%';
+    img.style.transition = 'transform 0.6s cubic-bezier(.19,1,.22,1)';
+    img.style.transform  = 'translateY(-40px) rotate(12deg)';
+    setTimeout(() => {
+      spawnHearts();
+      setTimeout(() => {
+        img.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
+        img.style.transform  = 'translateY(0) rotate(0deg)';
         img.src = this.images.mouthOpen || this.images.default;
         setTimeout(() => {
-          if (!this._pettingActive) this.img.src = this.images.default;
+          if (!this._pettingActive) img.src = this.images.default;
           setTimeout(() => {
-            wrapper.style.transition = origTransition || '';
-            wrapper.style.transform = origTransform || '';
-            wrapper.style.transformOrigin = origOrigin || '';
+            img.style.transition = origTransition || '';
+            img.style.transform = origTransform || '';
+            img.style.transformOrigin = origOrigin || '';
             this.wrapper.appendChild(this.bubble);
             this._resetBubbleAttach();
             if (typeof onFinish === 'function') onFinish();
           }, 700);
         }, 2000);
-      }, 1200); // Erst springen + drehen, dann runterfallen
-    } else {
-      // Normale Joy-Animation
-      wrapper.style.transformOrigin = '50% 70%';
-      wrapper.style.transition = 'transform 0.6s cubic-bezier(.19,1,.22,1)';
-      wrapper.style.transform  = 'translateY(-40px) rotate(12deg)';
-      setTimeout(() => {
-        spawnHearts();
-        setTimeout(() => {
-          wrapper.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
-          wrapper.style.transform  = 'translateY(0) rotate(0deg)';
-          img.src = this.images.mouthOpen || this.images.default;
-          setTimeout(() => {
-            if (!this._pettingActive) this.img.src = this.images.default;
-            setTimeout(() => {
-              wrapper.style.transition = origTransition || '';
-              wrapper.style.transform = origTransform || '';
-              wrapper.style.transformOrigin = origOrigin || '';
-              this.wrapper.appendChild(this.bubble);
-              this._resetBubbleAttach();
-              if (typeof onFinish === 'function') onFinish();
-            }, 700);
-          }, 2000);
-        }, 2200);
-      }, 400);
-    }
+      }, 2200);
+    }, 400);
   }
+}
 
   _spawnHearts(count = 10) {
     for (let i = 0; i < count; ++i) {
