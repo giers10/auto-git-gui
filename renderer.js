@@ -474,8 +474,9 @@ async function startLiveCountdown(folderObj, msLeft) {
     } 
       contentList.innerHTML = commits.map(c => {
         // Prüfe, ob der Commit in der Rewrite-Queue ist:
-        console.log('Commit hash:', c.hash, 'length:', c.hash.length);
-        const isQueued = folderObj.llmCandidates && folderObj.llmCandidates.includes(c.hash);
+        const isQueued = folderObj.llmCandidates && folderObj.llmCandidates.some(fullHash =>
+          fullHash.startsWith(c.hash)
+        );
         if(isQueued) console.log("hi");
         // Für random-Winkel (zwischen -10 und +15 Grad, z.B.) 
         const pawRotate = (Math.random() * 25 - 10).toFixed(1); // -10° bis +15°
