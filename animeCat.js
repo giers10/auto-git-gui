@@ -1,13 +1,5 @@
 // animeCat.js
-
 //miau
-
-
-
-
-
-
-
 window.AnimeCat = class AnimeCat {
   /**
    * @param {HTMLElement} container
