@@ -1007,28 +1007,42 @@ function buildTrayMenu() {
     return;
   });
 
-  // Commits holen
-  ipcMain.handle('get-commits', async (_e, folderObj) => {
+  // Commits holen (paginiert)
+  ipcMain.handle('get-commits', async (_e, folderObj, page = 1, pageSize = 50) => {
     try {
       if (folderObj.needsRelocation || !fs.existsSync(folderObj.path)) {
-        // Folder nicht vorhanden, geben wir leere Liste zurück
-        return { head: null, commits: [] };
+        return { head: null, commits: [], total: 0, page: 1, pageSize: 50, pages: 1 };
       }
       const git = simpleGit(folderObj.path);
-      const log = await git.log(['--all']);
+      // Offset berechnen (0-basiert!)
+      const skip = (page - 1) * pageSize;
+      const log = await git.log({
+        '--all': null,
+        '--skip': skip,
+        '--max-count': pageSize
+      });
+      // Gesamte Anzahl Commits für die Pagination
+      const totalLog = await git.log({ '--all': null });
+      const total = totalLog.total || totalLog.all.length;
+
       const fullHead = (await git.revparse(['--verify', 'HEAD'])).trim();
       const head = fullHead.substring(0, 7);
+      const pages = Math.max(1, Math.ceil(total / pageSize));
+
       return {
         head,
         commits: log.all.map(c => ({
           hash: c.hash.substring(0, 7),
           date: c.date,
           message: c.message
-        }))
+        })),
+        total,
+        page,
+        pageSize,
+        pages
       };
     } catch (err) {
-      // Im Fehlerfall (z.B. Verzeichnis gelöscht)
-      return { head: null, commits: [] };
+      return { head: null, commits: [], total: 0, page: 1, pageSize: 50, pages: 1 };
     }
   });
   // Diff
