@@ -167,7 +167,7 @@ window.AnimeCat = class AnimeCat {
     Array.from(this.bubble.childNodes).forEach(node => {
       if (node !== this.bubblePointer) node.remove();
     });
-    this.bubblePointer.style.display = 'none';
+    this.bubblePointer.style.display = '';
     // Neuen (leeren) Textnode einfügen:
     this._bubbleTextNode = document.createTextNode('');
     this.bubble.appendChild(this._bubbleTextNode);
