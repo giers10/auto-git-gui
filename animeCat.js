@@ -181,7 +181,7 @@ window.AnimeCat = class AnimeCat {
 
     // Wrapper animieren: nach oben + rechts, leicht rotieren
     wrapper.style.transition = 'transform 0.6s cubic-bezier(.19,1,.22,1)';
-    wrapper.style.transform  = 'translateY(-70px) rotate(12deg)';
+    wrapper.style.transform  = 'translateY(-40px) rotate(12deg)';
 
     // Herzchen-Explosion starten
     this._spawnHearts(12); // oder mehr/weniger
