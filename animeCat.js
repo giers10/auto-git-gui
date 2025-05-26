@@ -149,7 +149,7 @@ window.AnimeCat = class AnimeCat {
     Object.assign(this.heartEmitter.style, {
       position: 'absolute',
       left:     '90px',
-      bottom:   '46px',
+      bottom:   '50px',
       pointerEvents: 'none',
       width:    '1px',
       height:   '1px',
