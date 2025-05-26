@@ -193,7 +193,7 @@ window.AnimeCat = class AnimeCat {
       this.bubble.style.opacity = '0';
       this.bubblePointer.style.display = 'none';
       this._isSpeaking = false;
-    }, 3000);
+    }, 8000);
   }
 
   /** Clean up timers & DOM */
