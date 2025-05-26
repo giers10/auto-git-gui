@@ -162,7 +162,7 @@ window.AnimeCat = class AnimeCat {
       return [255, 100, 0]; // voll orange
     }
 
-    const [r, g, b] = getGlowColor(commitCount);
+    const [r, g, b] = getGlowColor(500);
 
     // Skalierung bleibt wie gehabt
     const minSize = 80, maxSize = 170;
