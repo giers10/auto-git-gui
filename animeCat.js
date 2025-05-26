@@ -65,11 +65,10 @@ window.AnimeCat = class AnimeCat {
       top:           '70%',
       transform:     'translate(-50%, -50%)',
       borderRadius:  '50%',
-      width:         '120px',
+      width:         '80px',
       height:        '80px',
       pointerEvents: 'none',
-      zIndex:        1,
-      transition:    'background 0.4s, width 0.2s, height 0.2s, opacity 0.3s'
+      zIndex:        1
     });
     this.catContainer.appendChild(this.glow);
 
