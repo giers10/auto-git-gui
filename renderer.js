@@ -344,6 +344,27 @@ async function updateInteractionBar(folderObj) {
   document.getElementById('linesUntilRewrite').textContent = linesUntilRewrite;
   document.getElementById('countdown').textContent = countdown;
 }
+function startLiveCountdown(folderObj, msLeft) {
+  if (countdownInterval) clearInterval(countdownInterval);
+
+  // Wenn kein Countdown nötig: 00:00 anzeigen
+  if (!folderObj?.firstCandidateBirthday || msLeft <= 0) {
+    document.getElementById('countdown').textContent = "00:00";
+    return;
+  }
+
+  const minutesCommitThreshold = window.minutesCommitThreshold || 5;
+  const msThreshold = minutesCommitThreshold * 60 * 1000;
+  const endTime = new Date(folderObj.firstCandidateBirthday).getTime() + msThreshold;
+
+  countdownInterval = setInterval(() => {
+    const msLeft = Math.max(0, endTime - Date.now());
+    document.getElementById('countdown').textContent = formatCountdown(msLeft);
+    if (msLeft <= 0) {
+      clearInterval(countdownInterval);
+    }
+  }, 1000);
+}
 
 // Zeit-Formatter (wie gehabt)
 function formatCountdown(ms) {
