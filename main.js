@@ -673,7 +673,7 @@ async function autoCommit(folderPath, message, win) {
     folders[idx].llmCandidates.push(newHead);
     if(folders[idx].llmCandidates.length == 1){
       folders[idx].firstCandidateBirthday = Date.now();
-      debug('[autoCommit] Erster Commit aufgenommen. Automatischer message-rewrite spätestens: ' + Date(Date.now() + (store.get('minutesCommitThreshold')*60*1000)) );
+      debug('[autoCommit] Erster Commit aufgenommen.')
     }
     folders[idx].lastHeadHash = newHead;
     console.log(folders[idx].llmCandidates)
