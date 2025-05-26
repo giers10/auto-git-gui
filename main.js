@@ -1392,4 +1392,32 @@ ipcMain.on('show-folder-context-menu', (event, folderPath) => {
   menu.popup({ window: win });
 }); 
 
+ipcMain.on('show-tree-context-menu', (event, { absPath, relPath, root, type }) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
 
+  const template = [
+    {
+      label: 'Open File',
+      click: () => shell.openPath(absPath),
+      visible: type === 'file' // Nur für Dateien anzeigen
+    },
+    {
+      label: 'Copy File Path',
+      click: () => clipboard.writeText(absPath)
+    },
+    {
+      label: 'Add to .gitignore',
+      click: () => {
+        const gitignore = path.join(root, '.gitignore');
+        fs.appendFile(gitignore, `\n${relPath}\n`, (err) => {
+          if (err) {
+            dialog.showErrorBox('Error', 'Konnte nicht zu .gitignore hinzufügen:\n' + err.message);
+          }
+        });
+      }
+    }
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  menu.popup({ window: win });
+});
