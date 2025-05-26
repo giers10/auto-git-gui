@@ -313,7 +313,7 @@ let countdownInterval = null;
 
 function getCommitColor(commitCount) {
   const stops = [
-    { c:   0, color: [127, 127, 127] },
+    { c:   0, color: [157, 157, 157] },
     { c:   5, color: [127, 127, 127] },
     { c:  20, color: [60, 230, 100] },
     { c:  50, color: [100, 180, 255] },
