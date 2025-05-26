@@ -81,8 +81,8 @@ window.AnimeCat = class AnimeCat {
     this.img.src = this.images.default;
     Object.assign(this.img.style, {
       position:       'absolute',
-      left:           '40%',
-      top:            '65%',
+      left:           '38%',
+      top:            '66%',
       transform:      'translate(-50%, -50%)',
       width:          '62px',
       height:         '50px',
