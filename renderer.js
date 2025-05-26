@@ -211,6 +211,7 @@ folders.forEach(folderObj => {
       if (newFolderObj) {
         await window.electronAPI.setSelected(newFolderObj);
         await renderContent(newFolderObj);
+
       }
       return;
     }
@@ -219,6 +220,7 @@ folders.forEach(folderObj => {
     await window.electronAPI.setSelected(folderObj);
     await renderSidebar();
     await renderContent(folderObj);
+    await updateInteractionBar(folderObj);
   });
 
 
