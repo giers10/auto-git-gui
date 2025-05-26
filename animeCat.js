@@ -49,13 +49,6 @@ window.AnimeCat = class AnimeCat {
       zIndex:        '1'
     });
 
-    // --- Glow ---
-    if (!this.wrapper.querySelector('#cat-glow')) {
-      this.glow = document.createElement('div');
-      this.glow.id = 'cat-glow';
-      this.wrapper.appendChild(this.glow);
-    }
-
     this.img = document.createElement('img');
     this.img.src = this.images.default;
 
