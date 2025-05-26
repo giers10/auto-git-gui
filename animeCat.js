@@ -308,7 +308,7 @@ _runJoyAnimation(onFinish) {
 
   img.src = this.images.joy || this.images.default;
 
-  const salto = Math.random() < 1;
+  const salto = Math.random() < 0.2;
   const upTime = 600;
   const hangTime = salto ? 500 : 1800;
   const downTime = 800;
@@ -390,7 +390,7 @@ _runJoyAnimation(onFinish) {
       setTimeout(() => this._makeHeart(), Math.random() * 300);
     }
   }
-  
+
 _makeHeart() {
   // Emoji oder eigenes Bild
   const emoji = Math.random() < 0.7 ? '❤️' : '💕';
