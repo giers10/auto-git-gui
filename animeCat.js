@@ -475,7 +475,6 @@ window.AnimeCat = class AnimeCat {
       this._isSpeaking = false;
     }, 6000);
   }
-  
 
   destroy() {
     clearTimeout(this._blinkTimeout);
