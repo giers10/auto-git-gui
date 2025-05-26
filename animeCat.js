@@ -1,7 +1,3 @@
-// animeCat.js
-// miau!
-
-
 window.AnimeCat = class AnimeCat {
   /**
    * @param {HTMLElement} container
@@ -37,52 +33,61 @@ window.AnimeCat = class AnimeCat {
   }
 
   _createElements() {
-    // Flexbox: Katze und Bubble nebeneinander
+    // Outer wrapper (relativ für absolute Kinder!)
     this.wrapper = document.createElement('div');
     Object.assign(this.wrapper.style, {
       position:      'relative',
+      width:         '100px',
+      height:        '80px',
       display:       'flex',
-      flexDirection: 'row',
       alignItems:    'flex-end',
-      minHeight:     '60px',
-      minWidth:      '180px',
-      zIndex:        '1'
+      zIndex:        1
     });
 
-    // --- Glow ---
+    // --- Glow (unter der Katze) ---
     this.glow = document.createElement('div');
     this.glow.id = 'cat-glow';
-    // CSS hier ODER besser via <style> im Head! Aber ein Minimalstyle, falls alles fehlt:
     Object.assign(this.glow.style, {
-      position: 'absolute',
-      left: '0',
-      top: '0',
-      width: '120px',
-      height: '80px',
-      pointerEvents: 'none',
-      zIndex: 1
+      position:        'absolute',
+      left:            '50%',
+      top:             '50%',
+      transform:       'translate(-50%, -52%)',
+      borderRadius:    '50%',
+      width:           '120px',
+      height:          '80px',
+      pointerEvents:   'none',
+      zIndex:          1,
+      transition:      'background 0.4s, width 0.2s, height 0.2s, opacity 0.3s'
     });
+    this.wrapper.appendChild(this.glow);
 
-    // --- Cat image ---
+    // --- Cat image (über Glow) ---
     this.img = document.createElement('img');
     this.img.src = this.images.default;
+    Object.assign(this.img.style, {
+      position:       'absolute',
+      left:           '50%',
+      top:            '50%',
+      transform:      'translate(-50%, -60%)',
+      width:          '62px',
+      height:         '50px',
+      zIndex:         2,
+      userSelect:     'none',
+      webkitUserSelect: 'none',
+      MozUserSelect:     'none',
+      msUserSelect:      'none',
+      webkitUserDrag:    'none',
+      pointerEvents:  'auto'
+    });
     this.img.draggable = false;
-    this.img.style.userSelect = 'none';
-    this.img.style.webkitUserSelect = 'none';
-    this.img.style.MozUserSelect = 'none';
-    this.img.style.msUserSelect = 'none';
-    this.img.style.webkitUserDrag = 'none';
-    this.img.style.width = '62px';
-    this.img.style.height = '50px';
-    this.img.style.zIndex = '2';
-    this.img.style.position = 'relative'; // wichtig für Layering
+    this.wrapper.appendChild(this.img);
 
-    // --- Speech bubble ---
+    // --- Speech bubble (daneben, nicht überlagert) ---
     this.bubble = document.createElement('div');
     Object.assign(this.bubble.style, {
       position:      'relative',
       marginLeft:    '14px',
-      marginBottom:  '11px', 
+      marginBottom:  '11px',
       padding:       '10px 16px',
       background:    'white',
       border:        '1px solid #ccc',
@@ -97,7 +102,7 @@ window.AnimeCat = class AnimeCat {
       color:         '#333',
       pointerEvents: 'none',
       minHeight:     '30px',
-      zIndex:        '10',
+      zIndex:        10,
       overflowWrap:  'anywhere',
       display:       'flex',
       alignItems:    'center'
@@ -115,33 +120,24 @@ window.AnimeCat = class AnimeCat {
       borderBottom:  '8px solid transparent',
       borderRight:   '13px solid #fff',
       filter:        'drop-shadow(-2px 1px 2px rgba(0,0,0,0.10))',
-      zIndex:        '11'
+      zIndex:        11
     });
     this.bubble.appendChild(this.bubblePointer);
 
-      // --- Zusammenbauen ---
-    if (!this.wrapper.querySelector('#cat-glow')) {
-      this.glow = document.createElement('div');
-      this.glow.id = 'cat-glow';
-      this.wrapper.insertBefore(this.glow, this.img);
-   }
-
-    this.wrapper.appendChild(this.glow);
-    this.wrapper.appendChild(this.img);
+    // --- Wrapper komplettieren ---
     this.wrapper.appendChild(this.bubble);
     this.container.appendChild(this.wrapper);
 
-
-    // Emitter für Herzen (abgekoppelt!)
+    // --- Herz-Emitter (für Animationen) ---
     this.heartEmitter = document.createElement('div');
     Object.assign(this.heartEmitter.style, {
       position: 'absolute',
-      left: '82px',   // rechts neben der Katze
-      bottom: '32px',
+      left:     '82px',
+      bottom:   '32px',
       pointerEvents: 'none',
-      width: '1px',
-      height: '1px',
-      zIndex: 20
+      width:    '1px',
+      height:   '1px',
+      zIndex:   20
     });
     this.container.appendChild(this.heartEmitter);
   }
