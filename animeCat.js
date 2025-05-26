@@ -71,7 +71,7 @@ window.AnimeCat = class AnimeCat {
       pointerEvents:   'none',
       zIndex:          1,
       filter:          'blur(4px)',    // ruhig auch 14px für weichen Rand!
-      opacity:         '0.95',           // Wieviel du willst!
+      opacity:         '0.85',           // Wieviel du willst!
       transition:      'background 0.4s, opacity 0.3s'
     });
     this.catContainer.appendChild(this.glow);
