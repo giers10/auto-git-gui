@@ -15,7 +15,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       default:    'assets/cat/default.png',
       eyesClosed: 'assets/cat/eyes_closed.png',
       mouthOpen:  'assets/cat/mouth_open.png',
-      joy:        'assets/cat/joy.png'  // WICHTIG: exakt so!
+      joy:        'assets/cat/joy.png'
     }
   });
 
