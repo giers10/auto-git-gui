@@ -150,6 +150,14 @@ window.AnimeCat = class AnimeCat {
 
 
   // Zeigt Progress der täglichen Commits an
+  _lerp(a, b, t) { return a + (b - a) * t; }
+  _lerpColor(a, b, t) {
+    return [
+      Math.round(this._lerp(a[0], b[0], t)),
+      Math.round(this._lerp(a[1], b[1], t)),
+      Math.round(this._lerp(a[2], b[2], t)),
+    ];
+  }
   animateCatGlow(commitCount) {
     const glow = this.glow;
     if (!glow) return;
