@@ -131,43 +131,89 @@ window.AnimeCat = class AnimeCat {
     }, delay);
   }
 
-  _bindMouseHold() {
-    let holdTimer = null;
-    let joyTimeout = null;
-    let joyActive = false;
+_bindMouseHold() {
+  let holdTimer = null;
+  let joyActive = false;
+  let mouseDown = false;
+  let lastPos = null;
+  let moveDist = 0;
 
-    const closeEyes = () => {
-      clearTimeout(holdTimer);
-      this.img.src = this.images.eyesClosed;
-    };
-    const reopenEyes = () => {
-      clearTimeout(holdTimer);
-      if (joyActive) return; // don't override joy mode!
-      if (!this._isSpeaking) {
-        this.img.src = this.images.default;
-      }
-    };
+  const closeEyes = () => {
+    this.img.src = this.images.eyesClosed;
+  };
+  const reopenEyes = () => {
+    if (!joyActive && !this._isSpeaking) {
+      this.img.src = this.images.default;
+    }
+  };
 
-    this.img.addEventListener('mousedown', () => {
-      // if currently talking or animating, ignore hold-to-close
-      if (this._isSpeaking || joyActive) return;
-      closeEyes();
-      // Nach 4s -> Joy-Animation starten!
-      holdTimer = setTimeout(() => {
+  // Helper: Check if Mouse is over the cat image
+  const isMouseOverCat = (e) => {
+    const rect = this.img.getBoundingClientRect();
+    return (
+      e.clientX >= rect.left &&
+      e.clientX <= rect.right &&
+      e.clientY >= rect.top &&
+      e.clientY <= rect.bottom
+    );
+  };
+
+  // on mousedown: only if over cat
+  this.img.addEventListener('mousedown', (e) => {
+    if (this._isSpeaking || joyActive) return;
+    if (!isMouseOverCat(e)) return;
+
+    mouseDown = true;
+    lastPos = { x: e.clientX, y: e.clientY };
+    moveDist = 0;
+    closeEyes();
+
+    // Timer für Joy-Animation, aber NUR wenn genug gestreichelt
+    holdTimer = setTimeout(() => {
+      if (moveDist >= 100) { // mind. 100px gestreichelt!
         joyActive = true;
         this._runJoyAnimation(() => {
           joyActive = false;
           reopenEyes();
         });
-      }, 4000);
-    });
+      }
+      // Falls NICHT genug gestreichelt: Augen wieder auf
+      else {
+        reopenEyes();
+      }
+      mouseDown = false;
+    }, 4000);
+  });
 
-    ['mouseup', 'mouseleave'].forEach(evt =>
-      this.img.addEventListener(evt, () => {
-        clearTimeout(holdTimer);
-      })
-    );
-  }
+  // Mausbewegung tracken nur während gedrückt und über der Katze
+  this.img.addEventListener('mousemove', (e) => {
+    if (!mouseDown || joyActive) return;
+    if (!isMouseOverCat(e)) {
+      // Sofort abbrechen wenn Maus nicht mehr über der Katze
+      clearTimeout(holdTimer);
+      holdTimer = null;
+      reopenEyes();
+      mouseDown = false;
+      return;
+    }
+    if (lastPos) {
+      const dx = e.clientX - lastPos.x;
+      const dy = e.clientY - lastPos.y;
+      moveDist += Math.sqrt(dx * dx + dy * dy);
+      lastPos = { x: e.clientX, y: e.clientY };
+    }
+  });
+
+  // Wenn Maus losgelassen wird oder verlässt das Bild
+  ['mouseup', 'mouseleave'].forEach(evt =>
+    this.img.addEventListener(evt, (e) => {
+      if (holdTimer) clearTimeout(holdTimer);
+      holdTimer = null;
+      if (!joyActive) reopenEyes();
+      mouseDown = false;
+    })
+  );
+}
 
   _runJoyAnimation(onFinish) {
     const wrapper = this.wrapper;
