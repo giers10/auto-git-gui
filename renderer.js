@@ -316,6 +316,38 @@ folders.forEach(folderObj => {
     return `${m}:${sec}`;
   }
 
+  async function updateContentList(folderObj) {
+    // (1) Commits Today (global, egal welcher Ordner)
+    const stats = await window.electronAPI.getDailyCommitStats();
+    const today = new Date().toISOString().slice(0, 10);
+    const commitsToday = stats[today] || 0;
+
+    // (2) Lines until next Rewrite (ordnerabhängig!)
+    const threshold = folderObj.intelligentCommitThreshold ?? 10;
+    const linesChanged = folderObj.linesChanged || 0;
+    const linesUntilNextRewrite = Math.max(0, threshold - linesChanged);
+
+    // (3) Time until next Rewrite (ordnerabhängig!)
+    // -> firstCandidateBirthday ist ms-Timestamp oder null
+    // -> minutesCommitThreshold ist global (z.B. window.minutesCommitThreshold)
+    let timeUntilNextRewrite = '00:00';
+    if (folderObj.firstCandidateBirthday && window.minutesCommitThreshold) {
+      const end = folderObj.firstCandidateBirthday + window.minutesCommitThreshold * 60 * 1000;
+      const left = Math.max(0, end - Date.now());
+      timeUntilNextRewrite = formatCountdown(left);
+    }
+
+    // ContentList updaten – passe an dein HTML an!
+    const lines = [
+      `Commits Today: ${commitsToday}`,
+      `Lines until next Rewrite: ${linesUntilNextRewrite}`,
+      `Time until next Rewrite: ${timeUntilNextRewrite}`
+    ];
+
+    // Beispiel: Schreibe in dein DIV mit id="contentList"
+    document.getElementById('contentList').innerHTML = lines.map(l => `<div>${l}</div>`).join('');
+  }
+
 
 
   const folderTitleDrop = document.getElementById('folderTitleDrop');
