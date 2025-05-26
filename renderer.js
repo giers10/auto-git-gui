@@ -494,7 +494,7 @@ async function startLiveCountdown(folderObj, msLeft) {
     return Math.floor(idx / pageSize) + 1;
   }
 
-  let commitPage = 1;    // Merker für die aktuelle Seite
+  //let commitPage = 1;    // Merker für die aktuelle Seite
   const PAGE_SIZE = 50;
 
   // UI-Element für Pagination (in deinem Template anlegen, z.B. unter contentList)
@@ -503,12 +503,19 @@ async function startLiveCountdown(folderObj, msLeft) {
 
   contentList.parentElement.insertBefore(paginationEl, contentList); // einmalig nach DOM load
 
-  async function renderContent(folderObj, page = 1) {
+  async function renderContent(folderObj, page) {
     closeDropdown();
     const folder = folderObj.path;
     await updateInteractionBar(folderObj);
     titleEl.textContent = folder;
 
+    // --- Neuer Block: Ermittle die Seite des aktuellen Commits ---
+    let usePage = page;
+    if (!usePage) {
+      // Wenn keine Seite angegeben, gehe auf die Seite des aktuellen HEAD
+      const { head } = await window.electronAPI.getCommits(folderObj, 1, 1); // head holen
+      usePage = await getCommitPageForHash(folderObj, head, PAGE_SIZE);
+    }
     // Holt die paginierten Commits!
     const { head, commits, total, page: currentPage, pageSize, pages } =
       await window.electronAPI.getCommits(folderObj, page, PAGE_SIZE);
