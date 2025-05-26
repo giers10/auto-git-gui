@@ -1375,16 +1375,16 @@ ipcMain.on('show-folder-context-menu', (event, folderPath) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   const template = [
     {
-      label: 'Copy Folder Path',
-      click: () => {
-        clipboard.writeText(folderPath);
-      }
-    },
-    {
       label: 'Open Folder',
       click: () => {
         // öffnet den Ordner in der nativen Dateiansicht
         shell.openPath(folderPath);
+      }
+    },
+    {
+      label: 'Copy Folder Path',
+      click: () => {
+        clipboard.writeText(folderPath);
       }
     }
   ];
