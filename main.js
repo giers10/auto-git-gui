@@ -706,7 +706,7 @@ async function main() {
     if (folderObj.firstCandidateBirthday != null) {
       const elapsedMin = (now - folderObj.firstCandidateBirthday) / 1000 / 60;
       if (elapsedMin >= minutesThreshold) {
-        runLLMCommitRewrite(folderObj);
+        runLLMCommitRewrite(folderObj, win);
       }
     }
   });
