@@ -45,6 +45,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
 
 
+
   // Farben für Sky-Mode
   const DAY_COLOR   = [173, 216, 230];
   const NIGHT_COLOR = [0,   0,   50];
@@ -75,28 +76,41 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (enabled) {
       updateBackground();
       skyIntervalId = setInterval(updateBackground, 60_000);
-      function updateTitleColor() {
-        const hour = new Date().getHours();
-        if (hour >= 18 || hour < 6) {
-          titleEl.style.color = '#fff';
-          treeviewEl.style.color = '#fff';
-          titleArrow.style.color = '#fff';
-        } else {
-          titleEl.style.color = '';
-          treeviewEl.style.color = '';
-          titleArrow.style.color = '';
-        }
-      }
-      updateTitleColor();
-      //titleIntervalId = setInterval(updateTitleColor, 60_000);
+      function updateAllTextColors() { setTextColor('sky'); }
+      updateAllTextColors();
+      titleIntervalId = setInterval(updateAllTextColors, 60_000); // damit sich die Farbe nachts/tags ändert
     } else {
       panel.style.backgroundColor = '';
-      titleEl.style.color = '';
+      setTextColor('default');
     }
   }
+
   const initialSky = await window.settingsAPI.getSkyMode();
   applySkyMode(initialSky);
   window.addEventListener('skymode-changed', e => applySkyMode(e.detail));
+
+
+  function setTextColor(mode) {
+    // Default: Schwarz
+    let textColor = '#111';
+    if (mode === 'sky') {
+      const hour = new Date().getHours();
+      // Sky-Mode: Tagsüber schwarz, nachts weiß
+      textColor = (hour >= 18 || hour < 6) ? '#fff' : '#111';
+    }
+    titleEl.style.color = textColor;
+    treeviewEl.style.color = textColor;
+    titleArrow.style.color = textColor;
+    // Auch die Pagination einfärben:
+    paginationEl.style.color = textColor;
+    // Falls Treeview geöffnet und HTML gerendert: auch alle Spans darin einfärben
+    if (treeviewEl.querySelectorAll) {
+      treeviewEl.querySelectorAll('.tree-file, .tree-dir').forEach(el => el.style.color = textColor);
+    }
+  }
+
+
+
 
   function basename(fullPath) {
     return fullPath.replace(/.*[\\/]/, '');
@@ -525,7 +539,8 @@ async function startLiveCountdown(folderObj, msLeft) {
     const folder = folderObj.path;
     await updateInteractionBar(folderObj);
     titleEl.textContent = folder;
-
+    setTextColor(document.body.classList.contains('sky-mode') ? 'sky' : 'default');
+    
     // --- Seitenwahl beim Ordnerwechsel ---
     let usePage = page;
     if (!usePage || folder !== lastFolderPath) {
