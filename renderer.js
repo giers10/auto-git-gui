@@ -536,7 +536,7 @@ async function startLiveCountdown(folderObj, msLeft) {
             ? `<img src="assets/cat/paw.png"
                     alt="In Rewrite Queue"
                     title="In Rewrite Queue"
-                    class="absolute right-2 top-2 w-8 h-8 paw-queued"
+                    class="paw-queued"
                     style="transform: rotate(${pawRotate}deg); pointer-events: none; z-index:10;">`
             : ''
         }
