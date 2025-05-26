@@ -306,16 +306,19 @@ folders.forEach(folderObj => {
   }
 
 
-
+  // Update stats
   // Countdown in MM:SS-Format
-  function formatCountdown(ms) {
-    if (!ms || ms <= 0) return '00:00';
-    const s = Math.floor(ms / 1000);
-    const m = Math.floor(s / 60).toString().padStart(2, '0');
-    const sec = (s % 60).toString().padStart(2, '0');
-    return `${m}:${sec}`;
-  }
+
 let countdownInterval = null;
+
+function formatCountdown(ms) {
+  if (!ms || ms <= 0) return '00:00';
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60).toString().padStart(2, '0');
+  const sec = (s % 60).toString().padStart(2, '0');
+  return `${m}:${sec}`;
+}
+
 async function updateInteractionBar(folderObj) {
   // Commits Today
   const stats = await window.electronAPI.getDailyCommitStats();
