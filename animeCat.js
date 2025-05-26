@@ -143,40 +143,57 @@ window.AnimeCat = class AnimeCat {
   }
 
 
-  // Zeigt Progress der täglichen Commits an
-  _lerp(a, b, t) { return a + (b - a) * t; }
-  _lerpColor(a, b, t) {
-    return [
-      Math.round(this._lerp(a[0], b[0], t)),
-      Math.round(this._lerp(a[1], b[1], t)),
-      Math.round(this._lerp(a[2], b[2], t)),
-    ];
-  }
-  animateCatGlow(commitCount) {
-    const glow = this.glow;
-    if (!glow) return;
+// Hilfsfunktionen zur Farbinterpolation
+_lerp(a, b, t) { return a + (b - a) * t; }
+_lerpColor(a, b, t) {
+  return [
+    Math.round(this._lerp(a[0], b[0], t)),
+    Math.round(this._lerp(a[1], b[1], t)),
+    Math.round(this._lerp(a[2], b[2], t)),
+  ];
+}
 
-    // Farbinterpolation je nach Commits:
-    function getGlowColor(count) {
-      if (count < 10)    return [60, 230, 100];  // grün
-      if (count < 50)    return [100, 180, 255]; // blau
-      if (count < 100)   return [180, 120, 255]; // lila
-      if (count < 500)   return [255, 180, 60];  // orange
-      return [255, 100, 0]; // voll orange
+// Animiert den Glow je nach Commit-Anzahl
+animateCatGlow(commitCount) {
+  const glow = this.glow;
+  if (!glow) return;
+
+  // Glow-Farbstufen für die Commit-Bereiche
+  const stops = [
+    { c:   0, color: [60, 230, 100], opacity: 0.00 },  // unsichtbar → grün
+    { c:  10, color: [60, 230, 100], opacity: 0.25 },  // grün sichtbar
+    { c:  50, color: [100, 180, 255], opacity: 0.40 }, // grün → blau
+    { c: 100, color: [180, 120, 255], opacity: 0.55 }, // blau → lila
+    { c: 500, color: [255, 180, 60],  opacity: 0.90 }, // lila → orange
+  ];
+
+  // Richtige Interpolationsstufe finden:
+  let lower = stops[0], upper = stops[stops.length - 1];
+  for (let i = 0; i < stops.length - 1; ++i) {
+    if (commitCount >= stops[i].c && commitCount < stops[i+1].c) {
+      lower = stops[i];
+      upper = stops[i+1];
+      break;
     }
-
-    const [r, g, b] = getGlowColor(commitCount);
-
-    // Skalierung bleibt wie gehabt
-    const minSize = 80, maxSize = 170;
-    const factor = Math.min(commitCount / 500, 1); // jetzt auf 500 skalieren!
-    const size = minSize + factor * (maxSize - minSize);
-
-    glow.style.width = `${size}px`;
-    glow.style.height = `${size}px`; // jetzt immer Kreis!
-    glow.style.opacity = 0.25 + 0.65 * factor;
-    glow.style.background = `radial-gradient(circle, rgba(${r},${g},${b},0.9) 0%, rgba(${r},${g},${b},0.13) 65%, rgba(0,0,0,0) 100%)`;
   }
+  const range = upper.c - lower.c || 1;
+  const t = Math.min(Math.max((commitCount - lower.c) / range, 0), 1);
+
+  // Farbe und Opazität sanft interpolieren
+  const [r, g, b] = this._lerpColor(lower.color, upper.color, t);
+  const opacity = this._lerp(lower.opacity, upper.opacity, t);
+
+  // Größe interpolieren (0–500 Commits)
+  const minSize = 80, maxSize = 170;
+  const sizeFactor = Math.min(commitCount / 500, 1);
+  const size = minSize + sizeFactor * (maxSize - minSize);
+
+  // Styles setzen
+  glow.style.width  = `${size}px`;
+  glow.style.height = `${size}px`;   // immer Kreis!
+  glow.style.opacity = opacity;
+  glow.style.background = `radial-gradient(circle, rgba(${r},${g},${b},0.85) 0%, rgba(${r},${g},${b},0.14) 70%, rgba(0,0,0,0) 100%)`;
+}
 
   // Bubble-Position absolut anpassen, wenn detached
   _positionBubbleDetached() {
