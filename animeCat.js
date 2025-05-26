@@ -306,30 +306,57 @@ _bindMouseHold() {
     // Bild auf joy.png setzen:
     img.src = this.images.joy || this.images.default;
 
-    // Nach oben springen und nach RECHTS rotieren:
-    wrapper.style.transition = 'transform 0.6s cubic-bezier(.19,1,.22,1)';
-    wrapper.style.transform  = 'translateY(-40px) rotate(12deg)'; 
+    // 20% Chance auf Salto!
+    const salto = Math.random() < 0.2;
 
-    this._spawnHearts(12);
-
-    setTimeout(() => {
+    if (salto) {
+      // Salto: 360° Drehung
+      wrapper.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
+      wrapper.style.transform  = 'translateY(-40px) rotate(0deg)';
       setTimeout(() => {
-        // Rücksprung nach unten, zurückdrehen:
-        wrapper.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
-        wrapper.style.transform  = 'translateY(0) rotate(0deg)';
-        img.src = this.images.mouthOpen || this.images.default;
+        wrapper.style.transition = 'transform 0.6s cubic-bezier(.19,1,.22,1)';
+        wrapper.style.transform  = 'translateY(-40px) rotate(360deg)';
         setTimeout(() => {
-          if (!this._pettingActive) {
-            this.img.src = this.images.default;
-          }
+          wrapper.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
+          wrapper.style.transform  = 'translateY(0) rotate(0deg)';
+          img.src = this.images.mouthOpen || this.images.default;
           setTimeout(() => {
-            wrapper.style.transition = origTransition || '';
-            wrapper.style.transform = origTransform || '';
-            if (typeof onFinish === 'function') onFinish();
-          }, 700);
-        }, 2000);
-      }, 2200);
-    }, 400);
+            if (!this._pettingActive) {
+              this.img.src = this.images.default;
+            }
+            setTimeout(() => {
+              wrapper.style.transition = origTransition || '';
+              wrapper.style.transform = origTransform || '';
+              if (typeof onFinish === 'function') onFinish();
+            }, 700);
+          }, 2000);
+        }, 600);
+      }, 400);
+    } else {
+      // Normale Joy-Animation: leicht drehen
+      wrapper.style.transition = 'transform 0.6s cubic-bezier(.19,1,.22,1)';
+      wrapper.style.transform  = 'translateY(-40px) rotate(12deg)';
+      setTimeout(() => {
+        setTimeout(() => {
+          wrapper.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
+          wrapper.style.transform  = 'translateY(0) rotate(0deg)';
+          img.src = this.images.mouthOpen || this.images.default;
+          setTimeout(() => {
+            if (!this._pettingActive) {
+              this.img.src = this.images.default;
+            }
+            setTimeout(() => {
+              wrapper.style.transition = origTransition || '';
+              wrapper.style.transform = origTransform || '';
+              if (typeof onFinish === 'function') onFinish();
+            }, 700);
+          }, 2000);
+        }, 2200);
+      }, 400);
+    }
+
+    // Herzchen-Explosion unabhängig vom Salto
+    this._spawnHearts(12);
   }
 
   _spawnHearts(count = 10) {
