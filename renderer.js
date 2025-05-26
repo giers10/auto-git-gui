@@ -211,7 +211,6 @@ folders.forEach(folderObj => {
       if (newFolderObj) {
         await window.electronAPI.setSelected(newFolderObj);
         await renderContent(newFolderObj);
-
       }
       return;
     }
@@ -220,7 +219,6 @@ folders.forEach(folderObj => {
     await window.electronAPI.setSelected(folderObj);
     await renderSidebar();
     await renderContent(folderObj);
-    await updateInteractionBar(folderObj);
   });
 
 
@@ -446,7 +444,6 @@ function formatCountdown(ms) {
   async function renderContent(folderObj) {
     closeDropdown();
     const folder = folderObj.path;
-    await renderContent(folderObj);
     await updateInteractionBar(folderObj);
     titleEl.textContent = folder;
     const { head, commits } = await window.electronAPI.getCommits(folderObj);
