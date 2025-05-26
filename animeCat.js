@@ -159,29 +159,21 @@ window.AnimeCat = class AnimeCat {
     ];
   }
   animateCatGlow(commitCount) {
-    const glow = this.glow;
-    if (!glow) return;
+    // Glow zwischen grün und orange interpolieren (0-500 Commits)
+    const minColor = [60, 230, 100];     // grün
+    const maxColor = [255, 100, 0];      // orange
+    const t = Math.min(commitCount, 500) / 500;
+    const [r, g, b] = this._lerpColor(minColor, maxColor, t);
 
-    // Farbinterpolation je nach Commits:
-    function getGlowColor(count) {
-      if (count < 10)    return [60, 230, 100];  // grün
-      if (count < 50)    return [100, 180, 255]; // blau
-      if (count < 100)   return [180, 120, 255]; // lila
-      if (count < 500)   return [255, 180, 60];  // orange
-      return [255, 100, 0]; // voll orange
-    }
-
-    const [r, g, b] = getGlowColor(commitCount);
-
-    // Skalierung bleibt wie gehabt
+    // ... wie gehabt: Größe, Opazität, etc.
+    // Beispiel:
     const minSize = 80, maxSize = 170;
-    const factor = Math.min(commitCount / 500, 1); // jetzt auf 500 skalieren!
-    const size = minSize + factor * (maxSize - minSize);
+    const size = minSize + t * (maxSize - minSize);
 
-    glow.style.width = `${size}px`;
-    glow.style.height = `${size}px`; // jetzt immer Kreis!
-    glow.style.opacity = 0.25 + 0.65 * factor;
-    glow.style.background = `radial-gradient(circle, rgba(${r},${g},${b},0.9) 0%, rgba(${r},${g},${b},0.13) 65%, rgba(0,0,0,0) 100%)`;
+    this.glow.style.width  = `${size}px`;
+    this.glow.style.height = `${size}px`;
+    this.glow.style.opacity = 0.25 + 0.65 * t;
+    this.glow.style.background = `radial-gradient(circle, rgba(${r},${g},${b},0.9) 0%, rgba(${r},${g},${b},0.13) 65%, rgba(0,0,0,0) 100%)`;
   }
 
   // Bubble-Position absolut anpassen, wenn detached
