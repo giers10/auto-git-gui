@@ -372,7 +372,7 @@ function startLiveCountdown(folderObj, msLeft) {
       clearInterval(countdownInterval);
     }
   }, 1000);
-}  
+} 
 
 
 
