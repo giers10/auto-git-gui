@@ -173,6 +173,7 @@ window.AnimeCat = class AnimeCat {
   stopGlowWobble() {
     if (this._glowWobbleId) cancelAnimationFrame(this._glowWobbleId);
   }
+  this.startGlowWobble();
 
 // Hilfsfunktionen zur Farbinterpolation
 _lerp(a, b, t) { return a + (b - a) * t; }
