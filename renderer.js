@@ -691,8 +691,19 @@ folders.forEach(folderObj => {
 
 
   ipcMain.handle('get-daily-commit-stats', () => store.get('dailyCommitStats') || {});
+  // Hole die Commit-Stats beim Laden der Seite
+  window.electronAPI.getDailyCommitStats().then(stats => {
+    const today = new Date().toISOString().slice(0, 10);
+    const todayCount = stats[today] || 0;
 
-
-
+    // An deine Katzenanimation weitergeben!
+    window.updateCatGlow(todayCount);
+  });
+  /*
+  window.updateCatGlow = function(commitCount) {
+    // Übergib den Wert an animeCat.js
+    if (window.animateCatGlow) window.animateCatGlow(commitCount);
+  };
+  */
 
 });
