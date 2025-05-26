@@ -205,7 +205,7 @@ window.AnimeCat = class AnimeCat {
             wrapper.style.transform = origTransform || '';
             if (typeof onFinish === 'function') onFinish();
           }, 700);
-        }, 3000);
+        }, 2000);
 
       }, 2200);
     }, 400);
