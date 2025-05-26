@@ -648,6 +648,8 @@ folders.forEach(folderObj => {
     streamText: txt => cat.appendSpeech(txt),
     end: () => cat.endSpeech()
   };
-
+  ipcRenderer.on('cat-begin', () => window.cat && window.cat.begin());
+  ipcRenderer.on('cat-stream', (_e, chunk) => window.cat && window.cat.streamText(chunk));
+  ipcRenderer.on('cat-end', () => window.cat && window.cat.end());
 
 });
