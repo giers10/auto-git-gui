@@ -199,16 +199,12 @@ animateCatGlow(commitCount) {
   const size = minSize + sizeFactor * (maxSize - minSize);
 
   // Styles setzen
-  glow.style.width  = `${size}px`;
-  glow.style.height = `${size}px`;   // immer Kreis!
-  glow.style.opacity = opacity;
   glow.style.background = `radial-gradient(
-    circle,
+    ellipse at 50% 50%,
     rgba(${r},${g},${b},0.97) 0%,
-    rgba(${r},${g},${b},0.35) 70%,
+    rgba(${r},${g},${b},0.24) 70%,
     rgba(0,0,0,0) 100%
   )`;
-}
 
   // Bubble für Animation absolut an Position der Katze anheften
   _positionBubbleDetached() {
