@@ -68,7 +68,7 @@ window.AnimeCat = class AnimeCat {
       width:         '80px',
       height:        '60px',
       pointerEvents: 'none',
-      zIndex:        1
+      zIndex:        1,
     });
     this.catContainer.appendChild(this.glow);
 
