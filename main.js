@@ -343,14 +343,14 @@ ${JSON.stringify(commits, null, 2)}
 }
 
 // ---- 3. LLM Streaming Call ----
-async function streamLLMCommitMessages(prompt, onDataChunk) {
-  await ensureOllamaRunning(); // temporary hack
+async function streamLLMCommitMessages(prompt, onDataChunk, win) {
+  await ensureOllamaRunning();
   const selectedModel = store.get('commitModel') || 'qwen2.5-coder:32b';
   const response = await fetch('http://localhost:11434/api/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: selectedModel, // ggf. Modell anpassen
+      model: selectedModel,
       prompt: prompt,
       stream: true,
       options: { temperature: 0.3 }
@@ -363,6 +363,10 @@ async function streamLLMCommitMessages(prompt, onDataChunk) {
 
   let fullOutput = '';
   let done = false;
+
+  // ⭐️ Starte den Stream für die Katze!
+  win.webContents.send('cat-begin');
+
   while (!done) {
     const { value, done: streamDone } = await reader.read();
     done = streamDone;
@@ -374,6 +378,8 @@ async function streamLLMCommitMessages(prompt, onDataChunk) {
           const obj = JSON.parse(line);
           if (obj.response) {
             fullOutput += obj.response;
+            // Sende Chunk an Renderer/Katze:
+            win.webContents.send('cat-chunk', obj.response);
             if (onDataChunk) onDataChunk(obj.response);
           }
           if (obj.done) break;
@@ -383,6 +389,10 @@ async function streamLLMCommitMessages(prompt, onDataChunk) {
       }
     }
   }
+
+  // ⭐️ Stream ist zu Ende
+  win.webContents.send('cat-end');
+
   return fullOutput;
 }
 
