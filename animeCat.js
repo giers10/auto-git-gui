@@ -139,7 +139,7 @@ _bindMouseHold() {
   let mouseDownAt = 0;
   let holdTimer = null;
 
-  const CAT_TOLERANCE = 36;
+  const CAT_TOLERANCE = 15;
   const MOVE_THRESHOLD = 200;
 
   const isMouseNearCat = (e) => {
