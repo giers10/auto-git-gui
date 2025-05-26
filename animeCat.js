@@ -49,6 +49,20 @@ window.AnimeCat = class AnimeCat {
       zIndex:        '1'
     });
 
+    // --- Glow ---
+    this.glow = document.createElement('div');
+    this.glow.id = 'cat-glow';
+    // CSS hier ODER besser via <style> im Head! Aber ein Minimalstyle, falls alles fehlt:
+    Object.assign(this.glow.style, {
+      position: 'absolute',
+      left: '0',
+      top: '0',
+      width: '120px',
+      height: '80px',
+      pointerEvents: 'none',
+      zIndex: 1
+    });
+
     // --- Cat image ---
     this.img = document.createElement('img');
     this.img.src = this.images.default;
@@ -61,7 +75,12 @@ window.AnimeCat = class AnimeCat {
     this.img.style.width = '62px';
     this.img.style.height = '50px';
     this.img.style.zIndex = '2';
+    this.img.style.position = 'relative'; // wichtig für Layering
 
+    // --- Reihenfolge: Glow, dann Katze, dann Bubble ---
+    this.wrapper.appendChild(this.glow);
+    this.wrapper.appendChild(this.img);
+    
     // --- Speech bubble ---
     this.bubble = document.createElement('div');
     Object.assign(this.bubble.style, {
