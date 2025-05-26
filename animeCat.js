@@ -207,8 +207,8 @@ animateCatGlow(commitCount) {
   glow.style.opacity = opacity;
   glow.style.background = `radial-gradient(
     circle,
-    rgba(${r},${g},${b},0.97) 0%,     // kräftiges Zentrum
-    rgba(${r},${g},${b},0.35) 70%,    // weniger transparent am Rand
+    rgba(${r},${g},${b},0.97) 0%,
+    rgba(${r},${g},${b},0.35) 70%,
     rgba(0,0,0,0) 100%
   )`;
 }
