@@ -318,7 +318,7 @@ function getCommitColor(commitCount) {
     { c:  20, color: [30, 255, 0] },
     { c:  50, color: [0, 112, 221] },
     { c: 100, color: [163, 53, 238] },
-    { c: 500, color: [255, 180, 60] }
+    { c: 500, color: [255, 128, 0] }
   ];
   function lerp(a, b, t) { return a + (b - a) * t; }
   function lerpColor(a, b, t) {
