@@ -688,7 +688,6 @@ async function autoCommit(folderPath, message, win) {
       //folders[idx].linesChanged = 0; // !!!!!!!!!!!!!!!!!!!!  needs logic to handle several llm runs called at the same time test
       //folders[idx].llmCandidates = [];
       //folders.[idx].firstCandidateBirthday = null
-    store.set('folders', folders);
     }
     store.set('folders', folders);
   } else {
