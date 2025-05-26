@@ -300,6 +300,7 @@ _bindMouseHold() {
 _runJoyAnimation(onFinish) {
   const wrapper = this.wrapper;
   const img     = this.img;
+  const container = this.container;
   const origWrapperTransition = wrapper.style.transition;
   const origWrapperTransform  = wrapper.style.transform;
   const origImgTransition     = img.style.transition;
@@ -307,16 +308,19 @@ _runJoyAnimation(onFinish) {
 
   img.src = this.images.joy || this.images.default;
 
-  const salto = Math.random() < 1;
-  // Dauer Sprung+Drehung nach oben
+  const salto = Math.random() < 0.2;
   const upTime = 600;
-  // Zeit "oben bleiben"
   const hangTime = salto ? 500 : 1800;
-  // Dauer Rückkehr nach unten
   const downTime = 800;
 
-  // Herzen explodieren
-  this._spawnHearts(12);
+  // Herzen erzeugen, aber referenzen speichern
+  const hearts = [];
+  for (let i = 0; i < 12; ++i) {
+    setTimeout(() => {
+      const heart = this._makeHeart();
+      hearts.push(heart);
+    }, Math.random() * 300);
+  }
 
   // Sprung + Drehung sofort starten
   wrapper.style.transition = `transform ${upTime}ms cubic-bezier(.19,1,.22,1)`;
@@ -325,12 +329,33 @@ _runJoyAnimation(onFinish) {
   img.style.transform      = salto ? 'rotate(360deg)' : 'rotate(12deg)';
 
   setTimeout(() => {
-    // Oben kurz "hängen"
+    // Bubble abkoppeln (wie gehabt)
+    if (this.bubble.parentNode === wrapper) {
+      container.appendChild(this.bubble);
+      this.bubble.style.position = 'absolute';
+      this.bubble.style.left = wrapper.offsetLeft + wrapper.offsetWidth + 10 + 'px';
+      this.bubble.style.bottom = '10px';
+      this.bubble.style.zIndex = '100';
+    }
+
+    // **Herzen abkoppeln**
+    for (const heart of hearts) {
+      if (heart && heart.parentNode === wrapper) {
+        // Absolut zu Cat-Container platzieren (fixiere ihre aktuelle Position!)
+        const rect = heart.getBoundingClientRect();
+        const parentRect = container.getBoundingClientRect();
+        heart.style.left = (rect.left - parentRect.left) + "px";
+        heart.style.bottom = (parentRect.bottom - rect.bottom) + "px";
+        heart.style.position = "absolute";
+        container.appendChild(heart);
+      }
+    }
+
+    // Ab jetzt fällt nur noch die Katze
     wrapper.style.transition = `transform ${downTime}ms cubic-bezier(.19,1,.22,1)`;
     wrapper.style.transform  = 'translateY(0)';
     img.src = this.images.mouthOpen || this.images.default;
 
-    // NUR bei normaler Kopfdrehung zurückdrehen
     if (!salto) {
       img.style.transition = `transform ${downTime}ms cubic-bezier(.19,1,.22,1)`;
       img.style.transform  = 'rotate(0deg)';
@@ -341,6 +366,14 @@ _runJoyAnimation(onFinish) {
         this.img.src = this.images.default;
       }
       setTimeout(() => {
+        // Bubble wieder ankoppeln, falls nötig
+        if (this.bubble.parentNode === container) {
+          wrapper.appendChild(this.bubble);
+          this.bubble.style.position = '';
+          this.bubble.style.left = '';
+          this.bubble.style.bottom = '';
+          this.bubble.style.zIndex = '';
+        }
         // Styles zurücksetzen
         wrapper.style.transition  = origWrapperTransition || '';
         wrapper.style.transform   = origWrapperTransform  || '';
