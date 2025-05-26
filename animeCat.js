@@ -139,7 +139,7 @@ _bindMouseHold() {
   let moveDist = 0;
 
   // Wieviel Pixel Abstand ist ok für "über der Katze"?
-  const CAT_TOLERANCE = 24;
+  const CAT_TOLERANCE = 100;
 
   // Helper: Check if Mouse is "über der Katze" (mit Toleranz)
   const isMouseNearCat = (e) => {
