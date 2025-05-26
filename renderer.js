@@ -7,6 +7,15 @@ window.addEventListener('DOMContentLoaded', async () => {
   const titleArrow  = document.getElementById('folderTitleArrow');
   const contentList = document.getElementById('contentList');
   const panel       = document.querySelector('.flex-1.p-4.overflow-y-auto');
+  const PAGE_SIZE = 50;
+
+  const paginationEl = document.createElement('div');
+  paginationEl.className = 'pagination flex justify-center items-center my-2 space-x-2';
+  contentList.parentElement.insertBefore(paginationEl, contentList); // nur einmal beim Initialisieren
+
+  // Speichere zuletzt angezeigten Folder/Seite
+  let lastFolderPath = null;
+  let lastPage = null;
 
 
   const slot = document.getElementById('catSlot');
@@ -516,16 +525,6 @@ async function startLiveCountdown(folderObj, msLeft) {
     return Math.floor(idx / pageSize) + 1;
   }
 
-  //let commitPage = 1;    // Merker für die aktuelle Seite
-  const PAGE_SIZE = 50;
-
-  const paginationEl = document.createElement('div');
-  paginationEl.className = 'pagination flex justify-center items-center my-2 space-x-2';
-  contentList.parentElement.insertBefore(paginationEl, contentList); // nur einmal beim Initialisieren
-
-  // Speichere zuletzt angezeigten Folder/Seite
-  let lastFolderPath = null;
-  let lastPage = null;
 
   // Helper: gibt die Seite für einen Commit-Hash zurück
   async function getCommitPageForHash(folderObj, hash, pageSize) {
