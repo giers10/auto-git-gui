@@ -308,9 +308,14 @@
         <input type="checkbox" id="closeToTray" checked />
         Close to Tray
       </label>
-      <label class="option">
-        <input type="checkbox" id="skymode" />
-        Sky Theme
+      <label class="option" style="align-items:center;">
+        Theme:
+        <select id="themeSelect" style="margin-left:1em;">
+          <option value="default">Cits Favorite</option>
+          <option value="sky">Sky</option>
+          <option value="epic">Epic</option>
+          <option value="yinyang" disabled>Yin/Yang (coming soon)</option>
+        </select>
       </label>
       <label class="option">
         <input type="checkbox" id="skipPrompt" class="flex-none" />
