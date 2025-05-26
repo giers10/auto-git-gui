@@ -649,6 +649,11 @@ folders.forEach(folderObj => {
   }
   setTimeout(() => window.cat.endSpeech(), 2000);
 
+
+  ipcRenderer.on('cat-begin', () => window.cat && window.cat.begin());
+  ipcRenderer.on('cat-chunk', (_e, chunk) => window.cat && window.cat.streamText(chunk));
+  ipcRenderer.on('cat-end', () => window.cat && window.cat.end());
+
 /*
   const slot = document.getElementById('catSlot');
   const cat = new AnimeCat(slot, {
@@ -664,8 +669,6 @@ folders.forEach(folderObj => {
     streamText: txt => cat.appendSpeech(txt),
     end: () => cat.endSpeech()
   };
-  ipcRenderer.on('cat-begin', () => window.cat && window.cat.begin());
-  ipcRenderer.on('cat-chunk', (_e, chunk) => window.cat && window.cat.streamText(chunk));
-  ipcRenderer.on('cat-end', () => window.cat && window.cat.end());
+
 */
 });
