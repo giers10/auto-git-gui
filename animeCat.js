@@ -168,6 +168,7 @@ _bindMouseHold() {
     closeEyes();
     clearTimeout(this._blinkTimeout); // Blinzeln pausieren
 
+    // Bewegung tracken
     function onMove(ev) {
       if (!mouseDown) return;
       if (!isMouseNearCat(ev)) {
@@ -187,11 +188,47 @@ _bindMouseHold() {
 
     const onMoveBound = onMove.bind(this);
 
-    function onUp() {
-      const heldFor = Date.now() - mouseDownAt;
-      cleanup();
+    // Nach 4 Sekunden wird entschieden, unabhängig vom Mauszustand
+    holdTimer = setTimeout(() => {
+      if (!mouseDown) return; // Schon abgebrochen
+      
+      // Joy-Bedingung
+      if (moveDist >= MOVE_THRESHOLD) {
+        cleanup();
+        joyActive = true;
+        this._runJoyAnimation(() => {
+          joyActive = false;
+          reopenEyes();
+          this._startBlinking();
+        });
+        mouseDown = false;
+      } else {
+        // Trostpreis: Augen auf, dann mouth_open
+        cleanup();
+        mouseDown = false;
+        reopenEyes();
+        const heldFor = Date.now() - mouseDownAt;
+        const mouthOpenTime = Math.max(heldFor - 1000, 0);
+        if (mouthOpenTime > 0) {
+          this.img.src = this.images.mouthOpen || this.images.default;
+          this._startBlinking();
+          setTimeout(() => {
+            if (!joyActive && !this._isSpeaking) this.img.src = this.images.default;
+          }, mouthOpenTime);
+        }
+        else {
+          this._startBlinking();
+        }
+      }
+    }, 4000);
 
-      // (1) Joy-Animation wenn erfüllt
+    // Beim Loslassen: Falls früher losgelassen, normale Logik
+    function onUp() {
+      if (!mouseDown) return;
+      cleanup();
+      const heldFor = Date.now() - mouseDownAt;
+      if (heldFor >= 4000) return; // already handled by timer above
+      // Joy: wenn beide Bedingungen erfüllt
       if (heldFor >= 4000 && moveDist >= MOVE_THRESHOLD) {
         joyActive = true;
         this._runJoyAnimation(() => {
@@ -199,24 +236,22 @@ _bindMouseHold() {
           reopenEyes();
           this._startBlinking();
         });
-      } 
-      // (2) Trostpreis: Mouth open wenn >1s gehalten, aber keine Joy-Bedingung erfüllt
+      }
+      // Trostpreis: siehe oben
       else if (heldFor > 1000) {
+        reopenEyes();
         const mouthOpenTime = Math.max(heldFor - 1000, 0);
         if (mouthOpenTime > 0) {
           this.img.src = this.images.mouthOpen || this.images.default;
-          // BLINKEN IST AKTIV (also _startBlinking sofort!)
           this._startBlinking();
           setTimeout(() => {
             if (!joyActive && !this._isSpeaking) this.img.src = this.images.default;
           }, mouthOpenTime);
-        } else {
-          reopenEyes();
+        }
+        else {
           this._startBlinking();
         }
-      } 
-      // (3) Weniger als 1 Sekunde? Nichts besonderes.
-      else {
+      } else {
         reopenEyes();
         this._startBlinking();
       }
@@ -234,22 +269,6 @@ _bindMouseHold() {
 
     window.addEventListener('mousemove', onMoveBound);
     window.addEventListener('mouseup', onUpBound);
-
-    // Joy-Animation Check nach 4s, aber nicht vorher auslösen
-    holdTimer = setTimeout(() => {
-      if (moveDist >= MOVE_THRESHOLD && mouseDown) {
-        // "Streicheln" noch aktiv? Dann sofort Joy-Animation auslösen
-        mouseDown = false; // Simuliere Loslassen
-        window.removeEventListener('mousemove', onMoveBound);
-        window.removeEventListener('mouseup', onUpBound);
-        joyActive = true;
-        this._runJoyAnimation(() => {
-          joyActive = false;
-          reopenEyes();
-          this._startBlinking();
-        });
-      }
-    }, 4000);
 
   });
 }
