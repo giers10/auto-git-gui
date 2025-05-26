@@ -65,8 +65,8 @@ window.AnimeCat = class AnimeCat {
       top:             '70%',
       transform:       'translate(-50%, -50%)',
       borderRadius:    '50%',
-      width:           '80px',     // vorher 120px
-      height:          '54px',     // vorher 80px (Verhältnis zur Katze beibehalten!)
+      width:           '62px',     // vorher 120px
+      height:          '40px',     // vorher 80px (Verhältnis zur Katze beibehalten!)
       pointerEvents:   'none',
       zIndex:          1,
       filter:          'blur(9px)', // macht die Kante weicher
