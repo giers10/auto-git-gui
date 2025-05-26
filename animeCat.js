@@ -301,8 +301,8 @@ _bindMouseHold() {
         img.src = this.images.mouthOpen || this.images.default;
         setTimeout(() => {
           if (!this._pettingActive) {
-          this.img.src = this.images.default;
-        }
+            this.img.src = this.images.default;
+          }
           setTimeout(() => {
             wrapper.style.transition = origTransition || '';
             wrapper.style.transform = origTransform || '';
