@@ -122,7 +122,7 @@ window.AnimeCat = class AnimeCat {
     const delay = this.blinkMin + Math.random() * (this.blinkMax - this.blinkMin);
     this._blinkTimeout = setTimeout(() => {
       if (!this._isSpeaking) {
-        this.img.src = this.images.eyesClosed;
+        this.img.src = this.images.blink;
         setTimeout(() => {
           if (!this._pettingActive) {
             this.img.src = this.images.default;
