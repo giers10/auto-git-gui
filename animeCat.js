@@ -192,11 +192,12 @@ _lerpColor(a, b, t) {
 
     // Farbverlauf – nur Farbe wechseln!
     const stops = [
-      { c:   0, color: [60, 230, 100] },    // grün
-      { c:  10, color: [60, 230, 100] },
-      { c:  50, color: [100, 180, 255] },   // blau
-      { c: 100, color: [180, 120, 255] },   // lila
-      { c: 500, color: [255, 180, 60] }     // orange
+      { c:   0, color: [157, 157, 157] },
+      { c:   5, color: [255, 255, 255] },
+      { c:  20, color: [30, 255, 0] },
+      { c:  50, color: [0, 112, 221] },
+      { c: 100, color: [163, 53, 238] },
+      { c: 500, color: [255, 128, 0] }
     ];
 
     let lower = stops[0], upper = stops[stops.length-1];
