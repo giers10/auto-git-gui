@@ -372,8 +372,8 @@ async function updateInteractionBar(folderObj) {
   }
 
   // In die Bar schreibenx
-  const [r, g, b] = getCommitColor(15);
-  document.getElementById('commitsToday').textContent = 15;
+  const [r, g, b] = getCommitColor(30);
+  document.getElementById('commitsToday').textContent = 30;
   document.getElementById('commitsToday').style.color = `rgb(${r},${g},${b})`;
   document.getElementById('linesUntilRewrite').textContent = linesUntilRewrite;
   document.getElementById('countdown').textContent = countdown;
