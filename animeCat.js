@@ -397,73 +397,66 @@ animateCatGlow(commitCount) {
   }
 
 _runJoyAnimation(onFinish) {
-  const img     = this.img;
-  const origTransition = img.style.transition;
-  const origTransform  = img.style.transform;
-  const origOrigin     = img.style.transformOrigin;
+  const img = this.img;
+  const catBox = this.catContainer;
+  const origCatTransition = catBox.style.transition;
+  const origCatTransform  = catBox.style.transform;
 
   img.src = this.images.joy || this.images.default;
 
   // 20% Chance auf Salto!
   const salto = Math.random() < 0.2;
 
-  // Bubble abkoppeln wie gehabt
+  // Bubble abkoppeln
   this.container.appendChild(this.bubble);
   this._positionBubbleDetached();
 
-  // Herz-Emitter richtig platzieren
-  const catRect = this.img.getBoundingClientRect();
+  // Herz-Emitter anpassen
+  const catRect = this.catContainer.getBoundingClientRect();
   const contRect = this.container.getBoundingClientRect();
-  // <-- Hier kannst du x/y anpassen!
-  const emitterX = catRect.right - contRect.left + 16; // <-- X-Versatz, mehr = weiter rechts
-  const emitterY = contRect.bottom - catRect.bottom + 40; // <-- Y-Versatz, mehr = weiter oben
+  const emitterX = catRect.right - contRect.left + 12;
+  const emitterY = contRect.bottom - catRect.bottom + 34;
   this.heartEmitter.style.left = emitterX + 'px';
   this.heartEmitter.style.bottom = emitterY + 'px';
 
   const spawnHearts = () => this._spawnHearts(12);
 
   if (salto) {
-    // Setzt das Zentrum der Drehung auf die Bildmitte
-    img.style.transformOrigin = '50% 70%';
-    // Salto und Sprung gleichzeitig
-    img.style.transition = 'transform 1.2s cubic-bezier(.19,1,.22,1)';
-    img.style.transform  = 'translateY(-40px) rotate(360deg)';
+    // Salto: gesamter Container springt & dreht
+    catBox.style.transition = 'transform 1.2s cubic-bezier(.19,1,.22,1)';
+    catBox.style.transform  = 'translateY(-40px) rotate(360deg)';
     spawnHearts();
 
     setTimeout(() => {
-      // Nur runterfallen, Drehung bleibt auf 360°
-      img.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
-      img.style.transform  = 'translateY(0) rotate(360deg)';
+      catBox.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
+      catBox.style.transform  = 'translateY(0) rotate(360deg)';
       img.src = this.images.mouthOpen || this.images.default;
       setTimeout(() => {
         if (!this._pettingActive) img.src = this.images.default;
         setTimeout(() => {
-          img.style.transition = origTransition || '';
-          img.style.transform = origTransform || '';
-          img.style.transformOrigin = origOrigin || '';
+          catBox.style.transition = origCatTransition || '';
+          catBox.style.transform = origCatTransform || '';
           this.wrapper.appendChild(this.bubble);
           this._resetBubbleAttach();
           if (typeof onFinish === 'function') onFinish();
         }, 700);
       }, 2000);
-    }, 1200); // Erst springen + drehen, dann runterfallen
+    }, 1200);
   } else {
-    // Normale Joy-Animation
-    img.style.transformOrigin = '50% 70%';
-    img.style.transition = 'transform 0.6s cubic-bezier(.19,1,.22,1)';
-    img.style.transform  = 'translateY(-40px) rotate(12deg)';
+    // Normaler Joy-Jump
+    catBox.style.transition = 'transform 0.6s cubic-bezier(.19,1,.22,1)';
+    catBox.style.transform  = 'translateY(-40px) rotate(12deg)';
     setTimeout(() => {
       spawnHearts();
       setTimeout(() => {
-        img.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
-        img.style.transform  = 'translateY(0) rotate(0deg)';
+        catBox.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
+        catBox.style.transform  = 'translateY(0) rotate(0deg)';
         img.src = this.images.mouthOpen || this.images.default;
         setTimeout(() => {
           if (!this._pettingActive) img.src = this.images.default;
           setTimeout(() => {
-            img.style.transition = origTransition || '';
-            img.style.transform = origTransform || '';
-            img.style.transformOrigin = origOrigin || '';
+            catBox.style.transition = origCatTransition || '';
+            catBox.style.transform = origCatTransform || '';
             this.wrapper.appendChild(this.bubble);
             this._resetBubbleAttach();
             if (typeof onFinish === 'function') onFinish();
