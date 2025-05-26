@@ -496,14 +496,15 @@ async function startLiveCountdown(folderObj, msLeft) {
 
   contentList.parentElement.insertBefore(paginationEl, contentList); // einmalig nach DOM load
 
-  async function renderContent(folderObj) {
+  async function renderContent(folderObj, page = 1) {
     closeDropdown();
     const folder = folderObj.path;
     await updateInteractionBar(folderObj);
     titleEl.textContent = folder;
 
-
-    const { head, commits } = await window.electronAPI.getCommits(folderObj);
+    // Holt die paginierten Commits!
+    const { head, commits, total, page: currentPage, pageSize, pages } =
+      await window.electronAPI.getCommits(folderObj, page, PAGE_SIZE);
 
     commitPage = currentPage; // speichere aktuelle Seite
 
