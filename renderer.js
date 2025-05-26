@@ -479,7 +479,7 @@ async function startLiveCountdown(folderObj, msLeft) {
         );
         if(isQueued) console.log("hi");
         // Für random-Winkel (zwischen -10 und +15 Grad, z.B.) 
-        const pawRotate = (Math.random() * 25 - 10).toFixed(1); // -10° bis +15°
+        const pawRotate = (Math.random() * 35 - 10).toFixed(1); // -10° bis +15°
         return `
           <li style="position:relative;" class="w-full p-3 mb-2 bg-white border border-gray-200 rounded shadow-sm
                      ${c.hash === head ? 'current-commit' : ''}">
