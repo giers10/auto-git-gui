@@ -316,38 +316,45 @@ folders.forEach(folderObj => {
     return `${m}:${sec}`;
   }
 
-  async function updateContentList(folderObj) {
-    // (1) Commits Today (global, egal welcher Ordner)
-    const stats = await window.electronAPI.getDailyCommitStats();
-    const today = new Date().toISOString().slice(0, 10);
-    const commitsToday = stats[today] || 0;
+async function updateContentList(folderObj) {
+  // 1. Commits Today (global)
+  const stats = await window.electronAPI.getDailyCommitStats();
+  const today = new Date().toISOString().slice(0, 10);
+  const commitsToday = stats[today] || 0;
 
-    // (2) Lines until next Rewrite (ordnerabhängig!)
-    const threshold = folderObj.intelligentCommitThreshold ?? 10;
-    const linesChanged = folderObj.linesChanged || 0;
-    const linesUntilNextRewrite = Math.max(0, threshold - linesChanged);
+  // 2. Globale Werte
+  const intelligentCommitThreshold = window.intelligentCommitThreshold || 50;
+  const minutesCommitThreshold = window.minutesCommitThreshold || 20;
 
-    // (3) Time until next Rewrite (ordnerabhängig!)
-    // -> firstCandidateBirthday ist ms-Timestamp oder null
-    // -> minutesCommitThreshold ist global (z.B. window.minutesCommitThreshold)
-    let timeUntilNextRewrite = '00:00';
-    if (folderObj.firstCandidateBirthday && window.minutesCommitThreshold) {
-      const end = folderObj.firstCandidateBirthday + window.minutesCommitThreshold * 60 * 1000;
-      const left = Math.max(0, end - Date.now());
-      timeUntilNextRewrite = formatCountdown(left);
-    }
+  // 3. Lines until next Rewrite
+  const linesChanged = folderObj?.linesChanged || 0;
+  const linesUntilRewrite = Math.max(0, intelligentCommitThreshold - linesChanged);
 
-    // ContentList updaten – passe an dein HTML an!
-    const lines = [
-      `Commits Today: ${commitsToday}`,
-      `Lines until next Rewrite: ${linesUntilNextRewrite}`,
-      `Time until next Rewrite: ${timeUntilNextRewrite}`
-    ];
-
-    // Beispiel: Schreibe in dein DIV mit id="contentList"
-    document.getElementById('contentList').innerHTML = lines.map(l => `<div>${l}</div>`).join('');
+  // 4. Time until next Rewrite
+  let countdown = "00:00";
+  if (folderObj?.firstCandidateBirthday) {
+    const msThreshold = minutesCommitThreshold * 60 * 1000;
+    const endTime = new Date(folderObj.firstCandidateBirthday).getTime() + msThreshold;
+    const msLeft = Math.max(0, endTime - Date.now());
+    countdown = formatCountdown(msLeft);
   }
 
+  // 5. Schreibe Werte ins UI
+  document.getElementById('contentList').innerHTML = `
+    <div>Commits Today: <b>${commitsToday}</b></div>
+    <div>Lines until next Rewrite: <b>${linesUntilRewrite}</b></div>
+    <div>Time until next Rewrite: <b>${countdown}</b></div>
+  `;
+}
+
+// Helfer für mm:ss
+function formatCountdown(ms) {
+  if (!ms || ms < 0) return "00:00";
+  const totalSec = Math.floor(ms / 1000);
+  const min = Math.floor(totalSec / 60).toString().padStart(2, "0");
+  const sec = (totalSec % 60).toString().padStart(2, "0");
+  return `${min}:${sec}`;
+}
 
 
   const folderTitleDrop = document.getElementById('folderTitleDrop');
@@ -575,7 +582,7 @@ folders.forEach(folderObj => {
   await renderSidebar();
   const initial = await window.electronAPI.getSelected();
   if (initial) await renderContent(initial);
-  updateContentList(window.initial);
+  updateContentList(window.initial); //11111111
 
   addBtn.addEventListener('click', async () => {
     await window.electronAPI.addFolder();
