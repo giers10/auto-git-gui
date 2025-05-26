@@ -180,7 +180,7 @@ window.AnimeCat = class AnimeCat {
     img.src = this.images.joy || this.images.default;
 
     // Wrapper animieren: nach oben + rechts, leicht rotieren
-    wrapper.style.transition = 'transform 0.4s cubic-bezier(.19,1,.22,1)';
+    wrapper.style.transition = 'transform 0.6s cubic-bezier(.19,1,.22,1)';
     wrapper.style.transform  = 'translateY(-70px) rotate(12deg)';
 
     // Herzchen-Explosion starten
@@ -191,7 +191,7 @@ window.AnimeCat = class AnimeCat {
       // Nach weiteren 2.6s zurückfallen (gesamt ca. 3s joy-mode)
       setTimeout(() => {
         // Rücksprung: nach unten
-        wrapper.style.transition = 'transform 0.5s cubic-bezier(.19,1,.22,1)';
+        wrapper.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
         wrapper.style.transform  = 'translateY(0) rotate(0deg)';
         // Bild zurück
         img.src = this.images.default;
