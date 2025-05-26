@@ -213,15 +213,17 @@ _bindMouseHold() {
         mouseDown = false;
         reopenEyes();
         const heldFor = Date.now() - mouseDownAt;
-        const mouthOpenTime = Math.max(heldFor - 1000, 700);
-        if (mouthOpenTime > 0) {
+        if (heldFor > 1000) {
+          // mind. 500ms oder (heldFor - 1000), je nachdem was größer ist
+          const mouthOpenTime = Math.max(heldFor - 1000, 500);
           this.img.src = this.images.mouthOpen || this.images.default;
           this._startBlinking();
           setTimeout(() => {
-            if (!joyActive && !this._isSpeaking && !this._pettingActive) this.img.src = this.images.default;
+            if (!joyActive && !this._isSpeaking && !this._pettingActive) {
+              this.img.src = this.images.default;
+            }
           }, mouthOpenTime);
-        }
-        else {
+        } else {
           this._startBlinking();
         }
       }
