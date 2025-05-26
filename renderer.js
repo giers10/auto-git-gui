@@ -650,9 +650,9 @@ folders.forEach(folderObj => {
   setTimeout(() => window.cat.endSpeech(), 2000);
 
 
-  ipcRenderer.on('cat-begin', () => window.cat && window.cat.begin());
-  ipcRenderer.on('cat-chunk', (_e, chunk) => window.cat && window.cat.streamText(chunk));
-  ipcRenderer.on('cat-end', () => window.cat && window.cat.end());
+  window.electronAPI.onCatBegin(() => window.cat && window.cat.beginSpeech());
+  window.electronAPI.onCatChunk((_e, chunk) => window.cat && window.cat.appendSpeech(chunk));
+  window.electronAPI.onCatEnd(() => window.cat && window.cat.endSpeech());
   const speakToCat = msg => {
   window.cat.beginSpeech();
     // Zeig Nachricht Zeichen für Zeichen:
