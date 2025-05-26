@@ -315,7 +315,7 @@ folders.forEach(folderObj => {
     const sec = (s % 60).toString().padStart(2, '0');
     return `${m}:${sec}`;
   }
-
+let countdownInterval = null;
 async function updateInteractionBar(folderObj) {
   // Commits Today
   const stats = await window.electronAPI.getDailyCommitStats();
