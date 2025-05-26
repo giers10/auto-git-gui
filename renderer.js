@@ -486,15 +486,6 @@ async function startLiveCountdown(folderObj, msLeft) {
         <div class="flex justify-between text-sm text-gray-600 mb-1">
           <span>${c.hash}</span>
           <span>${new Date(c.date).toLocaleString()}
-          ${
-            isQueued
-              ? `<img src="assets/cat/paw.png"
-                      alt="In Rewrite Queue"
-                      title="In Rewrite Queue"
-                      class="w-6 h-6 ml-2 paw-queued"
-                      style="transform: rotate(${pawRotate}deg); pointer-events: none;">`
-              : ''
-          }
           </span>
         </div>
         <div class="text-gray-800 mb-2">${c.message}</div>
