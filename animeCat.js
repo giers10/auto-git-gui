@@ -294,10 +294,6 @@ _bindMouseHold() {
         } else {
           this._startBlinking();
         }
-      } else {
-        reopenEyes();
-        this._startBlinking();
-      }
       mouseDown = false;
     }
 
