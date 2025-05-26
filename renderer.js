@@ -479,7 +479,6 @@ async function startLiveCountdown(folderObj, msLeft) {
         );
         if(isQueued) console.log("hi");
         // Für random-Winkel (zwischen -10 und +15 Grad, z.B.) 
-        const pawRotate = (Math.random() * 35 - 10).toFixed(1); // -10° bis +15°
         return `
           <li style="position:relative;" class="w-full p-3 mb-2 bg-white border border-gray-200 rounded shadow-sm
                      ${c.hash === head ? 'current-commit' : ''}">
@@ -537,7 +536,7 @@ async function startLiveCountdown(folderObj, msLeft) {
                     alt="In Rewrite Queue"
                     title="In Rewrite Queue"
                     class="paw-queued"
-                    style="transform: rotate(${pawRotate}deg); pointer-events: none; z-index:10;">`
+                    style="pointer-events: none; z-index:10;">`
             : ''
         }
       </li>`;}).join(''); 
