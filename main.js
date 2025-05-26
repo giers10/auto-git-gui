@@ -1404,7 +1404,7 @@ ipcMain.on('show-tree-context-menu', (event, { absPath, relPath, root, type }) =
     {
       label: 'Open Folder',
       click: () => shell.openPath(absPath),
-      visible: type === 'folder' // Nur für Dateien anzeigen
+      visible: type === 'dir' // Nur für Dateien anzeigen
     },
     {
       label: 'Copy File Path',
@@ -1414,7 +1414,7 @@ ipcMain.on('show-tree-context-menu', (event, { absPath, relPath, root, type }) =
     {
       label: 'Copy Folder Path',
       click: () => clipboard.writeText(absPath),
-      visible: type === 'folder' // Nur für Dateien anzeigen
+      visible: type === 'dir' // Nur für Dateien anzeigen
     },
     {
       label: 'Add to .gitignore',
