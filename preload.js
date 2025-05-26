@@ -38,6 +38,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showFolderContextMenu: folderPath => ipcRenderer.send('show-folder-context-menu', folderPath),
   setMonitoring: (folderObj, monitoring) => ipcRenderer.invoke('set-monitoring', folderObj.path, monitoring),
   getFolderTree: (folderPath) => ipcRenderer.invoke('get-folder-tree', folderPath),
+  showTreeContextMenu: (info) => ipcRenderer.send('show-tree-context-menu', info),
+  getSelectedSync: () => ipcRenderer.sendSync('get-selected-sync'),
   getIntelligentCommitThreshold: () => ipcRenderer.invoke('get-intelligent-commit-threshold'),
   setIntelligentCommitThreshold: value => ipcRenderer.invoke('set-minutes-commit-threshold', value),
   getMinutesCommitThreshold: () => ipcRenderer.invoke('get-minutes-commit-threshold'),
