@@ -460,6 +460,22 @@ window.AnimeCat = class AnimeCat {
     }, this.talkInterval / 2);
   }
 
+  appendSpeech(chunk) {
+    if (this._bubbleTextNode)
+      this._bubbleTextNode.textContent += chunk;
+  }
+
+  endSpeech() {
+    clearInterval(this._talkIntervalId);
+    if (!this._pettingActive) {
+      this.img.src = this.images.default;
+    }
+    this._speechTimeout = setTimeout(() => {
+      this.bubble.style.opacity = '0';
+      this._isSpeaking = false;
+    }, 6000);
+  }
+
   destroy() {
     clearTimeout(this._blinkTimeout);
     clearInterval(this._talkIntervalId);
