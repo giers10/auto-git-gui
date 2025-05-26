@@ -699,11 +699,11 @@ folders.forEach(folderObj => {
     // An deine Katzenanimation weitergeben!
     window.updateCatGlow(todayCount);
   });
-  /*
+
   window.updateCatGlow = function(commitCount) {
     // Übergib den Wert an animeCat.js
     if (window.animateCatGlow) window.animateCatGlow(commitCount);
   };
-  */
+  
 
 });
