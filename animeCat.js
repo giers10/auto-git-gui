@@ -8,7 +8,7 @@
 
 
 
-export class AnimeCat {
+window.AnimeCat = class AnimeCat {
   /**
    * @param {HTMLElement} container
    * @param {Object}      [options]
