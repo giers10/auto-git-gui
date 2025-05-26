@@ -309,7 +309,7 @@ _runJoyAnimation(onFinish) {
   img.src = this.images.joy || this.images.default;
 
   // 20% Chance auf Salto!
-  const salto = Math.random() < 1;
+  const salto = Math.random() < 0.2;
 
   // Erst: Wrapper nach oben bewegen (Katze springt hoch)
   wrapper.style.transition = 'transform 0.4s cubic-bezier(.19,1,.22,1)';
