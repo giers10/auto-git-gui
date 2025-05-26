@@ -668,12 +668,6 @@ folders.forEach(folderObj => {
     nextChar();
   };
 
-  window.electronAPI && window.electronAPI.onCatSay && 
-    window.electronAPI.onCatSay((_, msg) => speakToCat(msg));
-
-  // oder mit
-  window.require && require('electron').ipcRenderer.on('cat-say', (_, msg) => speakToCat(msg));
-
 /*
   const slot = document.getElementById('catSlot');
   const cat = new AnimeCat(slot, {
