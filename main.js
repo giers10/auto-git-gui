@@ -125,6 +125,7 @@ function openSettings(win) {
   });
   settingsWin.removeMenu();
   settingsWin.loadFile('settings.html');
+  settingsWin.webContents.openDevTools({ mode: 'detach' });
   settingsWin.on('closed', () => settingsWin = null);
 }
 
