@@ -496,7 +496,7 @@ async function startLiveCountdown(folderObj, msLeft) {
 
   contentList.parentElement.insertBefore(paginationEl, contentList); // einmalig nach DOM load
 
-  async function renderContent(folderObj, page = 2) {
+  async function renderContent(folderObj, page = 1) {
     closeDropdown();
     const folder = folderObj.path;
     await updateInteractionBar(folderObj);
