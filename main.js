@@ -565,7 +565,7 @@ function createRewriteScript(mapping) {
 }
 
 
-async function autoCommit(folderPath, message) {
+async function autoCommit(folderPath, message, win) {
   const git = simpleGit(folderPath);
   const status = await git.status();
   if (
