@@ -148,6 +148,7 @@ window.AnimeCat = class AnimeCat {
     this.container.appendChild(this.heartEmitter);
   }
 
+
   // Zeigt Progress der täglichen Commits an
   animateCatGlow(commitCount) {
     const glow = this.glow;
