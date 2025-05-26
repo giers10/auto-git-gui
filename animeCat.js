@@ -30,6 +30,7 @@ window.AnimeCat = class AnimeCat {
     this._createElements();
     this._bindMouseHold();
     this._startBlinking();
+    this.startGlowWobble();
   }
 
   _createElements() {
@@ -158,7 +159,7 @@ window.AnimeCat = class AnimeCat {
   }
 
 
-  startGlowWobble() {
+  _startGlowWobble() {
     let t = 0;
     const loop = () => {
       // z.B. sanft die Opazität und evtl. blur modifizieren
@@ -173,7 +174,6 @@ window.AnimeCat = class AnimeCat {
   stopGlowWobble() {
     if (this._glowWobbleId) cancelAnimationFrame(this._glowWobbleId);
   }
-  this.startGlowWobble();
 
 // Hilfsfunktionen zur Farbinterpolation
 _lerp(a, b, t) { return a + (b - a) * t; }
