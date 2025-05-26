@@ -448,7 +448,7 @@ async function startLiveCountdown(folderObj, msLeft) {
     console.log(selected.path);
     console.log(tree);
     folderHierarchyDropdown.innerHTML = renderFolderTreeAscii(tree, '.', '');
-
+    setTextColor(document.body.classList.contains('sky-mode') ? 'sky' : 'default');
   });
 
   folderHierarchyDropdown.addEventListener('contextmenu', function(e) {
