@@ -361,7 +361,7 @@ function startLiveCountdown(folderObj, msLeft) {
     return;
   }
 
-  const minutesCommitThreshold = window.minutesCommitThreshold || 5;
+  const minutesCommitThreshold = await window.electronAPI.getMinutesCommitThreshold?.() || 5;
   const msThreshold = minutesCommitThreshold * 60 * 1000;
   const endTime = new Date(folderObj.firstCandidateBirthday).getTime() + msThreshold;
 
