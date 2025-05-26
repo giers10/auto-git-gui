@@ -114,12 +114,12 @@ window.AnimeCat = class AnimeCat {
     });
     this.bubble.appendChild(this.bubblePointer);
 
-    // --- Zusammenbauen ---
+      // --- Zusammenbauen ---
     if (!this.wrapper.querySelector('#cat-glow')) {
-    this.glow = document.createElement('div');
-    this.glow.id = 'cat-glow';
-    this.wrapper.insertBefore(this.glow, this.img); // vor das Bild
-}
+      this.glow = document.createElement('div');
+      this.glow.id = 'cat-glow';
+      this.wrapper.insertBefore(this.glow, this.img); // vor das Bild
+   }
     this.wrapper.appendChild(this.img);
     this.wrapper.appendChild(this.bubble);
     this.container.appendChild(this.wrapper);
