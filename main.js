@@ -268,7 +268,7 @@ function startMonitoringWatcher(folderPath, win) {
       status.renamed.length > 0
     ) {
       const msg = buildCommitMessageFromStatus(status, 'auto-git: ');
-      const did = await autoCommit(folderPath, msg);
+      const did = await autoCommit(folderPath, msg, win);
       if (did) {
         win.webContents.send('repo-updated', folderPath);
         debug(`[MONITOR] Initialer Auto-Commit für ${folderPath} durchgeführt:\n${msg}`);
