@@ -374,23 +374,7 @@ function startLiveCountdown(folderObj, msLeft) {
   }, 1000);
 }
 
-// Zeit-Formatter (wie gehabt)
-function formatCountdown(ms) {
-  if (!ms || ms < 0) return "00:00";
-  const totalSec = Math.floor(ms / 1000);
-  const min = Math.floor(totalSec / 60).toString().padStart(2, "0");
-  const sec = (totalSec % 60).toString().padStart(2, "0");
-  return `${min}:${sec}`;
-}
 
-// Helfer für mm:ss
-function formatCountdown(ms) {
-  if (!ms || ms < 0) return "00:00";
-  const totalSec = Math.floor(ms / 1000);
-  const min = Math.floor(totalSec / 60).toString().padStart(2, "0");
-  const sec = (totalSec % 60).toString().padStart(2, "0");
-  return `${min}:${sec}`;
-}
 
 
   const folderTitleDrop = document.getElementById('folderTitleDrop');
