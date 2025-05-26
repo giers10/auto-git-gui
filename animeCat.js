@@ -140,7 +140,7 @@ _bindMouseHold() {
   let holdTimer = null;
 
   const CAT_TOLERANCE = 36;
-  const MOVE_THRESHOLD = 75;
+  const MOVE_THRESHOLD = 100;
 
   const isMouseNearCat = (e) => {
     const rect = this.img.getBoundingClientRect();
