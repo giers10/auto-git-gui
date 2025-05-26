@@ -162,10 +162,10 @@ window.AnimeCat = class AnimeCat {
   _startGlowWobble() {
     let t = 0;
     const loop = () => {
-      // z.B. sanft die Opazität und evtl. blur modifizieren
+      // Sanfte Wellen-Animation der Opazität
       const phase = 0.92 + 0.08 * Math.sin(t);
       this.glow.style.opacity = phase.toFixed(2);
-      // Für fancy: this.glow.style.filter = `blur(${10 + 3*Math.sin(t/2)}px)`;
+      // Wenn du magst: this.glow.style.filter = `blur(${10 + 2*Math.sin(t/2)}px)`;
       t += 0.05;
       this._glowWobbleId = requestAnimationFrame(loop);
     };
