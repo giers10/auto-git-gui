@@ -167,7 +167,6 @@ window.AnimeCat = class AnimeCat {
     Array.from(this.bubble.childNodes).forEach(node => {
       if (node !== this.bubblePointer) node.remove();
     });
-    this.bubblePointer.style.display = '';
     // Neuen (leeren) Textnode einfügen:
     this._bubbleTextNode = document.createTextNode('');
     this.bubble.appendChild(this._bubbleTextNode);
@@ -192,7 +191,6 @@ window.AnimeCat = class AnimeCat {
     this.img.src = this.images.default;
     this._speechTimeout = setTimeout(() => {
       this.bubble.style.opacity = '0';
-      this.bubblePointer.style.display = 'none';
       this._isSpeaking = false;
     }, 6000);
   }
