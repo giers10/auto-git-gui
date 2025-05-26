@@ -157,6 +157,23 @@ window.AnimeCat = class AnimeCat {
     this.container.appendChild(this.heartEmitter);
   }
 
+
+  startGlowWobble() {
+    let t = 0;
+    const loop = () => {
+      // z.B. sanft die Opazität und evtl. blur modifizieren
+      const phase = 0.92 + 0.08 * Math.sin(t);
+      this.glow.style.opacity = phase.toFixed(2);
+      // Für fancy: this.glow.style.filter = `blur(${10 + 3*Math.sin(t/2)}px)`;
+      t += 0.05;
+      this._glowWobbleId = requestAnimationFrame(loop);
+    };
+    loop();
+  }
+  stopGlowWobble() {
+    if (this._glowWobbleId) cancelAnimationFrame(this._glowWobbleId);
+  }
+
 // Hilfsfunktionen zur Farbinterpolation
 _lerp(a, b, t) { return a + (b - a) * t; }
 _lerpColor(a, b, t) {
