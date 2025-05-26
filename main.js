@@ -22,7 +22,8 @@ const store = new Store({
     minutesCommitThreshold: 5,
     autostart: false,
     closeToTray: true,
-    needsRelocation: false
+    needsRelocation: false,
+    dailyCommitStats: {}
   }
 });
 
@@ -658,6 +659,12 @@ async function autoCommit(folderPath, message, win) {
     debug('[autoCommit] Alle Änderungen gestaged.');
     await git.commit(message || '[auto]');
     debug('[autoCommit] Commit erfolgreich erstellt.');
+    
+    // --- Gamification: Commit-Statistik speichern ---
+    const today = new Date().toISOString().slice(0, 10); // Format: 'YYYY-MM-DD'
+    const stats = store.get('dailyCommitStats') || {};
+    stats[today] = (stats[today] || 0) + 1;
+    store.set('dailyCommitStats', stats);
 
     // Nach Commit: neuen HEAD ermitteln und in llmCandidates speichern
     const newHead = (await git.revparse(['HEAD'])).trim();
