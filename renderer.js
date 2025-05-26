@@ -486,6 +486,13 @@ async function startLiveCountdown(folderObj, msLeft) {
   window.addEventListener('repo-updated', () => {
   });
 
+  async function getCommitPageForHash(folderObj, hash, pageSize = PAGE_SIZE) {
+    // Hole alle Commits (NICHT paginiert!)
+    const { commits } = await window.electronAPI.getCommits(folderObj, 1, 100000); // genug große Zahl
+    const idx = commits.findIndex(c => c.hash === hash || hash.startsWith(c.hash));
+    if (idx === -1) return 1; // fallback: erste Seite
+    return Math.floor(idx / pageSize) + 1;
+  }
 
   let commitPage = 1;    // Merker für die aktuelle Seite
   const PAGE_SIZE = 50;
@@ -665,10 +672,13 @@ async function startLiveCountdown(folderObj, msLeft) {
       btn.addEventListener('click', async () => {
         const hash = btn.dataset.hash;
         await window.electronAPI.checkoutCommit(folderObj, hash);
-        await renderContent(folderObj);
+        // Finde die Seite des neuen HEADs (das ist jetzt der aktuelle Commit)
+        const headCommit = hash;
+        const page = await getCommitPageForHash(folderObj, headCommit, PAGE_SIZE);
+        await renderContent(folderObj, page);
       });
     });
-
+    
     // Copy-Diff-Button
     contentList.querySelectorAll('.diff-container').forEach(container => {
       const btn = container.querySelector('.copy-diff-btn');
