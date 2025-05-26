@@ -312,6 +312,7 @@ window.AnimeCat = class AnimeCat {
     const img     = this.img;
     const origTransition = wrapper.style.transition;
     const origTransform  = wrapper.style.transform;
+    const origOrigin     = wrapper.style.transformOrigin;
 
     img.src = this.images.joy || this.images.default;
 
@@ -322,44 +323,43 @@ window.AnimeCat = class AnimeCat {
     this.container.appendChild(this.bubble);
     this._positionBubbleDetached();
 
-    // Berechne Herz-Emitter-Position JETZT
+    // Herz-Emitter sauber platzieren
     const catRect = this.img.getBoundingClientRect();
     const contRect = this.container.getBoundingClientRect();
-    // Hier kannst du x/y Werte feinjustieren:
     this.heartEmitter.style.left = (catRect.right - contRect.left + 10) + 'px';
     this.heartEmitter.style.bottom = (contRect.bottom - catRect.bottom + 13) + 'px';
 
     const spawnHearts = () => this._spawnHearts(12);
 
     if (salto) {
-      // 1. Hochspringen & direkt losdrehen
-      wrapper.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
-      wrapper.style.transform  = 'translateY(-40px) rotate(0deg)';
+      // Setzt das Zentrum der Drehung auf Mitte-Unten
+      wrapper.style.transformOrigin = '50% 70%';
+
+      // Sprung und Drehung gleichzeitig
+      wrapper.style.transition = 'transform 1.2s cubic-bezier(.19,1,.22,1)';
+      wrapper.style.transform  = 'translateY(-40px) rotate(360deg)';
+      spawnHearts();
+
       setTimeout(() => {
-        // 2. Während Sprung: Salto (Herzen werden genau jetzt “ausgestoßen”)
-        wrapper.style.transition = 'transform 0.6s cubic-bezier(.19,1,.22,1)';
-        wrapper.style.transform  = 'translateY(-40px) rotate(360deg)';
-        spawnHearts();
+        // Nur runterfallen, Drehung bleibt auf 360°
+        wrapper.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
+        wrapper.style.transform  = 'translateY(0) rotate(360deg)';
+        img.src = this.images.mouthOpen || this.images.default;
         setTimeout(() => {
-          // 3. Runterfallen (nur nach unten, KEIN weiteres Rotieren!)
-          wrapper.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
-          wrapper.style.transform  = 'translateY(0) rotate(360deg)';
-          img.src = this.images.mouthOpen || this.images.default;
+          if (!this._pettingActive) this.img.src = this.images.default;
           setTimeout(() => {
-            if (!this._pettingActive) this.img.src = this.images.default;
-            setTimeout(() => {
-              wrapper.style.transition = origTransition || '';
-              wrapper.style.transform = origTransform || '';
-              // Bubble zurück
-              this.wrapper.appendChild(this.bubble);
-              this._resetBubbleAttach();
-              if (typeof onFinish === 'function') onFinish();
-            }, 700);
-          }, 2000);
-        }, 600);
-      }, 400);
+            wrapper.style.transition = origTransition || '';
+            wrapper.style.transform = origTransform || '';
+            wrapper.style.transformOrigin = origOrigin || '';
+            this.wrapper.appendChild(this.bubble);
+            this._resetBubbleAttach();
+            if (typeof onFinish === 'function') onFinish();
+          }, 700);
+        }, 2000);
+      }, 1200); // Erst springen + drehen, dann runterfallen
     } else {
       // Normale Joy-Animation
+      wrapper.style.transformOrigin = '50% 70%';
       wrapper.style.transition = 'transform 0.6s cubic-bezier(.19,1,.22,1)';
       wrapper.style.transform  = 'translateY(-40px) rotate(12deg)';
       setTimeout(() => {
@@ -373,7 +373,7 @@ window.AnimeCat = class AnimeCat {
             setTimeout(() => {
               wrapper.style.transition = origTransition || '';
               wrapper.style.transform = origTransform || '';
-              // Bubble zurück
+              wrapper.style.transformOrigin = origOrigin || '';
               this.wrapper.appendChild(this.bubble);
               this._resetBubbleAttach();
               if (typeof onFinish === 'function') onFinish();
