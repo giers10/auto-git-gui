@@ -138,9 +138,8 @@ _bindMouseHold() {
   let lastPos = null;
   let moveDist = 0;
 
-  const CAT_TOLERANCE = 15;
+  const CAT_TOLERANCE = 36;
 
-  // Prüfen ob die Maus noch im erlaubten Streichelbereich ist
   const isMouseNearCat = (e) => {
     const rect = this.img.getBoundingClientRect();
     return (
@@ -160,7 +159,6 @@ _bindMouseHold() {
     }
   };
 
-  // Mousedown nur auf Katze selbst!
   this.img.addEventListener('mousedown', (e) => {
     if (this._isSpeaking || joyActive) return;
     if (!isMouseNearCat(e)) return;
@@ -170,13 +168,17 @@ _bindMouseHold() {
     moveDist = 0;
     closeEyes();
 
-    // Maus-Events für das ganze Fenster aktivieren!
+    // *** Blinken pausieren ***
+    clearTimeout(this._blinkTimeout);
+
     function onMove(ev) {
       if (!mouseDown) return;
       if (!isMouseNearCat(ev)) {
         cleanup();
         reopenEyes();
         mouseDown = false;
+        // *** Nach Streichelspiel Blinken neu starten ***
+        this._startBlinking();
         return;
       }
       if (lastPos) {
@@ -187,21 +189,27 @@ _bindMouseHold() {
       }
     }
 
+    const onMoveBound = onMove.bind(this);
+
     function onUp() {
       cleanup();
       if (!joyActive) reopenEyes();
       mouseDown = false;
+      // *** Nach Streichelspiel Blinken neu starten ***
+      this._startBlinking();
     }
 
+    const onUpBound = onUp.bind(this);
+
     function cleanup() {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('mousemove', onMoveBound);
+      window.removeEventListener('mouseup', onUpBound);
       if (holdTimer) clearTimeout(holdTimer);
       holdTimer = null;
     }
 
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    window.addEventListener('mousemove', onMoveBound);
+    window.addEventListener('mouseup', onUpBound);
 
     holdTimer = setTimeout(() => {
       if (moveDist >= 75) {
@@ -210,10 +218,14 @@ _bindMouseHold() {
         this._runJoyAnimation(() => {
           joyActive = false;
           reopenEyes();
+          // *** Nach Streichelspiel Blinken neu starten ***
+          this._startBlinking();
         });
       } else {
         cleanup();
         reopenEyes();
+        // *** Nach Streichelspiel Blinken neu starten ***
+        this._startBlinking();
       }
       mouseDown = false;
     }, 4000);
