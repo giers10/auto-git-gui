@@ -153,17 +153,27 @@ window.AnimeCat = class AnimeCat {
     const glow = this.glow;
     if (!glow) return;
 
-    const factor = Math.min(commitCount / 10, 1);
+    // Farbinterpolation je nach Commits:
+    function getGlowColor(count) {
+      if (count < 10)    return [60, 230, 100];  // grün
+      if (count < 50)    return [100, 180, 255]; // blau
+      if (count < 100)   return [180, 120, 255]; // lila
+      if (count < 500)   return [255, 180, 60];  // orange
+      return [255, 100, 0]; // voll orange
+    }
 
+    const [r, g, b] = getGlowColor(commitCount);
+
+    // Skalierung bleibt wie gehabt
     const minSize = 80, maxSize = 170;
+    const factor = Math.min(commitCount / 500, 1); // jetzt auf 500 skalieren!
     const size = minSize + factor * (maxSize - minSize);
 
     glow.style.width = `${size}px`;
-    glow.style.height = `${size * 0.66}px`;
-    glow.style.opacity = 0.2 + 0.8 * factor;
-    glow.style.background = `radial-gradient(circle, rgba(255,230,100,${0.7 + factor*0.3}) 0%, rgba(255,230,100,${0.10 + 0.5*factor}) 70%, rgba(0,0,0,0) 100%)`;
+    glow.style.height = `${size}px`; // jetzt immer Kreis!
+    glow.style.opacity = 0.25 + 0.65 * factor;
+    glow.style.background = `radial-gradient(circle, rgba(${r},${g},${b},0.9) 0%, rgba(${r},${g},${b},0.13) 65%, rgba(0,0,0,0) 100%)`;
   }
-
 
   // Bubble-Position absolut anpassen, wenn detached
   _positionBubbleDetached() {
