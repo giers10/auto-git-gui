@@ -67,11 +67,11 @@ window.AnimeCat = class AnimeCat {
       transform:       'translate(-50%, -50%)',
       borderRadius:    '50%',
       width:           '70px',      // ODER: Teste 54, 70, 80 – wie es dir am besten gefällt!
-      height:          '50px',
+      height:          '52px',
       pointerEvents:   'none',
       zIndex:          1,
-      filter:          'blur(5px)',    // ruhig auch 14px für weichen Rand!
-      opacity:         '0.9',           // Wieviel du willst!
+      filter:          'blur(4px)',    // ruhig auch 14px für weichen Rand!
+      opacity:         '0.95',           // Wieviel du willst!
       transition:      'background 0.4s, opacity 0.3s'
     });
     this.catContainer.appendChild(this.glow);
