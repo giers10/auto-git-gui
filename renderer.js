@@ -6,6 +6,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const treeviewEl  = document.getElementById('folderHierarchyDropdown');
   const titleArrow  = document.getElementById('folderTitleArrow');
   const contentList = document.getElementById('contentList');
+  const readmeBtn   = document.getElementById('readmeBtn');
   const panel       = document.querySelector('.flex-1.p-4.overflow-y-auto');
   const PAGE_SIZE = 50;
 
@@ -539,6 +540,14 @@ async function startLiveCountdown(folderObj, msLeft) {
     await updateInteractionBar(folderObj);
     titleEl.textContent = folder;
     setTextColor(document.body.classList.contains('sky-mode') ? 'sky' : 'default');
+    
+    // Dynamischer Renderbutton
+    const readmePath = path.join(folderPath, 'README.md');
+    if (fs.existsSync(readmePath)) {
+      readmeBtn.textContent = 'Update README';
+    } else {
+      readmeBtn.textContent = 'Generate README';
+    }
     
     // --- Seitenwahl beim Ordnerwechsel ---
     let usePage = page;
