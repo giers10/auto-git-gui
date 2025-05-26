@@ -170,7 +170,7 @@ _bindMouseHold() {
 
     // Timer für Joy-Animation, aber NUR wenn genug gestreichelt
     holdTimer = setTimeout(() => {
-      if (moveDist >= 100) { // mind. 100px gestreichelt!
+      if (moveDist >= 75) { // mind. 75px gestreichelt!
         joyActive = true;
         this._runJoyAnimation(() => {
           joyActive = false;
