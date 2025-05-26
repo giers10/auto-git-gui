@@ -483,7 +483,7 @@ async function rewordCommitsSequentially(repoPath, commitMessageMap, hashes) {
 }
 
 //---- 6. Workflow ----
-async function runLLMCommitRewrite(folderObj) {
+async function runLLMCommitRewrite(folderObj, win) {
   if(!folderObj.needsRelocation){
     const hashes = folderObj.llmCandidates;
     const birthday = folderObj.firstCandidateBirthday;
