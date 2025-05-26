@@ -300,7 +300,9 @@ _bindMouseHold() {
         wrapper.style.transform  = 'translateY(0) rotate(0deg)';
         img.src = this.images.mouthOpen || this.images.default;
         setTimeout(() => {
-          img.src = this.images.default;
+          if (!this._pettingActive) {
+          this.img.src = this.images.default;
+        }
           setTimeout(() => {
             wrapper.style.transition = origTransition || '';
             wrapper.style.transform = origTransform || '';
