@@ -392,23 +392,24 @@ _runJoyAnimation(onFinish) {
   }
 
 _makeHeart() {
-  // Emoji oder eigenes Bild
   const emoji = Math.random() < 0.7 ? '❤️' : '💕';
-
   const heart = document.createElement('span');
   heart.textContent = emoji;
   heart.style.position = 'absolute';
 
-  // Startposition relativ zur Katze berechnen:
   const catRect = this.img.getBoundingClientRect();
   const containerRect = this.container.getBoundingClientRect();
 
-  // Starte etwas über dem Mittelpunkt der Katze
-  const left = (catRect.left + catRect.width * 0.5) - containerRect.left;
-  const bottom = (containerRect.bottom - (catRect.top + catRect.height * 0.4));
+  // >>> HIER Offset nach rechts (z.B. +18px oder +25px ausprobieren)
+  const HEART_X_OFFSET = 24; // nach rechts relativ zur Katzenmitte
+  const left = (catRect.left + catRect.width * 0.5 + HEART_X_OFFSET) - containerRect.left;
+
+  // Oder noch präziser: Mundhöhe (etwas tiefer als Mittelpunkt)
+  const HEART_Y_OFFSET = 0.45; // Prozentuale Höhe der Katze (0.5 = Mitte)
+  const bottom = (containerRect.bottom - (catRect.top + catRect.height * HEART_Y_OFFSET));
+
   heart.style.left = `${left}px`;
   heart.style.bottom = `${bottom}px`;
-
   heart.style.fontSize = `${16 + Math.random() * 14}px`;
   heart.style.pointerEvents = 'none';
   heart.style.opacity = '0.9';
