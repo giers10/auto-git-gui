@@ -542,13 +542,15 @@ async function startLiveCountdown(folderObj, msLeft) {
     setTextColor(document.body.classList.contains('sky-mode') ? 'sky' : 'default');
     
     // Dynamischer Renderbutton
+    /* statt dessen einfach den tree auslesen
     const readmePath = path.join(folderPath, 'README.md');
     if (fs.existsSync(readmePath)) {
       readmeBtn.textContent = 'Update README';
     } else {
       readmeBtn.textContent = 'Generate README';
     }
-    
+    */
+
     // --- Seitenwahl beim Ordnerwechsel ---
     let usePage = page;
     if (!usePage || folder !== lastFolderPath) {
