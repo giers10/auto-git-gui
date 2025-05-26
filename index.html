@@ -155,11 +155,30 @@
       -webkit-user-select: none;
       user-select: none;
     }
+
     #folderHierarchyDropdown.open {
       display: block;
     }
     #folderTitleArrow.open {
       transform: rotate(90deg);
+    }
+
+    .interaction-bar {
+      font-family: inherit;
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 1rem;
+      border-top: 1px solid var(--border);
+      background: var(--bg-sidebar);
+    }
+
+    .interaction-bar .font-bold {
+      font-size: 1.1em;
+      letter-spacing: 0.02em;
+    }
+
+    .interaction-bar .flex {
+      margin-left: 40px;
     }
 
   </style>
