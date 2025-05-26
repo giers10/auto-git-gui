@@ -207,35 +207,38 @@ animateCatGlow(commitCount) {
   glow.style.background = `radial-gradient(circle, rgba(${r},${g},${b},0.85) 0%, rgba(${r},${g},${b},0.14) 70%, rgba(0,0,0,0) 100%)`;
 }
 
-  // Bubble-Position absolut anpassen, wenn detached
+  // Bubble für Animation absolut an Position der Katze anheften
   _positionBubbleDetached() {
-    // Katze relativ im Container finden
-    const catRect = this.img.getBoundingClientRect();
+    // Katzen-Bild in catContainer suchen!
+    const catRect = this.catContainer.getBoundingClientRect();
     const contRect = this.container.getBoundingClientRect();
-    // "Andockpunkt": rechts neben der Katze, leicht versetzt nach oben
-    const left = (catRect.right - contRect.left) + 12;
-    const bottom = (contRect.bottom - catRect.bottom) + 8;
+
+    // Position: leicht rechts, minimal nach oben (bei Bedarf feintunen)
+    const left   = (catRect.right - contRect.left) + 16;
+    const bottom = (contRect.bottom - catRect.bottom) + 18;
     Object.assign(this.bubble.style, {
       position: 'absolute',
-      left: `${left}px`,
-      bottom: `${bottom}px`,
+      left:     `${left}px`,
+      bottom:   `${bottom}px`,
       marginLeft: '0',
       marginBottom: '0'
     });
-    // Tail bleibt am linken Rand der Bubble!
+    // Tail am linken Rand
     this.bubblePointer.style.left = '-13px';
-    this.bubblePointer.style.bottom = '12px';
+    this.bubblePointer.style.bottom = '14px';
   }
+
+  // Zurück zum Flex-Layout
   _resetBubbleAttach() {
     Object.assign(this.bubble.style, {
-      position: 'relative',
-      left: '',
-      bottom: '',
-      marginLeft: '14px',
-      marginBottom: '11px'
+      position:    'relative',
+      left:        '',
+      bottom:      '',
+      marginLeft:  '12px',
+      marginBottom:'16px'
     });
     this.bubblePointer.style.left = '-13px';
-    this.bubblePointer.style.bottom = '12px';
+    this.bubblePointer.style.bottom = '14px';
   }
 
   _startBlinking() {
