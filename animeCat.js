@@ -65,6 +65,7 @@ window.AnimeCat = class AnimeCat {
       top:             '74%',
       transform:       'translate(-50%, -50%)',
       borderRadius:    '50%',
+      border: '1px solid red',
       width:           '62px',     // vorher 120px
       height:          '40px',     // vorher 80px (Verhältnis zur Katze beibehalten!)
       pointerEvents:   'none',
