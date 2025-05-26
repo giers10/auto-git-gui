@@ -215,7 +215,7 @@ _bindMouseHold() {
         const heldFor = Date.now() - mouseDownAt;
         if (heldFor > 1000) {
           // mind. 500ms oder (heldFor - 1000), je nachdem was größer ist
-          const mouthOpenTime = Math.max(heldFor - 1000, 500);
+          const mouthOpenTime = Math.max(heldFor - 1000, 100);
           this.img.src = this.images.mouthOpen || this.images.default;
           this._startBlinking();
           setTimeout(() => {
