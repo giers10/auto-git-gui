@@ -53,8 +53,8 @@ window.AnimeCat = class AnimeCat {
     this.img.style.MozUserSelect = 'none';
     this.img.style.msUserSelect = 'none';
     this.img.style.webkitUserDrag = 'none';
-    this.img.style.width = '50px';
-    this.img.style.height = '70px';
+    this.img.style.width = '70px';
+    this.img.style.height = '50px';
     this.img.style.zIndex = '2';
 
     // --- Speech bubble ---
