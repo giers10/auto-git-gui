@@ -70,8 +70,8 @@ window.AnimeCat = class AnimeCat {
       height:          '40px',
       pointerEvents:   'none',
       zIndex:          1,
-      filter:          'blur(10px)',    // ruhig auch 14px für weichen Rand!
-      opacity:         '0.8',           // Wieviel du willst!
+      filter:          'blur(6px)',    // ruhig auch 14px für weichen Rand!
+      opacity:         '0.9',           // Wieviel du willst!
       transition:      'background 0.4s, opacity 0.3s'
     });
     this.catContainer.appendChild(this.glow);
