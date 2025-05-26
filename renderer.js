@@ -636,6 +636,24 @@ folders.forEach(folderObj => {
 
 
   const slot = document.getElementById('catSlot');
+  window.cat = new window.AnimeCat(slot, {
+    images: {
+      default:    'assets/cat/default.png',
+      eyesClosed: 'assets/cat/eyes_closed.png',
+      mouthOpen:  'assets/cat/mouth_open.png'
+    }
+  });
+
+  // Beispiel: Die Katze spricht
+  window.cat.beginSpeech();
+  let msg = "Ich bin wieder da!";
+  for (let ch of msg) {
+    setTimeout(() => window.cat.appendSpeech(ch), 50);
+  }
+  setTimeout(() => window.cat.endSpeech(), 2000);
+
+/*
+  const slot = document.getElementById('catSlot');
   const cat = new AnimeCat(slot, {
     images: {
       default:    'assets/cat/default.png',
@@ -652,5 +670,5 @@ folders.forEach(folderObj => {
   ipcRenderer.on('cat-begin', () => window.cat && window.cat.begin());
   ipcRenderer.on('cat-chunk', (_e, chunk) => window.cat && window.cat.streamText(chunk));
   ipcRenderer.on('cat-end', () => window.cat && window.cat.end());
-
+*/
 });
