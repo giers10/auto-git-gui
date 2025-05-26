@@ -672,8 +672,7 @@ folders.forEach(folderObj => {
     }
     nextChar();
   };
-
-/*
+  /*
   const slot = document.getElementById('catSlot');
   const cat = new AnimeCat(slot, {
     images: {
@@ -688,6 +687,12 @@ folders.forEach(folderObj => {
     streamText: txt => cat.appendSpeech(txt),
     end: () => cat.endSpeech()
   };
+  */
 
-*/
+
+  ipcMain.handle('get-daily-commit-stats', () => store.get('dailyCommitStats') || {});
+
+
+
+
 });
