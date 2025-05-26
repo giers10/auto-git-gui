@@ -434,6 +434,27 @@ async function startLiveCountdown(folderObj, msLeft) {
     console.log(selected.path);
     console.log(tree);
     folderHierarchyDropdown.textContent = renderFolderTreeAscii(tree, '.', '');
+
+    folderHierarchyDropdown.addEventListener('contextmenu', function(e) {
+      const el = e.target.closest('.tree-file, .tree-dir');
+      if (!el) return;
+      e.preventDefault();
+
+      const relPath = el.getAttribute('data-path');
+      const type    = el.getAttribute('data-type'); // "file" oder "dir"
+      const selected = window.electronAPI.getSelectedSync?.()
+        || (window.currentSelectedFolderObj || {});
+      // Tipp: Implementiere eine Sync-Methode für getSelected (siehe Preload)
+      const absPath = selected.path + '/' + relPath;
+
+      window.electronAPI.showTreeContextMenu({
+        absPath,
+        relPath,
+        root: selected.path,
+        type
+      });
+    });
+    
   });
 
   function closeDropdown() {
@@ -442,20 +463,21 @@ async function startLiveCountdown(folderObj, msLeft) {
     isDropdownOpen = false;
   }
 
-  // ASCII-Baum: wie bei ChatGPT!
-  function renderFolderTreeAscii(tree, prefix = '', indent = '') {
+  // Diese Funktion generiert die Treeview-Zeilen mit data-path und data-type
+  function renderFolderTreeAscii(tree, prefix = '', indent = '', relPath = '.') {
     if (!Array.isArray(tree)) return '';
     let result = '';
     const lastIdx = tree.length - 1;
     tree.forEach((node, i) => {
       const isLast = i === lastIdx;
       const pointer = isLast ? '└── ' : '├── ';
+      const thisRelPath = relPath === '.' ? node.name : relPath + '/' + node.name;
       if (node.type === 'dir') {
-        result += `${indent}${pointer}${node.name}/\n`;
+        result += `<span class="tree-dir" data-path="${thisRelPath}" data-type="dir">${indent}${pointer}${node.name}/</span>\n`;
         const newIndent = indent + (isLast ? '    ' : '│   ');
-        result += renderFolderTreeAscii(node.children, '', newIndent);
+        result += renderFolderTreeAscii(node.children, '', newIndent, thisRelPath);
       } else {
-        result += `${indent}${pointer}${node.name}\n`;
+        result += `<span class="tree-file" data-path="${thisRelPath}" data-type="file">${indent}${pointer}${node.name}</span>\n`;
       }
     });
     return result;
