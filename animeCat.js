@@ -390,47 +390,57 @@ _runJoyAnimation(onFinish) {
       setTimeout(() => this._makeHeart(), Math.random() * 300);
     }
   }
+  
+_makeHeart() {
+  // Emoji oder eigenes Bild
+  const emoji = Math.random() < 0.7 ? '❤️' : '💕';
 
-  _makeHeart() {
-    // Emoji oder eigenes Bild
-    const emoji = Math.random() < 0.7 ? '❤️' : '💕';
+  const heart = document.createElement('span');
+  heart.textContent = emoji;
+  heart.style.position = 'absolute';
 
-    const heart = document.createElement('span');
-    heart.textContent = emoji;
-    heart.style.position = 'absolute';
-    heart.style.left  = '30%';
-    heart.style.bottom= '45%';
-    heart.style.fontSize = `${16 + Math.random() * 14}px`;
-    heart.style.pointerEvents = 'none';
-    heart.style.opacity = '0.9';
-    heart.style.zIndex = 10;
+  // Startposition relativ zur Katze berechnen:
+  const catRect = this.img.getBoundingClientRect();
+  const containerRect = this.container.getBoundingClientRect();
 
-    // Start/End-Pos, Flugwinkel
-    const angle = (Math.random() * Math.PI) - (Math.PI/2); // spread -90° to 90°
-    const distance = 60 + Math.random() * 45;
-    const dx = Math.cos(angle) * distance;
-    const dy = Math.sin(angle) * distance;
+  // Starte etwas über dem Mittelpunkt der Katze
+  const left = (catRect.left + catRect.width * 0.5) - containerRect.left;
+  const bottom = (containerRect.bottom - (catRect.top + catRect.height * 0.4));
+  heart.style.left = `${left}px`;
+  heart.style.bottom = `${bottom}px`;
 
-    heart.animate([
-      {
-        transform: 'translate(-50%, 0) scale(1)',
-        opacity: 0.95
-      },
-      {
-        transform: `translate(calc(-50% + ${dx}px), ${-dy}px) scale(${1.3 + Math.random()*0.4}) rotate(${Math.random()*60-30}deg)`,
-        opacity: 0.3
-      }
-    ], {
-      duration: 1100 + Math.random()*800,
-      easing: 'cubic-bezier(.28,1.01,.57,.99)'
-    });
+  heart.style.fontSize = `${16 + Math.random() * 14}px`;
+  heart.style.pointerEvents = 'none';
+  heart.style.opacity = '0.9';
+  heart.style.zIndex = 1000;
 
-    // Remove after animation
-    setTimeout(() => heart.remove(), 1600);
+  // Start/End-Pos, Flugwinkel
+  const angle = (Math.random() * Math.PI) - (Math.PI/2); // spread -90° to 90°
+  const distance = 60 + Math.random() * 45;
+  const dx = Math.cos(angle) * distance;
+  const dy = Math.sin(angle) * distance;
 
-    // Im Cat-Wrapper anbringen:
-    this.wrapper.appendChild(heart);
-  }
+  heart.animate([
+    {
+      transform: 'translate(-50%, 0) scale(1)',
+      opacity: 0.95
+    },
+    {
+      transform: `translate(calc(-50% + ${dx}px), ${-dy}px) scale(${1.3 + Math.random()*0.4}) rotate(${Math.random()*60-30}deg)`,
+      opacity: 0.3
+    }
+  ], {
+    duration: 1100 + Math.random()*800,
+    easing: 'cubic-bezier(.28,1.01,.57,.99)'
+  });
+
+  setTimeout(() => heart.remove(), 1600);
+
+  // Jetzt direkt in den Container anhängen (NICHT an this.wrapper!)
+  this.container.appendChild(heart);
+
+  return heart;
+}
 
   /** Call when streaming text begins */
   beginSpeech() {
