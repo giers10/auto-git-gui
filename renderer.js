@@ -472,14 +472,14 @@ async function startLiveCountdown(folderObj, msLeft) {
     if (!commits || !commits.length) {
       return;
     } 
-    contentList.innerHTML = commits.map(c => {
-      // Prüfe, ob der Commit in der Rewrite-Queue ist:
-      const isQueued = folderObj.llmCandidates && folderObj.llmCandidates.includes(c.hash);
-      // Für random-Winkel (zwischen -10 und +15 Grad, z.B.)
-      const pawRotate = (Math.random() * 25 - 10).toFixed(1); // -10° bis +15°
-      return `
-      <li class="w-full p-3 mb-2 bg-white border border-gray-200 rounded shadow-sm
-                 ${c.hash === head ? 'current-commit' : ''}" style="position:relative;">
+      contentList.innerHTML = commits.map(c => {
+        // Prüfe, ob der Commit in der Rewrite-Queue ist:
+        const isQueued = folderObj.llmCandidates && folderObj.llmCandidates.includes(c.hash);
+        // Für random-Winkel (zwischen -10 und +15 Grad, z.B.)
+        const pawRotate = (Math.random() * 25 - 10).toFixed(1); // -10° bis +15°
+        return `
+          <li class="w-full p-3 mb-2 bg-white border border-gray-200 rounded shadow-sm
+                     ${c.hash === head ? 'current-commit' : ''}">
         <div class="flex justify-between text-sm text-gray-600 mb-1">
           <span>${c.hash}</span>
           <span>${new Date(c.date).toLocaleString()}</span>
