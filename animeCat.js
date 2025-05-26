@@ -278,7 +278,7 @@ _lerpColor(a, b, t) {
     let moveDist = 0;
 
     const CAT_TOLERANCE = 15;
-    const MOVE_THRESHOLD = 350;
+    const MOVE_THRESHOLD = 200;
 
     const isMouseNearCat = (e) => {
       const rect = this.img.getBoundingClientRect();
