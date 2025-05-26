@@ -1356,6 +1356,8 @@ function buildTrayMenu() {
   });
 
 
+
+  ipcMain.handle('get-daily-commit-stats', () => store.get('dailyCommitStats') || {});
   
 
   // … Ende der IPC-Handler …
