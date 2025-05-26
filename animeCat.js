@@ -226,6 +226,7 @@ _bindMouseHold() {
         } else {
           this._startBlinking();
         }
+        console.log('heldFor:', heldFor, 'mouthOpenTime:', mouthOpenTime);
       }
     }, 4000);
 
