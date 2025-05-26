@@ -377,11 +377,6 @@ function startLiveCountdown(folderObj, msLeft) {
 
 
 
-
-
-
-
-
   const folderTitleDrop = document.getElementById('folderTitleDrop');
   const folderTitleArrow = document.getElementById('folderTitleArrow');
   const folderHierarchyDropdown = document.getElementById('folderHierarchyDropdown');
