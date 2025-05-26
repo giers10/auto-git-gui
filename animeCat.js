@@ -138,10 +138,9 @@ _bindMouseHold() {
   let lastPos = null;
   let moveDist = 0;
 
-  // Wieviel Pixel Abstand ist ok für "über der Katze"?
-  const CAT_TOLERANCE = 100;
+  const CAT_TOLERANCE = 36;
 
-  // Helper: Check if Mouse is "über der Katze" (mit Toleranz)
+  // Prüfen ob die Maus noch im erlaubten Streichelbereich ist
   const isMouseNearCat = (e) => {
     const rect = this.img.getBoundingClientRect();
     return (
@@ -161,6 +160,7 @@ _bindMouseHold() {
     }
   };
 
+  // Mousedown nur auf Katze selbst!
   this.img.addEventListener('mousedown', (e) => {
     if (this._isSpeaking || joyActive) return;
     if (!isMouseNearCat(e)) return;
@@ -170,46 +170,54 @@ _bindMouseHold() {
     moveDist = 0;
     closeEyes();
 
+    // Maus-Events für das ganze Fenster aktivieren!
+    function onMove(ev) {
+      if (!mouseDown) return;
+      if (!isMouseNearCat(ev)) {
+        cleanup();
+        reopenEyes();
+        mouseDown = false;
+        return;
+      }
+      if (lastPos) {
+        const dx = ev.clientX - lastPos.x;
+        const dy = ev.clientY - lastPos.y;
+        moveDist += Math.sqrt(dx * dx + dy * dy);
+        lastPos = { x: ev.clientX, y: ev.clientY };
+      }
+    }
+
+    function onUp() {
+      cleanup();
+      if (!joyActive) reopenEyes();
+      mouseDown = false;
+    }
+
+    function cleanup() {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      if (holdTimer) clearTimeout(holdTimer);
+      holdTimer = null;
+    }
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+
     holdTimer = setTimeout(() => {
-      if (moveDist >= 75) { // mind. 75px gestreichelt!
+      if (moveDist >= 75) {
         joyActive = true;
+        cleanup();
         this._runJoyAnimation(() => {
           joyActive = false;
           reopenEyes();
         });
       } else {
+        cleanup();
         reopenEyes();
       }
       mouseDown = false;
     }, 4000);
   });
-
-  this.img.addEventListener('mousemove', (e) => {
-    if (!mouseDown || joyActive) return;
-    if (!isMouseNearCat(e)) {
-      // Sofort abbrechen, wenn außerhalb des "Toleranzbereichs"
-      clearTimeout(holdTimer);
-      holdTimer = null;
-      reopenEyes();
-      mouseDown = false;
-      return;
-    }
-    if (lastPos) {
-      const dx = e.clientX - lastPos.x;
-      const dy = e.clientY - lastPos.y;
-      moveDist += Math.sqrt(dx * dx + dy * dy);
-      lastPos = { x: e.clientX, y: e.clientY };
-    }
-  });
-
-  ['mouseup', 'mouseleave'].forEach(evt =>
-    this.img.addEventListener(evt, () => {
-      if (holdTimer) clearTimeout(holdTimer);
-      holdTimer = null;
-      if (!joyActive) reopenEyes();
-      mouseDown = false;
-    })
-  );
 }
 
   _runJoyAnimation(onFinish) {
