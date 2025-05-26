@@ -590,6 +590,9 @@ async function startLiveCountdown(folderObj, msLeft) {
       <button id="page-next" class="px-2 py-1 border rounded" ${currentPage === pages ? 'disabled' : ''}>»</button>
     `;
 
+  paginationEl.querySelector('#page-prev').onclick = () => renderContent(folderObj, currentPage - 1);
+  paginationEl.querySelector('#page-next').onclick = () => renderContent(folderObj, currentPage + 1);
+
       
 
     // Diff-Buttons prüfen und ggf. deaktivieren
