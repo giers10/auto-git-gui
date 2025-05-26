@@ -64,7 +64,7 @@ window.AnimeCat = class AnimeCat {
       padding:       '10px 16px',
       background:    'white',
       border:        '1px solid #ccc',
-      borderRadius:  '16px 16px 16px 16',
+      borderRadius:  '16px 16px 16px 16px',
       boxShadow:     '0 2px 8px rgba(0,0,0,0.18)',
       opacity:       '0',
       transition:    'opacity 0.3s',
