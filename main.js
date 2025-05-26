@@ -676,7 +676,7 @@ async function autoCommit(folderPath, message) {
       debug('Congratulations! You changed enough lines of code :)');
       
       //const cands = folders[idx].llmCandidates;
-      await runLLMCommitRewrite(folders[idx]);
+      await runLLMCommitRewrite(folders[idx], win);
       //folders[idx].linesChanged = 0; // !!!!!!!!!!!!!!!!!!!!  needs logic to handle several llm runs called at the same time test
       //folders[idx].llmCandidates = [];
       //folders.[idx].firstCandidateBirthday = null
