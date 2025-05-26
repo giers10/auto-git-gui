@@ -307,37 +307,41 @@ _runJoyAnimation(onFinish) {
 
   img.src = this.images.joy || this.images.default;
 
-  const salto = Math.random() < 1;
+  const salto = Math.random() < 0.2;
   // Dauer Sprung+Drehung nach oben
   const upTime = 600;
-  // Zeit "oben bleiben" (stand)
+  // Zeit "oben bleiben"
   const hangTime = salto ? 500 : 1800;
   // Dauer Rückkehr nach unten
   const downTime = 800;
 
-  // Herzchen-Explosion starten
+  // Herzen explodieren
   this._spawnHearts(12);
 
-  // Sofort beide gleichzeitig animieren!
+  // Sprung + Drehung sofort starten
   wrapper.style.transition = `transform ${upTime}ms cubic-bezier(.19,1,.22,1)`;
   wrapper.style.transform  = 'translateY(-40px)';
   img.style.transition     = `transform ${upTime}ms cubic-bezier(.19,1,.22,1)`;
   img.style.transform      = salto ? 'rotate(360deg)' : 'rotate(12deg)';
 
   setTimeout(() => {
-    // Katze bleibt kurz oben, keine weitere Rotation
-    // Jetzt: runter + zurückdrehen
+    // Oben kurz "hängen"
     wrapper.style.transition = `transform ${downTime}ms cubic-bezier(.19,1,.22,1)`;
     wrapper.style.transform  = 'translateY(0)';
     img.src = this.images.mouthOpen || this.images.default;
-    img.style.transition = `transform ${downTime}ms cubic-bezier(.19,1,.22,1)`;
-    img.style.transform  = 'rotate(0deg)';
+
+    // NUR bei normaler Kopfdrehung zurückdrehen
+    if (!salto) {
+      img.style.transition = `transform ${downTime}ms cubic-bezier(.19,1,.22,1)`;
+      img.style.transform  = 'rotate(0deg)';
+    }
+
     setTimeout(() => {
       if (!this._pettingActive) {
         this.img.src = this.images.default;
       }
       setTimeout(() => {
-        // Reset auf Original-Styles
+        // Styles zurücksetzen
         wrapper.style.transition  = origWrapperTransition || '';
         wrapper.style.transform   = origWrapperTransform  || '';
         img.style.transition      = origImgTransition     || '';
