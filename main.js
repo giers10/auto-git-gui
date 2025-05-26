@@ -1421,3 +1421,8 @@ ipcMain.on('show-tree-context-menu', (event, { absPath, relPath, root, type }) =
   const menu = Menu.buildFromTemplate(template);
   menu.popup({ window: win });
 });
+ipcMain.on('get-selected-sync', (event) => {
+  const folders = store.get('folders') || [];
+  const selectedPath = store.get('selected');
+  event.returnValue = folders.find(f => f.path === selectedPath) || null;
+});
