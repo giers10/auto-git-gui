@@ -26,19 +26,6 @@ const store = new Store({
   }
 });
 
-function talkAboutMyself(cat){
-  console.log("this is not a debugging function!");
-  console.log("it's a function that establishes the relevance of cats!")
-  console.log("it's a function that establishes the relevance of cats!")
-  console.log("it's a function that establishes the relevance of cats!")
-  console.log("it's a function that establishes the relevance of cats!")
-  console.log("it's a function that establishes the relevance of cats!")
-  console.log("it's a function that establishes the relevance of cats!")
-  console.log("it's a function that establishes the relevance of cats!")
-  console.log("it's a function that establishes the relevance of cats!")
-  console.log("it's a function that establishes the relevance of cats!")
-}
-
 let folders = store.get('folders') || [];
 folders = folders.map(f => ({
   ...f,
