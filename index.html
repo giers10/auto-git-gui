@@ -222,12 +222,13 @@
     <div id="catSlot" class="absolute bottom-2 left-2"></div>
 
     <!-- Interaction Bar -->
-    <div class="w-full h-16 flex items-center p-4 interaction-bar"
+    <div class="w-full py-4 interaction-bar"
          style="background: var(--bg-sidebar); border-top: 1px solid var(--border)">
-      <div>Commits Today: <b id="commitsToday">0</b></div>
-      <div class="ml-7">Lines until next Rewrite: <b id="linesUntilRewrite">0</b></div>
-      <div class="ml-7">Time until next Rewrite: <b id="countdown">00:00</b></div>
-
+      <div class="flex flex-col space-y-2 ml-10 text-[var(--accent)] font-semibold text-sm">
+        <div>Commits Today: <span id="commitsToday" class="font-bold text-base"></span></div>
+        <div>Lines until next Rewrite: <span id="linesUntilRewrite" class="font-bold text-base"></span></div>
+        <div>Time until next Rewrite: <span id="countdown" class="font-bold text-base"></span></div>
+      </div>
       <!--<button id="commitBtn"
               class="ml-auto px-4 py-2 border rounded font-semibold"
               style="background: var(--accent); color: #fff; border-color: var(--border)">
