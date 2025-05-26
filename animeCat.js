@@ -17,6 +17,7 @@ window.AnimeCat = class AnimeCat {
       joy:         'joy.png',
       mischievous: 'mischievous.png'
     }, options.images);
+    
     this.blinkMin      = options.blinkMin      ?? 5000;
     this.blinkMax      = options.blinkMax      ?? 15000;
     this.blinkDuration = options.blinkDuration ?? 175;
