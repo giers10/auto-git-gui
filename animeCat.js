@@ -138,7 +138,7 @@ _bindMouseHold() {
   let lastPos = null;
   let moveDist = 0;
 
-  const CAT_TOLERANCE = 36;
+  const CAT_TOLERANCE = 20;
 
   // Prüfen ob die Maus noch im erlaubten Streichelbereich ist
   const isMouseNearCat = (e) => {
