@@ -186,47 +186,36 @@ _lerpColor(a, b, t) {
 }
 
 // Animiert den Glow je nach Commit-Anzahl
-animateCatGlow(commitCount) {
-  const glow = this.glow;
-  if (!glow) return;
+  animateCatGlow(commitCount) {
+    const glow = this.glow;
+    if (!glow) return;
 
-  // Glow-Farbstufen für die Commit-Bereiche
-  const stops = [
-    { c:   0, color: [60, 230, 100], opacity: 0.00 },  // unsichtbar → grün
-    { c:  10, color: [60, 230, 100], opacity: 0.25 },  // grün sichtbar
-    { c:  50, color: [100, 180, 255], opacity: 0.40 }, // grün → blau
-    { c: 100, color: [180, 120, 255], opacity: 0.55 }, // blau → lila
-    { c: 500, color: [255, 180, 60],  opacity: 0.90 }, // lila → orange
-  ];
+    // Farbverlauf – nur Farbe wechseln!
+    const stops = [
+      { c:   0, color: [60, 230, 100] },    // grün
+      { c:  10, color: [60, 230, 100] },
+      { c:  50, color: [100, 180, 255] },   // blau
+      { c: 100, color: [180, 120, 255] },   // lila
+      { c: 500, color: [255, 180, 60] }     // orange
+    ];
 
-  // Richtige Interpolationsstufe finden:
-  let lower = stops[0], upper = stops[stops.length - 1];
-  for (let i = 0; i < stops.length - 1; ++i) {
-    if (commitCount >= stops[i].c && commitCount < stops[i+1].c) {
-      lower = stops[i];
-      upper = stops[i+1];
-      break;
+    let lower = stops[0], upper = stops[stops.length-1];
+    for (let i=0; i<stops.length-1; ++i) {
+      if (commitCount >= stops[i].c && commitCount < stops[i+1].c) {
+        lower = stops[i]; upper = stops[i+1]; break;
+      }
     }
+    const range = upper.c - lower.c || 1;
+    const t = Math.min(Math.max((commitCount - lower.c) / range, 0), 1);
+
+    const [r,g,b] = this._lerpColor(lower.color, upper.color, t);
+    this.glow.style.background = `radial-gradient(
+      ellipse at 50% 50%,
+      rgba(${r},${g},${b},0.97) 0%,
+      rgba(${r},${g},${b},0.24) 70%,
+      rgba(0,0,0,0) 100%
+    )`;
   }
-  const range = upper.c - lower.c || 1;
-  const t = Math.min(Math.max((commitCount - lower.c) / range, 0), 1);
-
-  // Farbe und Opazität sanft interpolieren
-  const [r, g, b] = this._lerpColor(lower.color, upper.color, t);
-  const opacity = this._lerp(lower.opacity, upper.opacity, t);
-
-  // Größe interpolieren (0–500 Commits)
-  const minSize = 80, maxSize = 170;
-  const sizeFactor = Math.min(commitCount / 500, 1);
-  const size = minSize + sizeFactor * (maxSize - minSize);
-
-  // Styles setzen
-  glow.style.background = `radial-gradient(
-    ellipse at 50% 50%,
-    rgba(${r},${g},${b},0.97) 0%,
-    rgba(${r},${g},${b},0.24) 70%,
-    rgba(0,0,0,0) 100%
-  )`;
 
   // Bubble für Animation absolut an Position der Katze anheften
   _positionBubbleDetached() {
