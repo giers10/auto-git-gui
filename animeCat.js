@@ -284,7 +284,7 @@ _bindMouseHold() {
 
     // Nach oben springen und nach RECHTS rotieren:
     wrapper.style.transition = 'transform 0.6s cubic-bezier(.19,1,.22,1)';
-    wrapper.style.transform  = 'translateY(-40px) rotate(12deg)'; // <--- POSITIV!
+    wrapper.style.transform  = 'translateY(-40px) rotate(12deg)'; 
 
     this._spawnHearts(12);
 
