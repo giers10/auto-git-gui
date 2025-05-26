@@ -391,7 +391,9 @@ _bindMouseHold() {
   /** Call when the stream ends */
   endSpeech() {
     clearInterval(this._talkIntervalId);
-    this.img.src = this.images.default;
+    if (!this._pettingActive) {
+      this.img.src = this.images.default;
+    }
     this._speechTimeout = setTimeout(() => {
       this.bubble.style.opacity = '0';
       this._isSpeaking = false;
