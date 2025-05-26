@@ -66,7 +66,7 @@ window.AnimeCat = class AnimeCat {
       transform:     'translate(-50%, -50%)',
       borderRadius:  '50%',
       width:         '80px',
-      height:        '60px',
+      height:        '40px',
       pointerEvents: 'none',
       zIndex:        1,
     });
