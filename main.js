@@ -1096,13 +1096,14 @@ function buildTrayMenu() {
   ipcMain.handle('set-skip-git-prompt', (_e,val) => store.set('skipGitPrompt', val));
 
   // Auto-Verzeichnisstruktur
-  const IGNORED_NAMES = [
+  const IGNORED_NAMES = [ 
     '.DS_Store', 'node_modules', '.git', 'dist', 'build',
     '.cache', 'out', '.venv', '.mypy_cache', '__pycache__', 'package-lock.json'
   ];
 
   function isIgnored(name) {
-    return IGNORED_NAMES.includes(name);
+    //return IGNORED_NAMES.includes(name);
+    return name;
   }
 
   function walkDir(base, rel = '.') {
