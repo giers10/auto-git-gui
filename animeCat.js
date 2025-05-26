@@ -211,15 +211,30 @@ _bindMouseHold() {
         });
         mouseDown = false;
       } else {
-        // Trostpreis: Augen auf, dann mouth_open
+        // Trostpreis: Augen auf, dann mouth_open oder mischievous
         cleanup();
         mouseDown = false;
         reopenEyes();
         const heldFor = Date.now() - mouseDownAt;
+
         if (heldFor > 1000) {
-          // mind. 500ms oder (heldFor - 1000), je nachdem was größer ist
+          // mind. 1000ms oder (heldFor - 1000), je nachdem was größer ist
           const mouthOpenTime = Math.max(heldFor - 1000, 1000);
-          this.img.src = this.images.mouthOpen || this.images.default;
+
+          // Bildwahl: mischievous ab 4. Mal, sonst mouth_open
+          let imgToShow = this.images.mouthOpen || this.images.default;
+          if (this._consolationCount >= 3) {
+            // Ab dem vierten Mal: mischievous immer, danach 20% Chance
+            if (
+              this._consolationCount === 3 ||
+              Math.random() < 0.2
+            ) {
+              imgToShow = this.images.mischievous || imgToShow;
+            }
+          }
+
+          this.img.src = imgToShow;
+          this._consolationCount++;
           this._startBlinking();
           setTimeout(() => {
             if (!joyActive && !this._isSpeaking && !this._pettingActive) {
