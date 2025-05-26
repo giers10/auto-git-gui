@@ -575,6 +575,7 @@ folders.forEach(folderObj => {
   await renderSidebar();
   const initial = await window.electronAPI.getSelected();
   if (initial) await renderContent(initial);
+  updateContentList(window.initial);
 
   addBtn.addEventListener('click', async () => {
     await window.electronAPI.addFolder();
