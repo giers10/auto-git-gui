@@ -472,10 +472,11 @@ async function startLiveCountdown(folderObj, msLeft) {
     if (!commits || !commits.length) {
       return;
     } 
-
+    const isQueued = folderObj.llmCandidates && folderObj.llmCandidates.includes(c.hash);
+    const pawRotate = (Math.random() * 25 - 10).toFixed(1); // -10° bis +15°
     contentList.innerHTML = commits.map(c => `
       <li class="w-full p-3 mb-2 bg-white border border-gray-200 rounded shadow-sm
-                 ${c.hash === head ? 'current-commit' : ''}">
+                 ${c.hash === head ? 'current-commit' : ''}" style="position:relative;">
         <div class="flex justify-between text-sm text-gray-600 mb-1">
           <span>${c.hash}</span>
           <span>${new Date(c.date).toLocaleString()}</span>
@@ -523,6 +524,15 @@ async function startLiveCountdown(folderObj, msLeft) {
           </button>
           <pre class="m-0"></pre>
         </div>
+        ${
+          isQueued
+            ? `<img src="assets/cat/paw.png"
+                    alt="In Rewrite Queue"
+                    title="In Rewrite Queue"
+                    class="absolute right-2 top-2 w-8 h-8 paw-queued"
+                    style="transform: rotate(${pawRotate}deg); pointer-events: none; z-index:10;">`
+            : ''
+        }
       </li>
     `).join('');
 
