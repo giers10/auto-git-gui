@@ -308,7 +308,7 @@ _runJoyAnimation(onFinish) {
 
   img.src = this.images.joy || this.images.default;
 
-  const salto = Math.random() < 0.2;
+  const salto = Math.random() < 1;
   const upTime = 600;
   const hangTime = salto ? 500 : 1800;
   const downTime = 800;
