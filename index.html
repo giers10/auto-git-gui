@@ -162,7 +162,29 @@
     #folderTitleArrow.open {
       transform: rotate(90deg);
     }
+    .interaction-bar {
+      min-height: 3.5rem;   /* = h-16 (56px, wie jetzt schon) */
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      font-size: 0.95rem;
+    }
 
+    .interaction-bar .flex {
+      line-height: 1.2;     /* wenig Zeilenabstand */
+      height: 100%;         /* volle Höhe ausnutzen, vertikal zentrieren */
+    }
+
+    .interaction-bar span {
+      font-size: inherit !important; /* gleiche Größe wie restlicher Text */
+      font-weight: 500;
+    }
+
+    .interaction-bar div > div {
+      margin-bottom: 0.1em; /* nur minimal Abstand */
+    }
+    .interaction-bar div > div:last-child {
+      margin-bottom: 0;
+    }
 
   </style>
 </head>
