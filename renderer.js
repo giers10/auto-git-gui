@@ -311,6 +311,33 @@ folders.forEach(folderObj => {
 
 let countdownInterval = null;
 
+function getCommitColor(commitCount) {
+  const stops = [
+    { c:   0, color: [60, 230, 100] },
+    { c:  10, color: [60, 230, 100] },
+    { c:  50, color: [100, 180, 255] },
+    { c: 100, color: [180, 120, 255] },
+    { c: 500, color: [255, 180, 60] }
+  ];
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function lerpColor(a, b, t) {
+    return [
+      Math.round(lerp(a[0], b[0], t)),
+      Math.round(lerp(a[1], b[1], t)),
+      Math.round(lerp(a[2], b[2], t))
+    ];
+  }
+  let lower = stops[0], upper = stops[stops.length-1];
+  for (let i=0; i<stops.length-1; ++i) {
+    if (commitCount >= stops[i].c && commitCount < stops[i+1].c) {
+      lower = stops[i]; upper = stops[i+1]; break;
+    }
+  }
+  const range = upper.c - lower.c || 1;
+  const t = Math.min(Math.max((commitCount - lower.c) / range, 0), 1);
+  return lerpColor(lower.color, upper.color, t);
+}
+
 function formatCountdown(ms) {
   if (!ms || ms <= 0) return '00:00';
   const s = Math.floor(ms / 1000);
