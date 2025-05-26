@@ -247,7 +247,7 @@ _bindMouseHold() {
       // Trostpreis: siehe oben
       else if (heldFor > 1000) {
         reopenEyes();
-        const mouthOpenTime = Math.max(heldFor - 1000, 0);
+        const mouthOpenTime = Math.max(heldFor - 1000, 1000);
         if (mouthOpenTime > 0) {
           this.img.src = this.images.mouthOpen || this.images.default;
           this._startBlinking();
