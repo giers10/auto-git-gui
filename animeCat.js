@@ -77,10 +77,6 @@ window.AnimeCat = class AnimeCat {
     this.img.style.zIndex = '2';
     this.img.style.position = 'relative'; // wichtig für Layering
 
-    // --- Reihenfolge: Glow, dann Katze, dann Bubble ---
-    this.wrapper.appendChild(this.glow);
-    this.wrapper.appendChild(this.img);
-    
     // --- Speech bubble ---
     this.bubble = document.createElement('div');
     Object.assign(this.bubble.style, {
@@ -129,6 +125,8 @@ window.AnimeCat = class AnimeCat {
       this.glow.id = 'cat-glow';
       this.wrapper.insertBefore(this.glow, this.img);
    }
+
+    this.wrapper.appendChild(this.glow);
     this.wrapper.appendChild(this.img);
     this.wrapper.appendChild(this.bubble);
     this.container.appendChild(this.wrapper);
@@ -159,21 +157,29 @@ window.AnimeCat = class AnimeCat {
     ];
   }
   animateCatGlow(commitCount) {
-    // Glow zwischen grün und orange interpolieren (0-500 Commits)
-    const minColor = [60, 230, 100];     // grün
-    const maxColor = [255, 100, 0];      // orange
-    const t = Math.min(commitCount, 500) / 500;
-    const [r, g, b] = this._lerpColor(minColor, maxColor, t);
+    const glow = this.glow;
+    if (!glow) return;
 
-    // ... wie gehabt: Größe, Opazität, etc.
-    // Beispiel:
+    // Farbinterpolation je nach Commits:
+    function getGlowColor(count) {
+      if (count < 10)    return [60, 230, 100];  // grün
+      if (count < 50)    return [100, 180, 255]; // blau
+      if (count < 100)   return [180, 120, 255]; // lila
+      if (count < 500)   return [255, 180, 60];  // orange
+      return [255, 100, 0]; // voll orange
+    }
+
+    const [r, g, b] = getGlowColor(commitCount);
+
+    // Skalierung bleibt wie gehabt
     const minSize = 80, maxSize = 170;
-    const size = minSize + t * (maxSize - minSize);
+    const factor = Math.min(commitCount / 500, 1); // jetzt auf 500 skalieren!
+    const size = minSize + factor * (maxSize - minSize);
 
-    this.glow.style.width  = `${size}px`;
-    this.glow.style.height = `${size}px`;
-    this.glow.style.opacity = 0.25 + 0.65 * t;
-    this.glow.style.background = `radial-gradient(circle, rgba(${r},${g},${b},0.9) 0%, rgba(${r},${g},${b},0.13) 65%, rgba(0,0,0,0) 100%)`;
+    glow.style.width = `${size}px`;
+    glow.style.height = `${size}px`; // jetzt immer Kreis!
+    glow.style.opacity = 0.25 + 0.65 * factor;
+    glow.style.background = `radial-gradient(circle, rgba(${r},${g},${b},0.9) 0%, rgba(${r},${g},${b},0.13) 65%, rgba(0,0,0,0) 100%)`;
   }
 
   // Bubble-Position absolut anpassen, wenn detached
