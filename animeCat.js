@@ -169,8 +169,7 @@ window.AnimeCat = class AnimeCat {
     );
   }
 
-    _runJoyAnimation(onFinish) {
-    // Original-Pos und Style merken:
+  _runJoyAnimation(onFinish) {
     const wrapper = this.wrapper;
     const img     = this.img;
     const origTransition = wrapper.style.transition;
@@ -184,23 +183,30 @@ window.AnimeCat = class AnimeCat {
     wrapper.style.transform  = 'translateY(-40px) rotate(12deg)';
 
     // Herzchen-Explosion starten
-    this._spawnHearts(12); // oder mehr/weniger
+    this._spawnHearts(12);
 
     // Nach 0.4s (Sprung oben), dann warten (stehen lassen)
     setTimeout(() => {
-      // Nach weiteren 2.6s zurückfallen (gesamt ca. 3s joy-mode)
+      // Nach weiteren 2.2s zurückfallen (gesamt ca. 2.6s joy-mode)
       setTimeout(() => {
         // Rücksprung: nach unten
         wrapper.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
         wrapper.style.transform  = 'translateY(0) rotate(0deg)';
-        // Bild zurück
-        img.src = this.images.default;
-        // Reset nach 0.5s
+
+        // → → → Hier: Bild auf mouth_open setzen!
+        img.src = this.images.mouthOpen || this.images.default;
+
+        // Nach 3 Sekunden: Bild zurück zu default
         setTimeout(() => {
-          wrapper.style.transition = origTransition || '';
-          wrapper.style.transform = origTransform || '';
-          if (typeof onFinish === 'function') onFinish();
-        }, 700);
+          img.src = this.images.default;
+          // Reset nach 0.7s (Animation zu Ende)
+          setTimeout(() => {
+            wrapper.style.transition = origTransition || '';
+            wrapper.style.transform = origTransform || '';
+            if (typeof onFinish === 'function') onFinish();
+          }, 700);
+        }, 3000);
+
       }, 2200);
     }, 400);
   }
