@@ -1,5 +1,4 @@
-import { AnimeCat } from './animeCat.js';
-
+const { AnimeCat } = require('./animeCat.js');
 
 
 window.addEventListener('DOMContentLoaded', async () => {
