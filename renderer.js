@@ -644,14 +644,14 @@ folders.forEach(folderObj => {
 
 
 
-  // Beispiel: Die Katze spricht
+  /*
   window.cat.beginSpeech();
   let msg = "Ich bin wieder da!";
   for (let ch of msg) {
     setTimeout(() => window.cat.appendSpeech(ch), 50);
   }
   setTimeout(() => window.cat.endSpeech(), 2000);
-
+  */
 
   window.electronAPI.onCatBegin(() => window.cat && window.cat.beginSpeech());
   window.electronAPI.onCatChunk((_e, chunk) => window.cat && window.cat.appendSpeech(chunk));
