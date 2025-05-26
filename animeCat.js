@@ -49,6 +49,16 @@ window.AnimeCat = class AnimeCat {
       zIndex:        '1'
     });
 
+    // --- Glow ---
+    if (!this.wrapper.querySelector('#cat-glow')) {
+      this.glow = document.createElement('div');
+      this.glow.id = 'cat-glow';
+      this.wrapper.appendChild(this.glow);
+    }
+
+    this.img = document.createElement('img');
+    this.img.src = this.images.default;
+
     // --- Cat image ---
     this.img = document.createElement('img');
     this.img.src = this.images.default;
@@ -131,7 +141,7 @@ window.AnimeCat = class AnimeCat {
 
   // Zeigt Progress der täglichen Commits an
   _animateCatGlow(commitCount) {
-    const glow = this.slot.querySelector('#cat-glow');
+    this.glow = this.wrapper.querySelector('#cat-glow');
     if (!glow) return;
 
     const factor = Math.min(commitCount / 10, 1);
