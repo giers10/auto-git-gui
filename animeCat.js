@@ -158,7 +158,7 @@ _bindMouseHold() {
 
   const closeEyes = () => { this.img.src = this.images.eyesClosed; };
   const reopenEyes = () => {
-    if (!joyActive && !this._isSpeaking) this.img.src = this.images.default;
+    if (!joyActive && !this._isSpeaking && !this._pettingActive) this.img.src = this.images.default;
   };
 
   this.img.addEventListener('mousedown', (e) => {
