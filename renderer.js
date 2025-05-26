@@ -10,7 +10,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const PAGE_SIZE = 50;
 
   const paginationEl = document.createElement('div');
-  paginationEl.className = 'pagination flex justify-center items-center py-4 space-x-2';
+  paginationEl.className = 'pagination flex justify-center items-center py-0 space-x-2';
   contentList.parentElement.insertBefore(paginationEl, contentList); // nur einmal beim Initialisieren
 
   // Speichere zuletzt angezeigten Folder/Seite
