@@ -433,9 +433,11 @@ async function startLiveCountdown(folderObj, msLeft) {
     const tree = await window.electronAPI.getFolderTree(selected.path);
     console.log(selected.path);
     console.log(tree);
-    folderHierarchyDropdown.textContent = renderFolderTreeAscii(tree, '.', '');
+    folderHierarchyDropdown.innerHTML = renderFolderTreeAscii(tree, '.', '');
 
-    folderHierarchyDropdown.addEventListener('contextmenu', function(e) {
+  });
+
+  folderHierarchyDropdown.addEventListener('contextmenu', function(e) {
       const el = e.target.closest('.tree-file, .tree-dir');
       if (!el) return;
       e.preventDefault();
@@ -454,8 +456,6 @@ async function startLiveCountdown(folderObj, msLeft) {
         type
       });
     });
-    
-  });
 
   function closeDropdown() {
     folderHierarchyDropdown.classList.add('hidden');
@@ -486,6 +486,7 @@ async function startLiveCountdown(folderObj, msLeft) {
   window.addEventListener('repo-updated', () => {
     closeDropdown();
   });
+
 
   async function renderContent(folderObj) {
     closeDropdown();
