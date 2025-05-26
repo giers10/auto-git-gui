@@ -695,7 +695,6 @@ folders.forEach(folderObj => {
     const today = new Date().toISOString().slice(0, 10);
     const todayCount = stats[today] || 0;
     console.log('Commits heute:', todayCount);
-    // An deine Katzenanimation weitergeben!
     window.updateCatGlow(todayCount);
   });
 
