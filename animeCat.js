@@ -30,7 +30,7 @@ window.AnimeCat = class AnimeCat {
     this._createElements();
     this._bindMouseHold();
     this._startBlinking();
-    this.startGlowWobble();
+    this._startGlowWobble();
   }
 
   _createElements() {
