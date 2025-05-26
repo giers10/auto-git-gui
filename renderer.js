@@ -536,7 +536,7 @@ async function startLiveCountdown(folderObj, msLeft) {
                     style="transform: rotate(${pawRotate}deg); pointer-events: none; z-index:10;">`
             : ''
         }
-      </li>`;}).join('');
+      </li>`;}).join(''); 
 
     // Diff-Buttons prüfen und ggf. deaktivieren
     contentList.querySelectorAll('.diff-btn').forEach(async btn => {
