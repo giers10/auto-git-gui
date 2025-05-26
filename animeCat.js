@@ -263,14 +263,13 @@ _bindMouseHold() {
 
     const onUpBound = onUp.bind(this);
 
-    function cleanup() {
+    const cleanup = () => {
       window.removeEventListener('mousemove', onMoveBound);
       window.removeEventListener('mouseup', onUpBound);
       if (holdTimer) clearTimeout(holdTimer);
       holdTimer = null;
-      this._pettingActive = false; // <--- Hier sauber zurücksetzen!
-    }
-
+      this._pettingActive = false; // Korrekt!
+    };
     window.addEventListener('mousemove', onMoveBound);
     window.addEventListener('mouseup', onUpBound);
 
