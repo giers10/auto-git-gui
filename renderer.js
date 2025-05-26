@@ -1,5 +1,3 @@
-const { AnimeCat } = require('./animeCat.js');
-
 
 window.addEventListener('DOMContentLoaded', async () => {
   // Elemente holen
