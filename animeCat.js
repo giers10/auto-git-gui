@@ -138,10 +138,10 @@ _bindMouseHold() {
   let holdTimer = null;
   let joyTimeout = null;
   let joyActive = false;
-  // Neu:
-  let mouseDownAt = null;
-  let lastPos = null;
-  let mouseMoved = 0;
+  let mouseDown = false;        // <---- NEU! Initialisieren
+  let mouseDownAt = null;       // <---- NEU!
+  let lastPos = null;           // <---- NEU!
+  let moveDist = 0;             // <---- NEU!
 
   const CAT_TOLERANCE = 15;
   const MOVE_THRESHOLD = 300;
@@ -193,7 +193,6 @@ _bindMouseHold() {
 
     const onMoveBound = onMove.bind(this);
 
-    // Nach 4 Sekunden wird entschieden, unabhängig vom Mauszustand
     holdTimer = setTimeout(() => {
       if (!mouseDown) return; // Schon abgebrochen
       
@@ -227,7 +226,6 @@ _bindMouseHold() {
       }
     }, 4000);
 
-    // Beim Loslassen: Falls früher losgelassen, normale Logik
     function onUp() {
       if (!mouseDown) return;
       cleanup();
@@ -250,7 +248,7 @@ _bindMouseHold() {
           this.img.src = this.images.mouthOpen || this.images.default;
           this._startBlinking();
           setTimeout(() => {
-            if (!joyActive && !this._isSpeaking) this.img.src = this.images.default;
+            if (!joyActive && !this._isSpeaking && !this._pettingActive) this.img.src = this.images.default;
           }, mouthOpenTime);
         }
         else {
@@ -270,6 +268,7 @@ _bindMouseHold() {
       window.removeEventListener('mouseup', onUpBound);
       if (holdTimer) clearTimeout(holdTimer);
       holdTimer = null;
+      this._pettingActive = false; // <--- Hier sauber zurücksetzen!
     }
 
     window.addEventListener('mousemove', onMoveBound);
