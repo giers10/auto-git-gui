@@ -583,7 +583,7 @@ function formatCountdown(ms) {
     const currentEl = contentList.querySelector('li.current-commit');
     if (currentEl) {
       currentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+    } 
   }
 
   await renderSidebar();
