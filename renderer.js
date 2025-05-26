@@ -589,17 +589,21 @@ async function startLiveCountdown(folderObj, msLeft) {
         }
       </li>`;}).join(''); 
 
-    // --- PAGINATION ---
-    // Anzeige: « Vorherige | Seite X/Y | Nächste »
-    paginationEl.innerHTML = `
-      <button id="page-prev" class="px-2 py-1 border rounded" ${currentPage === 1 ? 'disabled' : ''}>«</button>
-      <span class="mx-2 text-sm">Seite ${currentPage} / ${pages}</span>
-      <button id="page-next" class="px-2 py-1 border rounded" ${currentPage === pages ? 'disabled' : ''}>»</button>
-    `;
+      // --- PAGINATION ---
+      if (pages > 1) {
+        paginationEl.innerHTML = `
+          <button id="page-prev" class="px-2 py-1 border rounded" ${currentPage === 1 ? 'disabled' : ''}>«</button>
+          <span class="mx-2 text-sm">Seite ${currentPage} / ${pages}</span>
+          <button id="page-next" class="px-2 py-1 border rounded" ${currentPage === pages ? 'disabled' : ''}>»</button>
+        `;
 
-  paginationEl.querySelector('#page-prev').onclick = () => renderContent(folderObj, currentPage - 1);
-  paginationEl.querySelector('#page-next').onclick = () => renderContent(folderObj, currentPage + 1);
-
+        paginationEl.querySelector('#page-prev').onclick = () => renderContent(folderObj, currentPage - 1);
+        paginationEl.querySelector('#page-next').onclick = () => renderContent(folderObj, currentPage + 1);
+        paginationEl.style.display = 'flex';
+      } else {
+        paginationEl.innerHTML = '';
+        paginationEl.style.display = 'none';
+      }
       
 
     // Diff-Buttons prüfen und ggf. deaktivieren
