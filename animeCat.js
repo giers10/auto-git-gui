@@ -11,7 +11,8 @@ window.AnimeCat = class AnimeCat {
     this.images        = Object.assign({
       default:     'default.png',
       eyesClosed:  'eyes_closed.png',
-      mouthOpen:   'mouth_open.png'
+      mouthOpen:   'mouth_open.png',
+      joy:         'joy.png' 
     }, options.images);
     this.blinkMin      = options.blinkMin      ?? 5000;
     this.blinkMax      = options.blinkMax      ?? 15000;
@@ -132,25 +133,124 @@ window.AnimeCat = class AnimeCat {
 
   _bindMouseHold() {
     let holdTimer = null;
+    let joyTimeout = null;
+    let joyActive = false;
+
     const closeEyes = () => {
       clearTimeout(holdTimer);
       this.img.src = this.images.eyesClosed;
     };
     const reopenEyes = () => {
       clearTimeout(holdTimer);
+      if (joyActive) return; // don't override joy mode!
       if (!this._isSpeaking) {
         this.img.src = this.images.default;
       }
     };
 
     this.img.addEventListener('mousedown', () => {
-      if (this._isSpeaking) return;
+      // if currently talking or animating, ignore hold-to-close
+      if (this._isSpeaking || joyActive) return;
       closeEyes();
-      holdTimer = setTimeout(reopenEyes, 4000);
+      // Nach 4s -> Joy-Animation starten!
+      holdTimer = setTimeout(() => {
+        joyActive = true;
+        this._runJoyAnimation(() => {
+          joyActive = false;
+          reopenEyes();
+        });
+      }, 4000);
     });
+
     ['mouseup', 'mouseleave'].forEach(evt =>
-      this.img.addEventListener(evt, reopenEyes)
+      this.img.addEventListener(evt, () => {
+        if (!joyActive) reopenEyes();
+        clearTimeout(holdTimer);
+      })
     );
+  }
+
+    _runJoyAnimation(onFinish) {
+    // Original-Pos und Style merken:
+    const wrapper = this.wrapper;
+    const img     = this.img;
+    const origTransition = wrapper.style.transition;
+    const origTransform  = wrapper.style.transform;
+
+    // Bild auf joy.png setzen:
+    img.src = this.images.joy || this.images.default;
+
+    // Wrapper animieren: nach oben + rechts, leicht rotieren
+    wrapper.style.transition = 'transform 0.4s cubic-bezier(.19,1,.22,1)';
+    wrapper.style.transform  = 'translateY(-70px) rotate(12deg)';
+
+    // Herzchen-Explosion starten
+    this._spawnHearts(12); // oder mehr/weniger
+
+    // Nach 0.4s (Sprung oben), dann warten (stehen lassen)
+    setTimeout(() => {
+      // Nach weiteren 2.6s zurückfallen (gesamt ca. 3s joy-mode)
+      setTimeout(() => {
+        // Rücksprung: nach unten
+        wrapper.style.transition = 'transform 0.5s cubic-bezier(.19,1,.22,1)';
+        wrapper.style.transform  = 'translateY(0) rotate(0deg)';
+        // Bild zurück
+        img.src = this.images.default;
+        // Reset nach 0.5s
+        setTimeout(() => {
+          wrapper.style.transition = origTransition || '';
+          wrapper.style.transform = origTransform || '';
+          if (typeof onFinish === 'function') onFinish();
+        }, 500);
+      }, 2600);
+    }, 400);
+  }
+
+  _spawnHearts(count = 10) {
+    for (let i = 0; i < count; ++i) {
+      setTimeout(() => this._makeHeart(), Math.random() * 300);
+    }
+  }
+
+  _makeHeart() {
+    // Emoji oder eigenes Bild
+    const emoji = Math.random() < 0.7 ? '❤️' : '💕';
+
+    const heart = document.createElement('span');
+    heart.textContent = emoji;
+    heart.style.position = 'absolute';
+    heart.style.left  = '50%';
+    heart.style.bottom= '45%';
+    heart.style.fontSize = `${16 + Math.random() * 14}px`;
+    heart.style.pointerEvents = 'none';
+    heart.style.opacity = '0.9';
+    heart.style.zIndex = 10;
+
+    // Start/End-Pos, Flugwinkel
+    const angle = (Math.random() * Math.PI) - (Math.PI/2); // spread -90° to 90°
+    const distance = 60 + Math.random() * 45;
+    const dx = Math.cos(angle) * distance;
+    const dy = Math.sin(angle) * distance;
+
+    heart.animate([
+      {
+        transform: 'translate(-50%, 0) scale(1)',
+        opacity: 0.95
+      },
+      {
+        transform: `translate(calc(-50% + ${dx}px), ${-dy}px) scale(${1.3 + Math.random()*0.4}) rotate(${Math.random()*60-30}deg)`,
+        opacity: 0.3
+      }
+    ], {
+      duration: 1100 + Math.random()*800,
+      easing: 'cubic-bezier(.28,1.01,.57,.99)'
+    });
+
+    // Remove after animation
+    setTimeout(() => heart.remove(), 1600);
+
+    // Im Cat-Wrapper anbringen:
+    this.wrapper.appendChild(heart);
   }
 
   /** Call when streaming text begins */
