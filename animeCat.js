@@ -123,7 +123,9 @@ window.AnimeCat = class AnimeCat {
       if (!this._isSpeaking) {
         this.img.src = this.images.eyesClosed;
         setTimeout(() => {
-          this.img.src = this.images.default;
+          if (!this._pettingActive) {
+            this.img.src = this.images.default;
+          }
           this._startBlinking();
         }, this.blinkDuration);
       } else {
