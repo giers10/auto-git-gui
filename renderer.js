@@ -352,7 +352,7 @@ async function updateInteractionBar(folderObj) {
   startLiveCountdown(folderObj, msLeft);
 }
 
-function startLiveCountdown(folderObj, msLeft) {
+async function startLiveCountdown(folderObj, msLeft) {
   if (countdownInterval) clearInterval(countdownInterval);
 
   // Wenn kein Countdown nötig: 00:00 anzeigen
