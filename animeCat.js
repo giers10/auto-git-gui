@@ -205,7 +205,12 @@ animateCatGlow(commitCount) {
   glow.style.width  = `${size}px`;
   glow.style.height = `${size}px`;   // immer Kreis!
   glow.style.opacity = opacity;
-  glow.style.background = `radial-gradient(circle, rgba(${r},${g},${b},0.85) 0%, rgba(${r},${g},${b},0.14) 70%, rgba(0,0,0,0) 100%)`;
+  glow.style.background = `radial-gradient(
+    circle,
+    rgba(${r},${g},${b},0.97) 0%,     // kräftiges Zentrum
+    rgba(${r},${g},${b},0.35) 70%,    // weniger transparent am Rand
+    rgba(0,0,0,0) 100%
+  )`;
 }
 
   // Bubble für Animation absolut an Position der Katze anheften
