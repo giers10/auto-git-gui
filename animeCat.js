@@ -163,7 +163,7 @@ window.AnimeCat = class AnimeCat {
     let t = 0;
     const loop = () => {
       // Sanfte Wellen-Animation der Opazität
-      const phase = 0.92 + 0.08 * Math.sin(t);
+      const phase = 0.92 + 0.5 * Math.sin(t);
       this.glow.style.opacity = phase.toFixed(2);
       // Wenn du magst: this.glow.style.filter = `blur(${10 + 2*Math.sin(t/2)}px)`;
       t += 0.05;
