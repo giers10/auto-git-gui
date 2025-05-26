@@ -54,7 +54,7 @@ window.AnimeCat = class AnimeCat {
     this.img.style.MozUserSelect = 'none';
     this.img.style.msUserSelect = 'none';
     this.img.style.webkitUserDrag = 'none';
-    this.img.style.width = '63px';
+    this.img.style.width = '62px';
     this.img.style.height = '50px';
     this.img.style.zIndex = '2';
 
