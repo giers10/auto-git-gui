@@ -12,11 +12,12 @@ window.addEventListener('DOMContentLoaded', async () => {
   const slot = document.getElementById('catSlot');
   window.cat = new window.AnimeCat(slot, {
     images: {
-      default:    'assets/cat/default.png',
-      eyesClosed: 'assets/cat/eyes_closed.png',
-      blink:      'assets/cat/blink.png',
-      mouthOpen:  'assets/cat/mouth_open.png',
-      joy:        'assets/cat/joy.png'
+      default:     'assets/cat/default.png',
+      eyesClosed:  'assets/cat/eyes_closed.png',
+      blink:       'assets/cat/blink.png',
+      mouthOpen:   'assets/cat/mouth_open.png',
+      joy:         'assets/cat/joy.png',
+      mischievous: 'assets/cat/mischievous.png'
     }
   });
 
