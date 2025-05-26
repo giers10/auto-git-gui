@@ -166,7 +166,7 @@ window.AnimeCat = class AnimeCat {
       const phase = 0.92 + 0.5 * Math.sin(t);
       this.glow.style.opacity = phase.toFixed(2);
       // Wenn du magst: this.glow.style.filter = `blur(${10 + 2*Math.sin(t/2)}px)`;
-      t += 0.05;
+      t += 0.8;
       this._glowWobbleId = requestAnimationFrame(loop);
     };
     loop();
