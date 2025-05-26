@@ -162,6 +162,7 @@ _bindMouseHold() {
   this.img.addEventListener('mousedown', (e) => {
     if (this._isSpeaking || joyActive) return;
     if (!isMouseNearCat(e)) return;
+    this._pettingActive = true;
 
     mouseDown = true;
     mouseDownAt = Date.now();
