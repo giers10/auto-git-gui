@@ -326,8 +326,8 @@ _runJoyAnimation(onFinish) {
   const catRect = this.img.getBoundingClientRect();
   const contRect = this.container.getBoundingClientRect();
   // <-- Hier kannst du x/y anpassen!
-  const emitterX = catRect.right - contRect.left + 16; // <-- X-Versatz, mehr = weiter rechts
-  const emitterY = contRect.bottom - catRect.bottom + 10; // <-- Y-Versatz, mehr = weiter oben
+  const emitterX = catRect.right - contRect.left + 34; // <-- X-Versatz, mehr = weiter rechts
+  const emitterY = contRect.bottom - catRect.bottom + 40; // <-- Y-Versatz, mehr = weiter oben
   this.heartEmitter.style.left = emitterX + 'px';
   this.heartEmitter.style.bottom = emitterY + 'px';
 
