@@ -56,6 +56,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onCatBegin:    (cb) => ipcRenderer.on('cat-begin', cb),
   onCatChunk:    (cb) => ipcRenderer.on('cat-chunk', cb),
   onCatEnd:      (cb) => ipcRenderer.on('cat-end', cb),
+  getDailyCommitStats: () => ipcRenderer.invoke('get-daily-commit-stats'),
 
 });
 
