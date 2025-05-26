@@ -307,7 +307,7 @@ _runJoyAnimation(onFinish) {
 
   img.src = this.images.joy || this.images.default;
 
-  const salto = Math.random() < 0.2;
+  const salto = Math.random() < 1;
   // Dauer Sprung+Drehung nach oben
   const upTime = 600;
   // Zeit "oben bleiben"
