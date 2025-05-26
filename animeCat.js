@@ -416,7 +416,7 @@ _runJoyAnimation(onFinish) {
   img.src = this.images.joy || this.images.default;
 
   // 20% Chance auf Salto!
-  const salto = Math.random() < 1;
+  const salto = Math.random() < 0.2;
 
   // Bubble abkoppeln
   this.container.appendChild(this.bubble);
