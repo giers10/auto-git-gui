@@ -60,11 +60,11 @@ window.AnimeCat = class AnimeCat {
     Object.assign(this.bubble.style, {
       position:      'relative', // jetzt relativ zur wrapper-Flexbox
       marginLeft:    '14px',
-      marginBottom:  '20px', 
+      marginBottom:  '10px', 
       padding:       '10px 16px',
       background:    'white',
       border:        '1px solid #ccc',
-      borderRadius:  '16px 16px 16px 0',
+      borderRadius:  '16px 16px 16px 16',
       boxShadow:     '0 2px 8px rgba(0,0,0,0.18)',
       opacity:       '0',
       transition:    'opacity 0.3s',
