@@ -313,48 +313,44 @@ window.AnimeCat = class AnimeCat {
     const origTransition = wrapper.style.transition;
     const origTransform  = wrapper.style.transform;
 
-    // Bild auf joy.png setzen:
     img.src = this.images.joy || this.images.default;
 
     // 20% Chance auf Salto!
     const salto = Math.random() < 0.2;
 
-    // Bubble abkoppeln
-    const bubbleDetached = true;
-    if (bubbleDetached) {
-      this.container.appendChild(this.bubble);
-      this._positionBubbleDetached();
-    }
+    // Bubble abkoppeln wie gehabt
+    this.container.appendChild(this.bubble);
+    this._positionBubbleDetached();
 
-    // Herzen-Emitter abkoppeln und passend setzen
+    // Berechne Herz-Emitter-Position JETZT
     const catRect = this.img.getBoundingClientRect();
     const contRect = this.container.getBoundingClientRect();
-    this.heartEmitter.style.left = (catRect.right - contRect.left + 15) + 'px';
-    this.heartEmitter.style.bottom = (contRect.bottom - catRect.bottom + 12) + 'px';
+    // Hier kannst du x/y Werte feinjustieren:
+    this.heartEmitter.style.left = (catRect.right - contRect.left + 10) + 'px';
+    this.heartEmitter.style.bottom = (contRect.bottom - catRect.bottom + 13) + 'px';
 
-    // Herzchen-Explosion NACH dem Sprung (also im Peak)!
     const spawnHearts = () => this._spawnHearts(12);
 
     if (salto) {
-      // Salto: beim Springen schon drehen!
+      // 1. Hochspringen & direkt losdrehen
       wrapper.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
       wrapper.style.transform  = 'translateY(-40px) rotate(0deg)';
       setTimeout(() => {
+        // 2. Während Sprung: Salto (Herzen werden genau jetzt “ausgestoßen”)
         wrapper.style.transition = 'transform 0.6s cubic-bezier(.19,1,.22,1)';
         wrapper.style.transform  = 'translateY(-40px) rotate(360deg)';
         spawnHearts();
         setTimeout(() => {
+          // 3. Runterfallen (nur nach unten, KEIN weiteres Rotieren!)
           wrapper.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
           wrapper.style.transform  = 'translateY(0) rotate(360deg)';
           img.src = this.images.mouthOpen || this.images.default;
           setTimeout(() => {
-            if (!this._pettingActive) {
-              this.img.src = this.images.default;
-            }
+            if (!this._pettingActive) this.img.src = this.images.default;
             setTimeout(() => {
               wrapper.style.transition = origTransition || '';
               wrapper.style.transform = origTransform || '';
-              // Bubble und Herzen zurück
+              // Bubble zurück
               this.wrapper.appendChild(this.bubble);
               this._resetBubbleAttach();
               if (typeof onFinish === 'function') onFinish();
@@ -363,7 +359,7 @@ window.AnimeCat = class AnimeCat {
         }, 600);
       }, 400);
     } else {
-      // Normale Joy-Animation: leicht drehen
+      // Normale Joy-Animation
       wrapper.style.transition = 'transform 0.6s cubic-bezier(.19,1,.22,1)';
       wrapper.style.transform  = 'translateY(-40px) rotate(12deg)';
       setTimeout(() => {
@@ -373,9 +369,7 @@ window.AnimeCat = class AnimeCat {
           wrapper.style.transform  = 'translateY(0) rotate(0deg)';
           img.src = this.images.mouthOpen || this.images.default;
           setTimeout(() => {
-            if (!this._pettingActive) {
-              this.img.src = this.images.default;
-            }
+            if (!this._pettingActive) this.img.src = this.images.default;
             setTimeout(() => {
               wrapper.style.transition = origTransition || '';
               wrapper.style.transform = origTransform || '';
