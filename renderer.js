@@ -21,6 +21,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+
   // Drag and Drop
   document.body.addEventListener('dragover', e => {
     e.preventDefault();
@@ -701,8 +702,7 @@ folders.forEach(folderObj => {
   });
 
   window.updateCatGlow = function(commitCount) {
-    // Übergib den Wert an animeCat.js
-    if (window.animateCatGlow) window.animateCatGlow(commitCount);
+    if (window.cat) window.cat.animateCatGlow(commitCount);
   };
   
 
