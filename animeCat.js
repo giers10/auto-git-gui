@@ -218,7 +218,7 @@ _bindMouseHold() {
           this.img.src = this.images.mouthOpen || this.images.default;
           this._startBlinking();
           setTimeout(() => {
-            if (!joyActive && !this._isSpeaking) this.img.src = this.images.default;
+            if (!joyActive && !this._isSpeaking && !this._pettingActive) this.img.src = this.images.default;
           }, mouthOpenTime);
         }
         else {
