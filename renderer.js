@@ -454,7 +454,7 @@ function formatCountdown(ms) {
     const { head, commits } = await window.electronAPI.getCommits(folderObj);
     if (!commits || !commits.length) {
       return;
-    }
+    } 
 
     contentList.innerHTML = commits.map(c => `
       <li class="w-full p-3 mb-2 bg-white border border-gray-200 rounded shadow-sm
