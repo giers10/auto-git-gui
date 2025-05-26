@@ -487,13 +487,29 @@ async function startLiveCountdown(folderObj, msLeft) {
   });
 
 
+  let commitPage = 1;    // Merker für die aktuelle Seite
+  const PAGE_SIZE = 50;
+
+  // UI-Element für Pagination (in deinem Template anlegen, z.B. unter contentList)
+  const paginationEl = document.createElement('div');
+  paginationEl.className = 'pagination flex justify-center items-center my-2 space-x-2';
+
+  contentList.parentElement.insertBefore(paginationEl, contentList); // einmalig nach DOM load
+
   async function renderContent(folderObj) {
     closeDropdown();
     const folder = folderObj.path;
     await updateInteractionBar(folderObj);
     titleEl.textContent = folder;
+
+
     const { head, commits } = await window.electronAPI.getCommits(folderObj);
+
+    commitPage = currentPage; // speichere aktuelle Seite
+
     if (!commits || !commits.length) {
+      contentList.innerHTML = '<div class="p-6 text-gray-500">No commits found.</div>';
+      paginationEl.innerHTML = '';
       return;
     } 
       contentList.innerHTML = commits.map(c => {
@@ -564,6 +580,16 @@ async function startLiveCountdown(folderObj, msLeft) {
             : ''
         }
       </li>`;}).join(''); 
+
+    // --- PAGINATION ---
+    // Anzeige: « Vorherige | Seite X/Y | Nächste »
+    paginationEl.innerHTML = `
+      <button id="page-prev" class="px-2 py-1 border rounded" ${currentPage === 1 ? 'disabled' : ''}>«</button>
+      <span class="mx-2 text-sm">Seite ${currentPage} / ${pages}</span>
+      <button id="page-next" class="px-2 py-1 border rounded" ${currentPage === pages ? 'disabled' : ''}>»</button>
+    `;
+
+      
 
     // Diff-Buttons prüfen und ggf. deaktivieren
     contentList.querySelectorAll('.diff-btn').forEach(async btn => {
