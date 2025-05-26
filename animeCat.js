@@ -108,17 +108,6 @@ window.AnimeCat = class AnimeCat {
     this.wrapper.appendChild(this.bubble);
     this.container.appendChild(this.wrapper);
 
-    // Zeigt Progress der täglichen Commits an
-    animateCatGlow(commitCount) {
-      if (!this.cat) return;
-
-      const factor = Math.min(commitCount / 10, 1);
-      const glowStrength = 3 + factor * 22;
-      const glowColor = `rgba(255,230,100,${0.2 + factor * 0.7})`;
-
-      this.cat.style.filter = `drop-shadow(0 0 ${glowStrength}px ${glowColor})`;
-      this.cat.classList.add('glow');
-    }
 
     // Emitter für Herzen (abgekoppelt!)
     this.heartEmitter = document.createElement('div');
@@ -133,6 +122,20 @@ window.AnimeCat = class AnimeCat {
     });
     this.container.appendChild(this.heartEmitter);
   }
+  
+  // Zeigt Progress der täglichen Commits an
+  _animateCatGlow(commitCount) {
+    if (!this.cat) return;
+
+    const factor = Math.min(commitCount / 10, 1);
+    const glowStrength = 3 + factor * 22;
+    const glowColor = `rgba(255,230,100,${0.2 + factor * 0.7})`;
+
+    this.cat.style.filter = `drop-shadow(0 0 ${glowStrength}px ${glowColor})`;
+    this.cat.classList.add('glow');
+  }
+
+
 
   // Bubble-Position absolut anpassen, wenn detached
   _positionBubbleDetached() {
