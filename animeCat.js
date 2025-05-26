@@ -220,12 +220,12 @@ animateCatGlow(commitCount) {
     const contRect = this.container.getBoundingClientRect();
 
     // Position: leicht rechts, minimal nach oben (bei Bedarf feintunen)
-    const left   = (catRect.right - contRect.left) + 16;
-    const bottom = (contRect.bottom - catRect.bottom) + 18;
+    const left   = (catRect.right - contRect.left) + 2;   // vorher +12, jetzt +2
+    const bottom = (contRect.bottom - catRect.bottom) - 2; // vorher +8, jetzt -2
     Object.assign(this.bubble.style, {
-      position: 'absolute',
-      left:     `${left}px`,
-      bottom:   `${bottom}px`,
+      position:   'absolute',
+      left:       `${left}px`,
+      bottom:     `${bottom}px`,
       marginLeft: '0',
       marginBottom: '0'
     });
