@@ -33,42 +33,54 @@ window.AnimeCat = class AnimeCat {
   }
 
   _createElements() {
-    // Outer wrapper (relativ für absolute Kinder!)
+    // Outer Wrapper für Flex-Layout
     this.wrapper = document.createElement('div');
     Object.assign(this.wrapper.style, {
       position:      'relative',
-      width:         '100px',
-      height:        '80px',
       display:       'flex',
+      flexDirection: 'row',
       alignItems:    'flex-end',
+      minHeight:     '80px',
+      minWidth:      '180px',
       zIndex:        1
     });
 
-    // --- Glow (unter der Katze) ---
+    // Innerer Container für Glow + Katze (Stack!)
+    this.catContainer = document.createElement('div');
+    Object.assign(this.catContainer.style, {
+      position:      'relative',
+      width:         '90px',
+      height:        '70px',
+      minWidth:      '90px',
+      minHeight:     '70px',
+      zIndex:        2
+    });
+
+    // Glow (hinter der Katze)
     this.glow = document.createElement('div');
     this.glow.id = 'cat-glow';
     Object.assign(this.glow.style, {
-      position:        'absolute',
-      left:            '50%',
-      top:             '50%',
-      transform:       'translate(-50%, -52%)',
-      borderRadius:    '50%',
-      width:           '120px',
-      height:          '80px',
-      pointerEvents:   'none',
-      zIndex:          1,
-      transition:      'background 0.4s, width 0.2s, height 0.2s, opacity 0.3s'
+      position:      'absolute',
+      left:          '50%',
+      top:           '57%',
+      transform:     'translate(-50%, -50%)',
+      borderRadius:  '50%',
+      width:         '120px',
+      height:        '80px',
+      pointerEvents: 'none',
+      zIndex:        1,
+      transition:    'background 0.4s, width 0.2s, height 0.2s, opacity 0.3s'
     });
-    this.wrapper.appendChild(this.glow);
+    this.catContainer.appendChild(this.glow);
 
-    // --- Cat image (über Glow) ---
+    // Cat image (über dem Glow, mittig im catContainer)
     this.img = document.createElement('img');
     this.img.src = this.images.default;
     Object.assign(this.img.style, {
       position:       'absolute',
       left:           '50%',
-      top:            '50%',
-      transform:      'translate(-50%, -60%)',
+      top:            '44%',
+      transform:      'translate(-50%, -50%)',
       width:          '62px',
       height:         '50px',
       zIndex:         2,
@@ -80,14 +92,14 @@ window.AnimeCat = class AnimeCat {
       pointerEvents:  'auto'
     });
     this.img.draggable = false;
-    this.wrapper.appendChild(this.img);
+    this.catContainer.appendChild(this.img);
 
-    // --- Speech bubble (daneben, nicht überlagert) ---
+    // Sprechblase (direkt im wrapper)
     this.bubble = document.createElement('div');
     Object.assign(this.bubble.style, {
       position:      'relative',
-      marginLeft:    '14px',
-      marginBottom:  '11px',
+      marginLeft:    '12px',
+      marginBottom:  '16px',
       padding:       '10px 16px',
       background:    'white',
       border:        '1px solid #ccc',
@@ -108,12 +120,12 @@ window.AnimeCat = class AnimeCat {
       alignItems:    'center'
     });
 
-    // --- Bubble "Tail" (kleines Dreieck) ---
+    // Bubble Tail
     this.bubblePointer = document.createElement('div');
     Object.assign(this.bubblePointer.style, {
       position:      'absolute',
       left:          '-13px',
-      bottom:        '12px',
+      bottom:        '14px',
       width:         '0',
       height:        '0',
       borderTop:     '8px solid transparent',
@@ -124,15 +136,16 @@ window.AnimeCat = class AnimeCat {
     });
     this.bubble.appendChild(this.bubblePointer);
 
-    // --- Wrapper komplettieren ---
-    this.wrapper.appendChild(this.bubble);
+    // Zusammenbauen
+    this.wrapper.appendChild(this.catContainer); // LINKS (Stack: Glow, Katze)
+    this.wrapper.appendChild(this.bubble);       // RECHTS
     this.container.appendChild(this.wrapper);
 
-    // --- Herz-Emitter (für Animationen) ---
+    // Herz-Emitter, bleibt wie gehabt
     this.heartEmitter = document.createElement('div');
     Object.assign(this.heartEmitter.style, {
       position: 'absolute',
-      left:     '82px',
+      left:     '90px',
       bottom:   '32px',
       pointerEvents: 'none',
       width:    '1px',
@@ -141,7 +154,6 @@ window.AnimeCat = class AnimeCat {
     });
     this.container.appendChild(this.heartEmitter);
   }
-
 
 // Hilfsfunktionen zur Farbinterpolation
 _lerp(a, b, t) { return a + (b - a) * t; }
