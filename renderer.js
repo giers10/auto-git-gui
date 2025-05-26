@@ -444,6 +444,8 @@ function formatCountdown(ms) {
   async function renderContent(folderObj) {
     closeDropdown();
     const folder = folderObj.path;
+    await renderContent(folderObj);
+    await updateInteractionBar(folderObj);
     titleEl.textContent = folder;
     const { head, commits } = await window.electronAPI.getCommits(folderObj);
     if (!commits || !commits.length) {
