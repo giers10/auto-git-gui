@@ -88,7 +88,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         }
       }
       updateTitleColor();
-      titleIntervalId = setInterval(updateTitleColor, 60_000);
+      //titleIntervalId = setInterval(updateTitleColor, 60_000);
     } else {
       panel.style.backgroundColor = '';
       titleEl.style.color = '';
