@@ -690,8 +690,6 @@ folders.forEach(folderObj => {
   };
   */
 
-
-  ipcMain.handle('get-daily-commit-stats', () => store.get('dailyCommitStats') || {});
   // Hole die Commit-Stats beim Laden der Seite
   window.electronAPI.getDailyCommitStats().then(stats => {
     const today = new Date().toISOString().slice(0, 10);
