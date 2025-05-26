@@ -14,21 +14,20 @@ window.AnimeCat = class AnimeCat {
       blink:       'blink.png',
       mouthOpen:   'mouth_open.png',
       joy:         'joy.png',
-      mischievous: 'mischievous.png' 
-
+      mischievous: 'mischievous.png'
     }, options.images);
     this.blinkMin      = options.blinkMin      ?? 5000;
     this.blinkMax      = options.blinkMax      ?? 15000;
     this.blinkDuration = options.blinkDuration ?? 175;
     this.talkInterval  = options.talkInterval  ?? 300;
+    this._consolationCount = 0;
 
     this._isSpeaking     = false;
     this._blinkTimeout   = null;
     this._talkIntervalId = null;
     this._speechTimeout  = null;
     this._mouthOpen      = false;
-    this._pettingActive = false;
-    this._consolationCount = 0;
+    this._pettingActive  = false;
 
     this._createElements();
     this._bindMouseHold();
@@ -44,7 +43,7 @@ window.AnimeCat = class AnimeCat {
       flexDirection: 'row',
       alignItems:    'flex-end',
       minHeight:     '60px',
-      minWidth:      '180px', // Passe an falls du willst
+      minWidth:      '180px',
       zIndex:        '1'
     });
 
@@ -64,13 +63,13 @@ window.AnimeCat = class AnimeCat {
     // --- Speech bubble ---
     this.bubble = document.createElement('div');
     Object.assign(this.bubble.style, {
-      position:      'relative', // jetzt relativ zur wrapper-Flexbox
+      position:      'relative',
       marginLeft:    '14px',
       marginBottom:  '11px', 
       padding:       '10px 16px',
       background:    'white',
       border:        '1px solid #ccc',
-      borderRadius:  '16px 16px 16px 16px',
+      borderRadius:  '16px',
       boxShadow:     '0 2px 8px rgba(0,0,0,0.18)',
       opacity:       '0',
       transition:    'opacity 0.3s',
@@ -108,17 +107,49 @@ window.AnimeCat = class AnimeCat {
     this.wrapper.appendChild(this.bubble);
     this.container.appendChild(this.wrapper);
 
-    // Optional: Passe die Bubble-Dynamik an das Fenster an
-    // window.addEventListener('resize', () => this._adaptBubbleWidth());
-    // this._adaptBubbleWidth();
+    // Emitter für Herzen (abgekoppelt!)
+    this.heartEmitter = document.createElement('div');
+    Object.assign(this.heartEmitter.style, {
+      position: 'absolute',
+      left: '82px',   // rechts neben der Katze
+      bottom: '32px',
+      pointerEvents: 'none',
+      width: '1px',
+      height: '1px',
+      zIndex: 20
+    });
+    this.container.appendChild(this.heartEmitter);
   }
 
-  // Passe Bubble-Breite an verfügbaren Platz an (optional)
-  _adaptBubbleWidth() {
-    const rect = this.wrapper.getBoundingClientRect();
-    const parentRect = this.container.getBoundingClientRect();
-    const spaceRight = parentRect.right - rect.right - 14;
-    this.bubble.style.maxWidth = Math.max(140, Math.min(spaceRight, 320)) + 'px';
+  // Bubble-Position absolut anpassen, wenn detached
+  _positionBubbleDetached() {
+    // Katze relativ im Container finden
+    const catRect = this.img.getBoundingClientRect();
+    const contRect = this.container.getBoundingClientRect();
+    // "Andockpunkt": rechts neben der Katze, leicht versetzt nach oben
+    const left = (catRect.right - contRect.left) + 12;
+    const bottom = (contRect.bottom - catRect.bottom) + 8;
+    Object.assign(this.bubble.style, {
+      position: 'absolute',
+      left: `${left}px`,
+      bottom: `${bottom}px`,
+      marginLeft: '0',
+      marginBottom: '0'
+    });
+    // Tail bleibt am linken Rand der Bubble!
+    this.bubblePointer.style.left = '-13px';
+    this.bubblePointer.style.bottom = '12px';
+  }
+  _resetBubbleAttach() {
+    Object.assign(this.bubble.style, {
+      position: 'relative',
+      left: '',
+      bottom: '',
+      marginLeft: '14px',
+      marginBottom: '11px'
+    });
+    this.bubblePointer.style.left = '-13px';
+    this.bubblePointer.style.bottom = '12px';
   }
 
   _startBlinking() {
@@ -138,20 +169,124 @@ window.AnimeCat = class AnimeCat {
     }, delay);
   }
 
-  _consolation({ cleanup, mouseDown, mouseDownAt, reopenEyes, joyActive }) {
-    cleanup();
-    mouseDown = false;
-    reopenEyes();
+  _bindMouseHold() {
+    let holdTimer = null;
+    let joyActive = false;
+    let mouseDown = false;
+    let mouseDownAt = null;
+    let lastPos = null;
+    let moveDist = 0;
+
+    const CAT_TOLERANCE = 15;
+    const MOVE_THRESHOLD = 350;
+
+    const isMouseNearCat = (e) => {
+      const rect = this.img.getBoundingClientRect();
+      return (
+        e.clientX >= rect.left - CAT_TOLERANCE &&
+        e.clientX <= rect.right + CAT_TOLERANCE &&
+        e.clientY >= rect.top - CAT_TOLERANCE &&
+        e.clientY <= rect.bottom + CAT_TOLERANCE
+      );
+    };
+
+    const closeEyes = () => { this.img.src = this.images.eyesClosed; };
+    const reopenEyes = () => {
+      if (!joyActive && !this._isSpeaking && !this._pettingActive) this.img.src = this.images.default;
+    };
+
+    this.img.addEventListener('mousedown', (e) => {
+      if (this._isSpeaking || joyActive) return;
+      if (!isMouseNearCat(e)) return;
+      this._pettingActive = true;
+
+      mouseDown = true;
+      mouseDownAt = Date.now();
+      lastPos = { x: e.clientX, y: e.clientY };
+      moveDist = 0;
+      closeEyes();
+      clearTimeout(this._blinkTimeout); // Blinzeln pausieren
+
+      function onMove(ev) {
+        if (!mouseDown) return;
+        if (!isMouseNearCat(ev)) {
+          cleanup();
+          reopenEyes();
+          mouseDown = false;
+          this._startBlinking();
+          return;
+        }
+        if (lastPos) {
+          const dx = ev.clientX - lastPos.x;
+          const dy = ev.clientY - lastPos.y;
+          moveDist += Math.sqrt(dx * dx + dy * dy);
+          lastPos = { x: ev.clientX, y: ev.clientY };
+        }
+      }
+
+      const onMoveBound = onMove.bind(this);
+
+      holdTimer = setTimeout(() => {
+        if (!mouseDown) return; // Schon abgebrochen
+        if (moveDist >= MOVE_THRESHOLD) {
+          cleanup();
+          joyActive = true;
+          this._runJoyAnimation(() => {
+            joyActive = false;
+            reopenEyes();
+            this._startBlinking();
+          });
+          mouseDown = false;
+        } else {
+          this._consolation(mouseDownAt);
+          mouseDown = false;
+        }
+      }, 4000);
+
+      function onUp() {
+        if (!mouseDown) return;
+        cleanup();
+        const heldFor = Date.now() - mouseDownAt;
+        if (heldFor >= 4000) return; // already handled by timer above
+        if (heldFor >= 4000 && moveDist >= MOVE_THRESHOLD) {
+          joyActive = true;
+          this._runJoyAnimation(() => {
+            joyActive = false;
+            reopenEyes();
+            this._startBlinking();
+          });
+        } else if (heldFor > 1000) {
+          this._consolation(mouseDownAt);
+        } else {
+          reopenEyes();
+          this._startBlinking();
+        }
+        mouseDown = false;
+      }
+
+      const onUpBound = onUp.bind(this);
+
+      const cleanup = () => {
+        window.removeEventListener('mousemove', onMoveBound);
+        window.removeEventListener('mouseup', onUpBound);
+        if (holdTimer) clearTimeout(holdTimer);
+        holdTimer = null;
+        this._pettingActive = false;
+      };
+      window.addEventListener('mousemove', onMoveBound);
+      window.addEventListener('mouseup', onUpBound);
+    });
+  }
+
+  _consolation(mouseDownAt) {
+    // Trostpreis: Augen auf, dann mouth_open oder mischievous
+    this._pettingActive = false;
+    this.img.src = this.images.default;
     const heldFor = Date.now() - mouseDownAt;
-
     if (heldFor > 1000) {
-      // mind. 1000ms oder (heldFor - 1000), je nachdem was größer ist
       const mouthOpenTime = Math.max(heldFor - 1000, 1000);
-
-      // Bildwahl: mischievous ab 4. Mal, sonst mouth_open
       let imgToShow = this.images.mouthOpen || this.images.default;
       if (this._consolationCount >= 3) {
-        // Ab dem vierten Mal: mischievous immer, danach 20% Chance
         if (
           this._consolationCount === 3 ||
           Math.random() < 0.2
@@ -159,12 +294,11 @@ window.AnimeCat = class AnimeCat {
           imgToShow = this.images.mischievous || imgToShow;
         }
       }
-
       this.img.src = imgToShow;
       this._consolationCount++;
       this._startBlinking();
       setTimeout(() => {
-        if (!joyActive && !this._isSpeaking && !this._pettingActive) {
+        if (!this._isSpeaking && !this._pettingActive) {
           this.img.src = this.images.default;
         }
       }, mouthOpenTime);
@@ -173,217 +307,88 @@ window.AnimeCat = class AnimeCat {
     }
   }
 
-_bindMouseHold() {
-  let holdTimer = null;
-  let joyTimeout = null;
-  let joyActive = false;
-  let mouseDown = false;        // <---- NEU! Initialisieren
-  let mouseDownAt = null;       // <---- NEU!
-  let lastPos = null;           // <---- NEU!
-  let moveDist = 0;             // <---- NEU!
+  _runJoyAnimation(onFinish) {
+    const wrapper = this.wrapper;
+    const img     = this.img;
+    const origTransition = wrapper.style.transition;
+    const origTransform  = wrapper.style.transform;
 
-  const CAT_TOLERANCE = 15;
-  const MOVE_THRESHOLD = 350;
+    // Bild auf joy.png setzen:
+    img.src = this.images.joy || this.images.default;
 
-  const isMouseNearCat = (e) => {
-    const rect = this.img.getBoundingClientRect();
-    return (
-      e.clientX >= rect.left - CAT_TOLERANCE &&
-      e.clientX <= rect.right + CAT_TOLERANCE &&
-      e.clientY >= rect.top - CAT_TOLERANCE &&
-      e.clientY <= rect.bottom + CAT_TOLERANCE
-    );
-  };
+    // 20% Chance auf Salto!
+    const salto = Math.random() < 0.2;
 
-  const closeEyes = () => { this.img.src = this.images.eyesClosed; };
-  const reopenEyes = () => {
-    if (!joyActive && !this._isSpeaking && !this._pettingActive) this.img.src = this.images.default;
-  };
-
-  this.img.addEventListener('mousedown', (e) => {
-    if (this._isSpeaking || joyActive) return;
-    if (!isMouseNearCat(e)) return;
-    this._pettingActive = true;
-
-    mouseDown = true;
-    mouseDownAt = Date.now();
-    lastPos = { x: e.clientX, y: e.clientY };
-    moveDist = 0;
-    closeEyes();
-    clearTimeout(this._blinkTimeout); // Blinzeln pausieren
-
-    // Bewegung tracken
-    function onMove(ev) {
-      if (!mouseDown) return;
-      if (!isMouseNearCat(ev)) {
-        cleanup();
-        reopenEyes();
-        mouseDown = false;
-        this._startBlinking();
-        return;
-      }
-      if (lastPos) {
-        const dx = ev.clientX - lastPos.x;
-        const dy = ev.clientY - lastPos.y;
-        moveDist += Math.sqrt(dx * dx + dy * dy);
-        lastPos = { x: ev.clientX, y: ev.clientY };
-      }
+    // Bubble abkoppeln
+    const bubbleDetached = true;
+    if (bubbleDetached) {
+      this.container.appendChild(this.bubble);
+      this._positionBubbleDetached();
     }
 
-    const onMoveBound = onMove.bind(this);
+    // Herzen-Emitter abkoppeln und passend setzen
+    const catRect = this.img.getBoundingClientRect();
+    const contRect = this.container.getBoundingClientRect();
+    this.heartEmitter.style.left = (catRect.right - contRect.left + 15) + 'px';
+    this.heartEmitter.style.bottom = (contRect.bottom - catRect.bottom + 12) + 'px';
 
-    holdTimer = setTimeout(() => {
-      if (!mouseDown) return; // Schon abgebrochen
-      
-      // Joy-Bedingung
-      if (moveDist >= MOVE_THRESHOLD) {
-        cleanup();
-        joyActive = true;
-        this._runJoyAnimation(() => {
-          joyActive = false;
-          reopenEyes();
-          this._startBlinking();
-        });
-        mouseDown = false;
-      } else {
-        // Trostpreis: Augen auf, dann mouth_open oder mischievous
-        this._consolation({ 
-          cleanup, 
-          mouseDown, 
-          mouseDownAt, 
-          reopenEyes, 
-          joyActive 
-        });
-      }
-    }, 4000);
+    // Herzchen-Explosion NACH dem Sprung (also im Peak)!
+    const spawnHearts = () => this._spawnHearts(12);
 
-    function onUp() {
-      if (!mouseDown) return;
-      cleanup();
-      const heldFor = Date.now() - mouseDownAt;
-      if (heldFor >= 4000) return; // already handled by timer above
-      // Joy: wenn beide Bedingungen erfüllt
-      if (heldFor >= 4000 && moveDist >= MOVE_THRESHOLD) {
-        joyActive = true;
-        this._runJoyAnimation(() => {
-          joyActive = false;
-          reopenEyes();
-          this._startBlinking();
-        });
-      }
-      // Trostpreis: Augen auf, dann mouth_open oder mischievous
-      this._consolation({ 
-        cleanup, 
-        mouseDown, 
-        mouseDownAt, 
-        reopenEyes, 
-        joyActive 
-      });
-      mouseDown = false;
-    }
-
-    const onUpBound = onUp.bind(this);
-
-    const cleanup = () => {
-      window.removeEventListener('mousemove', onMoveBound);
-      window.removeEventListener('mouseup', onUpBound);
-      if (holdTimer) clearTimeout(holdTimer);
-      holdTimer = null;
-      this._pettingActive = false; // Korrekt!
-    };
-    window.addEventListener('mousemove', onMoveBound);
-    window.addEventListener('mouseup', onUpBound);
-
-  });
-}
-
-_runJoyAnimation(onFinish) {
-  const wrapper = this.wrapper;
-  const img     = this.img;
-  const container = this.container;
-  const origWrapperTransition = wrapper.style.transition;
-  const origWrapperTransform  = wrapper.style.transform;
-  const origImgTransition     = img.style.transition;
-  const origImgTransform      = img.style.transform;
-
-  img.src = this.images.joy || this.images.default;
-
-  const salto = Math.random() < 0.2;
-  const upTime = 600;
-  const hangTime = salto ? 500 : 1800;
-  const downTime = 800;
-
-  // Herzen erzeugen, aber referenzen speichern
-  const hearts = [];
-  for (let i = 0; i < 12; ++i) {
-    setTimeout(() => {
-      const heart = this._makeHeart();
-      hearts.push(heart);
-    }, Math.random() * 300);
-  }
-
-  // Sprung + Drehung sofort starten
-  wrapper.style.transition = `transform ${upTime}ms cubic-bezier(.19,1,.22,1)`;
-  wrapper.style.transform  = 'translateY(-40px)';
-  img.style.transition     = `transform ${upTime}ms cubic-bezier(.19,1,.22,1)`;
-  img.style.transform      = salto ? 'rotate(360deg)' : 'rotate(12deg)';
-
-  setTimeout(() => {
-    // Bubble abkoppeln (wie gehabt)
-    if (this.bubble.parentNode === wrapper) {
-      container.appendChild(this.bubble);
-      this.bubble.style.position = 'absolute';
-      this.bubble.style.left = wrapper.offsetLeft + wrapper.offsetWidth + 10 + 'px';
-      this.bubble.style.bottom = '10px';
-      this.bubble.style.zIndex = '100';
-    }
-
-    // **Herzen abkoppeln**
-    for (const heart of hearts) {
-      if (heart && heart.parentNode === wrapper) {
-        // Absolut zu Cat-Container platzieren (fixiere ihre aktuelle Position!)
-        const rect = heart.getBoundingClientRect();
-        const parentRect = container.getBoundingClientRect();
-        heart.style.left = (rect.left - parentRect.left) + "px";
-        heart.style.bottom = (parentRect.bottom - rect.bottom) + "px";
-        heart.style.position = "absolute";
-        container.appendChild(heart);
-      }
-    }
-
-    // Ab jetzt fällt nur noch die Katze
-    wrapper.style.transition = `transform ${downTime}ms cubic-bezier(.19,1,.22,1)`;
-    wrapper.style.transform  = 'translateY(0)';
-    img.src = this.images.mouthOpen || this.images.default;
-
-    if (!salto) {
-      img.style.transition = `transform ${downTime}ms cubic-bezier(.19,1,.22,1)`;
-      img.style.transform  = 'rotate(0deg)';
-    }
-
-    setTimeout(() => {
-      if (!this._pettingActive) {
-        this.img.src = this.images.default;
-      }
+    if (salto) {
+      // Salto: beim Springen schon drehen!
+      wrapper.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
+      wrapper.style.transform  = 'translateY(-40px) rotate(0deg)';
       setTimeout(() => {
-        // Bubble wieder ankoppeln, falls nötig
-        if (this.bubble.parentNode === container) {
-          wrapper.appendChild(this.bubble);
-          this.bubble.style.position = '';
-          this.bubble.style.left = '';
-          this.bubble.style.bottom = '';
-          this.bubble.style.zIndex = '';
-        }
-        // Styles zurücksetzen
-        wrapper.style.transition  = origWrapperTransition || '';
-        wrapper.style.transform   = origWrapperTransform  || '';
-        img.style.transition      = origImgTransition     || '';
-        img.style.transform       = origImgTransform      || '';
-        if (typeof onFinish === 'function') onFinish();
-      }, 700);
-    }, downTime);
-  }, upTime + hangTime);
-}
+        wrapper.style.transition = 'transform 0.6s cubic-bezier(.19,1,.22,1)';
+        wrapper.style.transform  = 'translateY(-40px) rotate(360deg)';
+        spawnHearts();
+        setTimeout(() => {
+          wrapper.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
+          wrapper.style.transform  = 'translateY(0) rotate(360deg)';
+          img.src = this.images.mouthOpen || this.images.default;
+          setTimeout(() => {
+            if (!this._pettingActive) {
+              this.img.src = this.images.default;
+            }
+            setTimeout(() => {
+              wrapper.style.transition = origTransition || '';
+              wrapper.style.transform = origTransform || '';
+              // Bubble und Herzen zurück
+              this.wrapper.appendChild(this.bubble);
+              this._resetBubbleAttach();
+              if (typeof onFinish === 'function') onFinish();
+            }, 700);
+          }, 2000);
+        }, 600);
+      }, 400);
+    } else {
+      // Normale Joy-Animation: leicht drehen
+      wrapper.style.transition = 'transform 0.6s cubic-bezier(.19,1,.22,1)';
+      wrapper.style.transform  = 'translateY(-40px) rotate(12deg)';
+      setTimeout(() => {
+        spawnHearts();
+        setTimeout(() => {
+          wrapper.style.transition = 'transform 0.8s cubic-bezier(.19,1,.22,1)';
+          wrapper.style.transform  = 'translateY(0) rotate(0deg)';
+          img.src = this.images.mouthOpen || this.images.default;
+          setTimeout(() => {
+            if (!this._pettingActive) {
+              this.img.src = this.images.default;
+            }
+            setTimeout(() => {
+              wrapper.style.transition = origTransition || '';
+              wrapper.style.transform = origTransform || '';
+              // Bubble zurück
+              this.wrapper.appendChild(this.bubble);
+              this._resetBubbleAttach();
+              if (typeof onFinish === 'function') onFinish();
+            }, 700);
+          }, 2000);
+        }, 2200);
+      }, 400);
+    }
+  }
 
   _spawnHearts(count = 10) {
     for (let i = 0; i < count; ++i) {
@@ -391,57 +396,45 @@ _runJoyAnimation(onFinish) {
     }
   }
 
-_makeHeart() {
-  const emoji = Math.random() < 0.7 ? '❤️' : '💕';
-  const heart = document.createElement('span');
-  heart.textContent = emoji;
-  heart.style.position = 'absolute';
+  _makeHeart() {
+    const emoji = Math.random() < 0.7 ? '❤️' : '💕';
 
-  const catRect = this.img.getBoundingClientRect();
-  const containerRect = this.container.getBoundingClientRect();
+    const heart = document.createElement('span');
+    heart.textContent = emoji;
+    heart.style.position = 'absolute';
+    heart.style.left  = '0%';
+    heart.style.bottom= '0%';
+    heart.style.fontSize = `${16 + Math.random() * 14}px`;
+    heart.style.pointerEvents = 'none';
+    heart.style.opacity = '0.9';
+    heart.style.zIndex = 100;
 
-  // >>> HIER Offset nach rechts (z.B. +18px oder +25px ausprobieren)
-  const HEART_X_OFFSET = 36; // nach rechts relativ zur Katzenmitte
-  const left = (catRect.left + catRect.width * 0.5 + HEART_X_OFFSET) - containerRect.left;
+    // Start/End-Pos, Flugwinkel
+    const angle = (Math.random() * Math.PI) - (Math.PI/2); // spread -90° to 90°
+    const distance = 60 + Math.random() * 45;
+    const dx = Math.cos(angle) * distance;
+    const dy = Math.sin(angle) * distance;
 
-  // Oder noch präziser: Mundhöhe (etwas tiefer als Mittelpunkt)
-  const HEART_Y_OFFSET = 0.45; // Prozentuale Höhe der Katze (0.5 = Mitte)
-  const bottom = (containerRect.bottom - (catRect.top + catRect.height * HEART_Y_OFFSET));
+    heart.animate([
+      {
+        transform: 'translate(-50%, 0) scale(1)',
+        opacity: 0.95
+      },
+      {
+        transform: `translate(calc(-50% + ${dx}px), ${-dy}px) scale(${1.3 + Math.random()*0.4}) rotate(${Math.random()*60-30}deg)`,
+        opacity: 0.3
+      }
+    ], {
+      duration: 1100 + Math.random()*800,
+      easing: 'cubic-bezier(.28,1.01,.57,.99)'
+    });
 
-  heart.style.left = `${left}px`;
-  heart.style.bottom = `${bottom}px`;
-  heart.style.fontSize = `${16 + Math.random() * 14}px`;
-  heart.style.pointerEvents = 'none';
-  heart.style.opacity = '0.9';
-  heart.style.zIndex = 1000;
+    // Remove after animation
+    setTimeout(() => heart.remove(), 1600);
 
-  // Start/End-Pos, Flugwinkel
-  const angle = (Math.random() * Math.PI) - (Math.PI/2); // spread -90° to 90°
-  const distance = 60 + Math.random() * 45;
-  const dx = Math.cos(angle) * distance;
-  const dy = Math.sin(angle) * distance;
-
-  heart.animate([
-    {
-      transform: 'translate(-50%, 0) scale(1)',
-      opacity: 0.95
-    },
-    {
-      transform: `translate(calc(-50% + ${dx}px), ${-dy}px) scale(${1.3 + Math.random()*0.4}) rotate(${Math.random()*60-30}deg)`,
-      opacity: 0.3
-    }
-  ], {
-    duration: 1100 + Math.random()*800,
-    easing: 'cubic-bezier(.28,1.01,.57,.99)'
-  });
-
-  setTimeout(() => heart.remove(), 1600);
-
-  // Jetzt direkt in den Container anhängen (NICHT an this.wrapper!)
-  this.container.appendChild(heart);
-
-  return heart;
-}
+    // Im Herzen-Emitter platzieren!
+    this.heartEmitter.appendChild(heart);
+  }
 
   /** Call when streaming text begins */
   beginSpeech() {
@@ -453,11 +446,9 @@ _makeHeart() {
     this.img.src      = this.images.default;
     this.bubble.style.opacity = '1';
     this.bubble.style.visibility = 'visible';
-    // Bubble-Inhalt zurücksetzen (ohne den Pointer zu löschen!)
     Array.from(this.bubble.childNodes).forEach(node => {
       if (node !== this.bubblePointer) node.remove();
     });
-    // Neuen (leeren) Textnode einfügen:
     this._bubbleTextNode = document.createTextNode('');
     this.bubble.appendChild(this._bubbleTextNode);
 
@@ -469,13 +460,11 @@ _makeHeart() {
     }, this.talkInterval / 2);
   }
 
-  /** Append a chunk of streamed text */
   appendSpeech(chunk) {
     if (this._bubbleTextNode)
       this._bubbleTextNode.textContent += chunk;
   }
 
-  /** Call when the stream ends */
   endSpeech() {
     clearInterval(this._talkIntervalId);
     if (!this._pettingActive) {
@@ -487,11 +476,11 @@ _makeHeart() {
     }, 6000);
   }
 
-  /** Clean up timers & DOM */
   destroy() {
     clearTimeout(this._blinkTimeout);
     clearInterval(this._talkIntervalId);
     clearTimeout(this._speechTimeout);
     this.wrapper.remove();
+    this.heartEmitter.remove();
   }
 }
