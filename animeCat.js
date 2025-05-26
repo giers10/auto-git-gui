@@ -401,7 +401,7 @@ _makeHeart() {
   const containerRect = this.container.getBoundingClientRect();
 
   // >>> HIER Offset nach rechts (z.B. +18px oder +25px ausprobieren)
-  const HEART_X_OFFSET = 24; // nach rechts relativ zur Katzenmitte
+  const HEART_X_OFFSET = 36; // nach rechts relativ zur Katzenmitte
   const left = (catRect.left + catRect.width * 0.5 + HEART_X_OFFSET) - containerRect.left;
 
   // Oder noch präziser: Mundhöhe (etwas tiefer als Mittelpunkt)
