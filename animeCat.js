@@ -164,7 +164,6 @@ window.AnimeCat = class AnimeCat {
 
     ['mouseup', 'mouseleave'].forEach(evt =>
       this.img.addEventListener(evt, () => {
-        if (!joyActive) reopenEyes();
         clearTimeout(holdTimer);
       })
     );
