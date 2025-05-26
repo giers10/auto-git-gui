@@ -53,6 +53,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   pickFolder: () => ipcRenderer.invoke('pick-folder'),
   repoHasCommit: (repoPath, commitHash) => ipcRenderer.invoke('repo-has-commit', repoPath, commitHash),
   addFolderByPath: (folderPath) => ipcRenderer.invoke('add-folder-by-path', folderPath),
+  onCatBegin:    (cb) => ipcRenderer.on('cat-begin', cb),
+  onCatChunk:    (cb) => ipcRenderer.on('cat-chunk', cb),
+  onCatEnd:      (cb) => ipcRenderer.on('cat-end', cb),
 
 });
 
