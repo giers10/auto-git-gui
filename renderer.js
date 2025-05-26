@@ -315,7 +315,7 @@ function getCommitColor(commitCount) {
   const stops = [
     { c:   0, color: [157, 157, 157] },
     { c:   5, color: [255, 255, 255] },
-    { c:  20, color: [30, 255, 0] },
+    { c:  15, color: [30, 255, 0] },
     { c:  50, color: [0, 112, 221] },
     { c: 100, color: [163, 53, 238] },
     { c: 500, color: [255, 128, 0] }
@@ -372,7 +372,7 @@ async function updateInteractionBar(folderObj) {
   }
 
   // In die Bar schreibenx
-  const [r, g, b] = getCommitColor(10);
+  const [r, g, b] = getCommitColor(20);
   document.getElementById('commitsToday').textContent = 10;
   document.getElementById('commitsToday').style.color = `rgb(${r},${g},${b})`;
   document.getElementById('linesUntilRewrite').textContent = linesUntilRewrite;
