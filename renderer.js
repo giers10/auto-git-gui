@@ -315,8 +315,8 @@ function getCommitColor(commitCount) {
   const stops = [
     { c:   0, color: [157, 157, 157] },
     { c:   5, color: [255, 255, 255] },
-    { c:  20, color: [60, 230, 100] },
-    { c:  50, color: [100, 180, 255] },
+    { c:  20, color: [30, 255, 0] },
+    { c:  50, color: [0, 112, 221] },
     { c: 100, color: [180, 120, 255] },
     { c: 500, color: [255, 180, 60] }
   ];
