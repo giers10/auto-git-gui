@@ -60,15 +60,17 @@ window.AnimeCat = class AnimeCat {
     this.glow = document.createElement('div');
     this.glow.id = 'cat-glow';
     Object.assign(this.glow.style, {
-      position:      'absolute',
-      left:          '40%',
-      top:           '75%',
-      transform:     'translate(-50%, -50%)',
-      borderRadius:  '50%',
-      width:         '20px',
-      height:        '20px',
-      pointerEvents: 'none',
-      zIndex:        1,
+      position:        'absolute',
+      left:            '50%',
+      top:             '50%',
+      transform:       'translate(-50%, -50%)',
+      borderRadius:    '50%',
+      width:           '80px',     // vorher 120px
+      height:          '54px',     // vorher 80px (Verhältnis zur Katze beibehalten!)
+      pointerEvents:   'none',
+      zIndex:          1,
+      filter:          'blur(9px)', // macht die Kante weicher
+      transition:      'background 0.4s, width 0.2s, height 0.2s, opacity 0.3s'
     });
     this.catContainer.appendChild(this.glow);
 
