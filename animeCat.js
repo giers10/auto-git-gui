@@ -261,18 +261,37 @@ _bindMouseHold() {
           this._startBlinking();
         });
       }
-      // Trostpreis: siehe oben
-      else if (heldFor > 1000) {
+        // Trostpreis: Augen auf, dann mouth_open oder mischievous
+        cleanup();
+        mouseDown = false;
         reopenEyes();
-        const mouthOpenTime = Math.max(heldFor - 1000, 1000);
-        if (mouthOpenTime > 0) {
-          this.img.src = this.images.mouthOpen || this.images.default;
+        const heldFor = Date.now() - mouseDownAt;
+
+        if (heldFor > 1000) {
+          // mind. 1000ms oder (heldFor - 1000), je nachdem was größer ist
+          const mouthOpenTime = Math.max(heldFor - 1000, 1000);
+
+          // Bildwahl: mischievous ab 4. Mal, sonst mouth_open
+          let imgToShow = this.images.mouthOpen || this.images.default;
+          if (this._consolationCount >= 3) {
+            // Ab dem vierten Mal: mischievous immer, danach 20% Chance
+            if (
+              this._consolationCount === 3 ||
+              Math.random() < 0.2
+            ) {
+              imgToShow = this.images.mischievous || imgToShow;
+            }
+          }
+
+          this.img.src = imgToShow;
+          this._consolationCount++;
           this._startBlinking();
           setTimeout(() => {
-            if (!joyActive && !this._isSpeaking && !this._pettingActive) this.img.src = this.images.default;
+            if (!joyActive && !this._isSpeaking && !this._pettingActive) {
+              this.img.src = this.images.default;
+            }
           }, mouthOpenTime);
-        }
-        else {
+        } else {
           this._startBlinking();
         }
       } else {
