@@ -694,7 +694,7 @@ async function startLiveCountdown(folderObj, msLeft) {
     contentList.querySelectorAll('.diff-container').forEach(container => {
       const btn = container.querySelector('.copy-diff-btn');
       const pre = container.querySelector('pre');
-      const originalSVG = btn.innerHTML;
+      const originalSVG = btn.innerHTML; 
       const checkSVG = `
         <svg xmlns="http://www.w3.org/2000/svg"
              class="h-4 w-4 text-green-600"
