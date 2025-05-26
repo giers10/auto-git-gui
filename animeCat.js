@@ -272,7 +272,7 @@ _bindMouseHold() {
         });
       }
       // Trostpreis: Augen auf, dann mouth_open oder mischievous
-      this.consolation({ 
+      this._consolation({ 
         cleanup, 
         mouseDown, 
         mouseDownAt, 
