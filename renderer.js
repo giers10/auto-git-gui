@@ -493,15 +493,32 @@ async function startLiveCountdown(folderObj, msLeft) {
     if (idx === -1) return 1; // fallback: erste Seite
     return Math.floor(idx / pageSize) + 1;
   }
+   async function getPageForCurrentCommit(folderObj, pageSize = 50) { //should probably be fused with the function above
+    // Holt alle Commits (nur die Hashes, schnell genug für moderne Maschinen)
+    const { head, total } = await window.electronAPI.getCommits(folderObj, 1, 100000); // Großer Wert, um alle zu holen (du kannst auch einen eigenen IPC machen, der NUR die Hashes returned)
+    const { commits } = await window.electronAPI.getCommits(folderObj, 1, total);
+    const idx = commits.findIndex(c => c.hash === head);
+    if (idx === -1) return 1;
+    return Math.floor(idx / pageSize) + 1;
+  }
 
   //let commitPage = 1;    // Merker für die aktuelle Seite
   const PAGE_SIZE = 50;
 
-  // UI-Element für Pagination (in deinem Template anlegen, z.B. unter contentList)
   const paginationEl = document.createElement('div');
   paginationEl.className = 'pagination flex justify-center items-center my-2 space-x-2';
+  contentList.parentElement.insertBefore(paginationEl, contentList); // nur einmal beim Initialisieren
 
-  contentList.parentElement.insertBefore(paginationEl, contentList); // einmalig nach DOM load
+  // Speichere zuletzt angezeigten Folder/Seite
+  let lastFolderPath = null;
+  let lastPage = null;
+
+  // Helper: gibt die Seite für einen Commit-Hash zurück
+  async function getCommitPageForHash(folderObj, hash, pageSize) {
+    const allHashes = await window.electronAPI.getAllCommitHashes(folderObj); // Muss in Main implementiert sein!
+    const idx = allHashes.findIndex(h => h.startsWith(hash));
+    return idx === -1 ? 1 : Math.floor(idx / pageSize) + 1;
+  }
 
   async function renderContent(folderObj, page) {
     closeDropdown();
@@ -509,42 +526,40 @@ async function startLiveCountdown(folderObj, msLeft) {
     await updateInteractionBar(folderObj);
     titleEl.textContent = folder;
 
-    // --- Neuer Block: Ermittle die Seite des aktuellen Commits ---
+    // --- Seitenwahl beim Ordnerwechsel ---
     let usePage = page;
-    if (!usePage) {
-      // Wenn keine Seite angegeben, gehe auf die Seite des aktuellen HEAD
-      const { head } = await window.electronAPI.getCommits(folderObj, 1, 1); // head holen
+    if (!usePage || folder !== lastFolderPath) {
+      // Wenn keine Seite gegeben oder Ordner gewechselt: Seite für aktuellen HEAD suchen
+      const { head } = await window.electronAPI.getCommits(folderObj, 1, 1); // nur für den Hash!
       usePage = await getCommitPageForHash(folderObj, head, PAGE_SIZE);
     }
-    // Holt die paginierten Commits!
-    const { head, commits, total, page: currentPage, pageSize, pages } =
-      await window.electronAPI.getCommits(folderObj, page, PAGE_SIZE);
+    lastFolderPath = folder;
+    lastPage = usePage;
 
-    commitPage = currentPage; // speichere aktuelle Seite
+    // Paginierte Commits holen
+    const { head, commits, total, page: currentPage, pageSize, pages } =
+      await window.electronAPI.getCommits(folderObj, usePage, PAGE_SIZE);
 
     if (!commits || !commits.length) {
       contentList.innerHTML = '<div class="p-6 text-gray-500">No commits found.</div>';
       paginationEl.innerHTML = '';
       return;
-    } 
-      contentList.innerHTML = commits.map(c => {
-        // Prüfe, ob der Commit in der Rewrite-Queue ist:
-        const isQueued = folderObj.llmCandidates && folderObj.llmCandidates.some(fullHash =>
-          fullHash.startsWith(c.hash)
-        );
-        if(isQueued) console.log("hi");
-        // Für random-Winkel (zwischen -10 und +15 Grad, z.B.) 
-        return `
-          <li style="position:relative;" class="w-full p-3 mb-2 bg-white border border-gray-200 rounded shadow-sm
-                     ${c.hash === head ? 'current-commit' : ''}">
+    }
+
+    // Commit-Liste rendern
+    contentList.innerHTML = commits.map(c => {
+      const isQueued = folderObj.llmCandidates && folderObj.llmCandidates.some(fullHash =>
+        fullHash.startsWith(c.hash)
+      );
+      return `
+        <li style="position:relative;" class="w-full p-3 mb-2 bg-white border border-gray-200 rounded shadow-sm
+                   ${c.hash === head ? 'current-commit' : ''}">
         <div class="flex justify-between text-sm text-gray-600 mb-1">
           <span>${c.hash}</span>
-          <span>${new Date(c.date).toLocaleString()}
-          </span>
+          <span>${new Date(c.date).toLocaleString()}</span>
         </div>
         <div class="text-gray-800 mb-2">${c.message}</div>
         <div class="flex space-x-2 mb-2">
-         <!-- Changes-Button -->
           <button class="diff-btn flex items-center px-2 py-1 text-xs border rounded hover:bg-gray-100" data-hash="${c.hash}">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 rotate" viewBox="0 0 24 24"
                  stroke="currentColor" fill="none">
@@ -553,7 +568,6 @@ async function startLiveCountdown(folderObj, msLeft) {
             </svg>
             Changes
           </button>
-         <!-- Snapshot-Button -->
           <button class="snapshot-btn flex items-center px-2 py-1 text-xs border rounded hover:bg-gray-100" data-hash="${c.hash}">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -561,12 +575,10 @@ async function startLiveCountdown(folderObj, msLeft) {
             </svg>
             Snapshot
           </button>
-         <!-- Checkout-Button -->
           <button
             class="checkout-btn flex items-center px-2 py-1 text-xs border rounded ${c.hash === head ? 'disabled' : 'hover:bg-gray-100'}"
             data-hash="${c.hash}"
-            ${c.hash === head ? 'disabled' : ''}
-          >
+            ${c.hash === head ? 'disabled' : ''}>
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M15 12H3m12 0l-4-4m4 4l-4 4"/>
@@ -594,28 +606,27 @@ async function startLiveCountdown(folderObj, msLeft) {
                     style="pointer-events: none; z-index:10;">`
             : ''
         }
-      </li>`;}).join(''); 
+      </li>`;
+    }).join('');
 
-      // --- PAGINATION ---
-      if (pages > 1) {
-        paginationEl.innerHTML = `
-          <button id="page-prev" class="px-2 py-1 border rounded" ${currentPage === 1 ? 'disabled' : ''}>«</button>
-          <span class="mx-2 text-sm">Seite ${currentPage} / ${pages}</span>
-          <button id="page-next" class="px-2 py-1 border rounded" ${currentPage === pages ? 'disabled' : ''}>»</button>
-        `;
-
-        paginationEl.querySelector('#page-prev').onclick = () => renderContent(folderObj, currentPage - 1);
-        paginationEl.querySelector('#page-next').onclick = () => renderContent(folderObj, currentPage + 1);
-        paginationEl.style.display = 'flex';
-      } else {
-        paginationEl.innerHTML = '';
-        paginationEl.style.display = 'none';
-      }
-      
+    // --- PAGINATION ---
+    if (pages > 1) {
+      paginationEl.innerHTML = `
+        <button id="page-prev" class="px-2 py-1 border rounded" ${currentPage === 1 ? 'disabled' : ''}>«</button>
+        <span class="mx-2 text-sm">Seite ${currentPage} / ${pages}</span>
+        <button id="page-next" class="px-2 py-1 border rounded" ${currentPage === pages ? 'disabled' : ''}>»</button>
+      `;
+      paginationEl.querySelector('#page-prev').onclick = () => renderContent(folderObj, currentPage - 1);
+      paginationEl.querySelector('#page-next').onclick = () => renderContent(folderObj, currentPage + 1);
+      paginationEl.style.display = 'flex';
+    } else {
+      paginationEl.innerHTML = '';
+      paginationEl.style.display = 'none';
+    }
 
     // Diff-Buttons prüfen und ggf. deaktivieren
     contentList.querySelectorAll('.diff-btn').forEach(async btn => {
-      const hash      = btn.dataset.hash;
+      const hash = btn.dataset.hash;
       const diffText = await window.electronAPI.diffCommit(folderObj, hash);
       if (!diffText.trim()) {
         btn.disabled = true;
@@ -626,14 +637,13 @@ async function startLiveCountdown(folderObj, msLeft) {
     // Diff-Toggle & Highlighting
     contentList.querySelectorAll('.diff-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const li        = btn.closest('li');
-        const hash      = btn.dataset.hash;
-        const svg       = btn.querySelector('svg');
+        const li = btn.closest('li');
+        const hash = btn.dataset.hash;
+        const svg = btn.querySelector('svg');
         const container = li.querySelector('.diff-container');
-        const pre       = container.querySelector('pre');
+        const pre = container.querySelector('pre');
 
         if (!pre.innerHTML.trim()) {
-          // fetch und HTML-Snippet bauen
           const diff = await window.electronAPI.diffCommit(folderObj, hash);
           const escaped = diff
             .replace(/&/g, '&amp;')
@@ -653,7 +663,7 @@ async function startLiveCountdown(folderObj, msLeft) {
         }
 
         const isOpen = container.classList.toggle('open');
-        if (isOpen) { 
+        if (isOpen) {
           container.style.maxHeight = container.scrollHeight + 'px';
         } else {
           container.style.maxHeight = '0';
@@ -678,23 +688,21 @@ async function startLiveCountdown(folderObj, msLeft) {
       });
     });
 
-    // Checkout-Button
+    // Checkout-Button: Seite neu bestimmen!
     contentList.querySelectorAll('.checkout-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const hash = btn.dataset.hash;
         await window.electronAPI.checkoutCommit(folderObj, hash);
-        // Finde die Seite des neuen HEADs (das ist jetzt der aktuelle Commit)
-        const headCommit = hash;
-        const page = await getCommitPageForHash(folderObj, headCommit, PAGE_SIZE);
+        const page = await getCommitPageForHash(folderObj, hash, PAGE_SIZE);
         await renderContent(folderObj, page);
       });
     });
-    
+
     // Copy-Diff-Button
     contentList.querySelectorAll('.diff-container').forEach(container => {
       const btn = container.querySelector('.copy-diff-btn');
       const pre = container.querySelector('pre');
-      const originalSVG = btn.innerHTML; 
+      const originalSVG = btn.innerHTML;
       const checkSVG = `
         <svg xmlns="http://www.w3.org/2000/svg"
              class="h-4 w-4 text-green-600"
@@ -717,10 +725,11 @@ async function startLiveCountdown(folderObj, msLeft) {
       });
     });
 
+    // --- Aktuellen Commit in die Mitte scrollen (falls vorhanden) ---
     const currentEl = contentList.querySelector('li.current-commit');
     if (currentEl) {
       currentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } 
+    }
   }
 
   await renderSidebar();
