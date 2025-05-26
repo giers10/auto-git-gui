@@ -135,7 +135,7 @@ window.AnimeCat = class AnimeCat {
   // Zeigt Progress der täglichen Commits an
   _animateCatGlow(commitCount) {
     this.glow = this.wrapper.querySelector('#cat-glow');
-    if (!glow) return;
+    if (!this.glow) return;
 
     const factor = Math.min(commitCount / 10, 1);
 
