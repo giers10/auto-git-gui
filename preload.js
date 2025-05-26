@@ -26,7 +26,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   removeFolder:   folderObj=> ipcRenderer.invoke('remove-folder', folderObj),
   getSelected:    ()       => ipcRenderer.invoke('get-selected'),
   setSelected:    folderObj=> ipcRenderer.invoke('set-selected', folderObj),
-  getCommits:     folderObj=> ipcRenderer.invoke('get-commits', folderObj),
+  getCommits: (folderObj, page = 1, pageSize = 50) => ipcRenderer.invoke('get-commits', folderObj, page, pageSize),
   diffCommit:     (folderObj, hash) => ipcRenderer.invoke('diff-commit', folderObj, hash),
   revertCommit:   (folderObj, hash) => ipcRenderer.invoke('revert-commit', folderObj, hash),
   snapshotCommit: (folderObj, hash) => ipcRenderer.invoke('snapshot-commit', folderObj, hash),
