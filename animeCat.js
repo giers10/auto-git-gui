@@ -49,9 +49,6 @@ window.AnimeCat = class AnimeCat {
       zIndex:        '1'
     });
 
-    this.img = document.createElement('img');
-    this.img.src = this.images.default;
-
     // --- Cat image ---
     this.img = document.createElement('img');
     this.img.src = this.images.default;
