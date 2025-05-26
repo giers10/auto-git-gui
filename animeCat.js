@@ -122,9 +122,9 @@ window.AnimeCat = class AnimeCat {
     });
     this.container.appendChild(this.heartEmitter);
   }
-  
+
   // Zeigt Progress der täglichen Commits an
-  _animateCatGlow(commitCount) {
+  animateCatGlow(commitCount) {
     if (!this.cat) return;
 
     const factor = Math.min(commitCount / 10, 1);
