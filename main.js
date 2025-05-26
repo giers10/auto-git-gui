@@ -498,7 +498,7 @@ async function runLLMCommitRewrite(folderObj, win) {
       store.set('folders', folders);
     }
     const prompt = await generateLLMCommitMessages(folderPath, hashes);
-    const llmRaw = await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk));
+    const llmRaw = await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk), win);
     const commitList = parseLLMCommitMessages(llmRaw);
     const messageMap = {};
     for (const entry of commitList) messageMap[entry.commit] = entry.newMessage;
