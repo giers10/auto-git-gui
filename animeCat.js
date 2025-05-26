@@ -61,7 +61,7 @@ window.AnimeCat = class AnimeCat {
       position:      'relative', // jetzt relativ zur wrapper-Flexbox
       marginLeft:    '14px',
       marginBottom:  '10px', 
-      padding:       '10px 500px',
+      padding:       '10px 16px',
       background:    'white',
       border:        '1px solid #ccc',
       borderRadius:  '16px 16px 16px 16px',
