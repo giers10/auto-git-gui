@@ -33,6 +33,10 @@ function talkAboutMyself(cat){
   console.log("it's a function that establishes the relevance of cats!")
   console.log("it's a function that establishes the relevance of cats!")
   console.log("it's a function that establishes the relevance of cats!")
+  console.log("it's a function that establishes the relevance of cats!")
+  console.log("it's a function that establishes the relevance of cats!")
+  console.log("it's a function that establishes the relevance of cats!")
+  console.log("it's a function that establishes the relevance of cats!")
 }
 
 let folders = store.get('folders') || [];
