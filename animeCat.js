@@ -62,7 +62,6 @@ window.AnimeCat = class AnimeCat {
     Object.assign(this.glow.style, {
       position:        'absolute',
       borderRadius:    '50%',
-      border:          '1px solid red',
       width:           '62px',     // vorher 120px
       height:          '40px',     // vorher 80px (Verhältnis zur Katze beibehalten!)
       pointerEvents:   'none',
