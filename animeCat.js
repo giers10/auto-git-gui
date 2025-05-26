@@ -133,12 +133,13 @@ window.AnimeCat = class AnimeCat {
   }
 
 _bindMouseHold() {
-  let joyActive = false;
-  let mouseDown = false;
-  let lastPos = null;
-  let moveDist = 0;
-  let mouseDownAt = 0;
   let holdTimer = null;
+  let joyTimeout = null;
+  let joyActive = false;
+  // Neu:
+  let mouseDownAt = null;
+  let lastPos = null;
+  let mouseMoved = 0;
 
   const CAT_TOLERANCE = 15;
   const MOVE_THRESHOLD = 300;
