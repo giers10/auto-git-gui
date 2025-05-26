@@ -24,6 +24,7 @@ window.AnimeCat = class AnimeCat {
     this._talkIntervalId = null;
     this._speechTimeout  = null;
     this._mouthOpen      = false;
+    this._pettingActive = false;
 
     this._createElements();
     this._bindMouseHold();
