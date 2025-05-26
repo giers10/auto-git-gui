@@ -9,6 +9,15 @@ window.addEventListener('DOMContentLoaded', async () => {
   const panel       = document.querySelector('.flex-1.p-4.overflow-y-auto');
 
 
+  const slot = document.getElementById('catSlot');
+  window.cat = new window.AnimeCat(slot, {
+    images: {
+      default:    'assets/cat/default.png',
+      eyesClosed: 'assets/cat/eyes_closed.png',
+      mouthOpen:  'assets/cat/mouth_open.png'
+    }
+  });
+
   // Drag and Drop
   document.body.addEventListener('dragover', e => {
     e.preventDefault();
@@ -632,14 +641,7 @@ folders.forEach(folderObj => {
   });
 
 
-  const slot = document.getElementById('catSlot');
-  window.cat = new window.AnimeCat(slot, {
-    images: {
-      default:    'assets/cat/default.png',
-      eyesClosed: 'assets/cat/eyes_closed.png',
-      mouthOpen:  'assets/cat/mouth_open.png'
-    }
-  });
+
 
   // Beispiel: Die Katze spricht
   window.cat.beginSpeech();
