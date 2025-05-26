@@ -99,8 +99,8 @@ window.AnimeCat = class AnimeCat {
     this.bubble = document.createElement('div');
     Object.assign(this.bubble.style, {
       position:      'relative',
-      marginLeft:    '12px',
-      marginBottom:  '16px',
+      marginLeft:    '4px',     // vorher 14px
+      marginBottom:  '1px',     // vorher 11px
       padding:       '10px 16px',
       background:    'white',
       border:        '1px solid #ccc',
