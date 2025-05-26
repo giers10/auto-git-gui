@@ -213,7 +213,7 @@ _bindMouseHold() {
         mouseDown = false;
         reopenEyes();
         const heldFor = Date.now() - mouseDownAt;
-        const mouthOpenTime = Math.max(heldFor - 1000, 0) < 500 ? 500 : Math.max(heldFor - 1000, 0);
+        const mouthOpenTime = Math.max(heldFor - 1000, 700);
         if (mouthOpenTime > 0) {
           this.img.src = this.images.mouthOpen || this.images.default;
           this._startBlinking();
