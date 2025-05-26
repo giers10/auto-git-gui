@@ -13,7 +13,9 @@ window.AnimeCat = class AnimeCat {
       eyesClosed:  'eyes_closed.png',
       blink:       'blink.png',
       mouthOpen:   'mouth_open.png',
-      joy:         'joy.png' 
+      joy:         'joy.png',
+      mischievous: 'mischievous.png' 
+
     }, options.images);
     this.blinkMin      = options.blinkMin      ?? 5000;
     this.blinkMax      = options.blinkMax      ?? 15000;
