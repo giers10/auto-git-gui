@@ -653,6 +653,26 @@ folders.forEach(folderObj => {
   ipcRenderer.on('cat-begin', () => window.cat && window.cat.begin());
   ipcRenderer.on('cat-chunk', (_e, chunk) => window.cat && window.cat.streamText(chunk));
   ipcRenderer.on('cat-end', () => window.cat && window.cat.end());
+  const speakToCat = msg => {
+  window.cat.beginSpeech();
+    // Zeig Nachricht Zeichen für Zeichen:
+    let i = 0;
+    function nextChar() {
+      if (i < msg.length) {
+        window.cat.appendSpeech(msg[i++]);
+        setTimeout(nextChar, 50);
+      } else {
+        window.cat.endSpeech();
+      }
+    }
+    nextChar();
+  };
+
+  window.electronAPI && window.electronAPI.onCatSay && 
+    window.electronAPI.onCatSay((_, msg) => speakToCat(msg));
+
+  // oder mit
+  window.require && require('electron').ipcRenderer.on('cat-say', (_, msg) => speakToCat(msg));
 
 /*
   const slot = document.getElementById('catSlot');
