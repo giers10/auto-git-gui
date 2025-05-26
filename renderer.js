@@ -1,3 +1,5 @@
+import { AnimeCat } from './animeCat.js';
+
 window.addEventListener('DOMContentLoaded', async () => {
   // Elemente holen
   const folderList  = document.getElementById('folderList');
@@ -630,5 +632,22 @@ folders.forEach(folderObj => {
       renderSidebar();
     }
   });
+
+
+  const slot = document.getElementById('catSlot');
+  const cat = new AnimeCat(slot, {
+    images: {
+      default:    'assets/cat/default.png',
+      eyesClosed: 'assets/cat/eyes_closed.png',
+      mouthOpen:  'assets/cat/mouth_open.png'
+    }
+  });
+  // Stelle sie global zur Verfügung:
+  window.cat = {
+    begin: () => cat.beginSpeech(),
+    streamText: txt => cat.appendSpeech(txt),
+    end: () => cat.endSpeech()
+  };
+
 
 });
