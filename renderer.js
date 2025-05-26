@@ -614,7 +614,6 @@ function formatCountdown(ms) {
   await renderSidebar();
   const initial = await window.electronAPI.getSelected();
   if (initial) await renderContent(initial);
-  updateInteractionBar(window.initial); //11111111
 
   addBtn.addEventListener('click', async () => {
     await window.electronAPI.addFolder();
