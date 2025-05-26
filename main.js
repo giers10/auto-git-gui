@@ -1102,8 +1102,7 @@ function buildTrayMenu() {
   ];
 
   function isIgnored(name) {
-    //return IGNORED_NAMES.includes(name);
-    return (name);
+    return IGNORED_NAMES.includes(name);
   }
 
   function walkDir(base, rel = '.') {
