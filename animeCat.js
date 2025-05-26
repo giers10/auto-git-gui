@@ -61,8 +61,8 @@ window.AnimeCat = class AnimeCat {
     this.glow.id = 'cat-glow';
     Object.assign(this.glow.style, {
       position:        'absolute',
-      left:            '50%',
-      top:             '50%',
+      left:            '40%',
+      top:             '60%',
       transform:       'translate(-50%, -50%)',
       borderRadius:    '50%',
       width:           '80px',     // vorher 120px
