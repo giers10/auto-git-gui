@@ -325,28 +325,33 @@ async function updateInteractionBar(folderObj) {
   const today = new Date().toISOString().slice(0, 10);
   const commitsToday = stats[today] || 0;
 
-  // Globale Variablen (falls du sie irgendwo setzt)
-  const intelligentCommitThreshold = window.intelligentCommitThreshold || 50;
-  const minutesCommitThreshold = window.minutesCommitThreshold || 20;
+  // Globale Variablen aus Settings holen (am besten beim Start speichern)
+  const intelligentCommitThreshold = await window.electronAPI.getIntelligentCommitThreshold?.() || 20;
+  const minutesCommitThreshold = await window.electronAPI.getMinutesCommitThreshold?.() || 5;
 
   // Lines until next Rewrite
   const linesChanged = folderObj?.linesChanged || 0;
   const linesUntilRewrite = Math.max(0, intelligentCommitThreshold - linesChanged);
 
-  // Time until next Rewrite
+  // Time until next Rewrite: *Initial berechnen, Live-Countdown separat*
   let countdown = "00:00";
+  let msLeft = 0;
   if (folderObj?.firstCandidateBirthday) {
     const msThreshold = minutesCommitThreshold * 60 * 1000;
     const endTime = new Date(folderObj.firstCandidateBirthday).getTime() + msThreshold;
-    const msLeft = Math.max(0, endTime - Date.now());
+    msLeft = Math.max(0, endTime - Date.now());
     countdown = formatCountdown(msLeft);
   }
 
-  // Einsetzen in die Bar
+  // In die Bar schreiben
   document.getElementById('commitsToday').textContent = commitsToday;
   document.getElementById('linesUntilRewrite').textContent = linesUntilRewrite;
   document.getElementById('countdown').textContent = countdown;
+
+  // Live-Countdown starten, aber nur wenn noch Zeit übrig
+  startLiveCountdown(folderObj, msLeft);
 }
+
 function startLiveCountdown(folderObj, msLeft) {
   if (countdownInterval) clearInterval(countdownInterval);
 
