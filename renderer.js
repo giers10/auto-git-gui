@@ -431,7 +431,7 @@ async function startLiveCountdown(folderObj, msLeft) {
 
     // Lade Tree
     const tree = await window.electronAPI.getFolderTree(selected.path);
-    console.log(tree)
+    console.log(tree);
     folderHierarchyDropdown.textContent = renderFolderTreeAscii(tree, '.', '');
   });
 
