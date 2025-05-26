@@ -484,7 +484,6 @@ async function startLiveCountdown(folderObj, msLeft) {
   }
 
   window.addEventListener('repo-updated', () => {
-    closeDropdown();
   });
 
 
@@ -686,6 +685,7 @@ async function startLiveCountdown(folderObj, msLeft) {
 
   // Repo-Update Handling jetzt mit Lookup für folderObj
   window.addEventListener('repo-updated', async e => {
+    closeDropdown();
     const obj = await getFolderObjByPath(e.detail);
     if (!obj) return;
 
