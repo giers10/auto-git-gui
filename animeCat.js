@@ -131,22 +131,17 @@ window.AnimeCat = class AnimeCat {
 
   // Zeigt Progress der täglichen Commits an
   _animateCatGlow(commitCount) {
-    this.glow = this.wrapper.querySelector('#cat-glow');
-    if (!this.glow) return;
+    const glow = this.glow;
+    if (!glow) return;
 
     const factor = Math.min(commitCount / 10, 1);
 
-    // Beispiel: Größe skalieren
     const minSize = 80, maxSize = 170;
     const size = minSize + factor * (maxSize - minSize);
 
     glow.style.width = `${size}px`;
     glow.style.height = `${size * 0.66}px`;
-
-    // Optional: Opacity je nach Commits
     glow.style.opacity = 0.2 + 0.8 * factor;
-
-    // Optional: Farbe mit JS anpassen (geht auch über CSS-Variablen)
     glow.style.background = `radial-gradient(circle, rgba(255,230,100,${0.7 + factor*0.3}) 0%, rgba(255,230,100,${0.10 + 0.5*factor}) 70%, rgba(0,0,0,0) 100%)`;
   }
 
