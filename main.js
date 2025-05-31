@@ -1395,7 +1395,7 @@ function buildTrayMenu() {
 
   ipcMain.handle('generate-readme', async (evt, folderPath) => {
   // Hole Author aus Settings oder Default
-  const store = require('./yourStore'); // oder wie auch immer...
+  // const store = require('./yourStore'); // oder wie auch immer...
   const authorName = store.get('author') || 'Unknown';
   const licenseType = store.get('license') || 'MIT';
   const repoName = path.basename(folderPath);
