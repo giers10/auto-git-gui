@@ -347,7 +347,7 @@ ${JSON.stringify(commits, null, 2)}
 // ---- 3. LLM Streaming Call ----
 async function streamLLMCommitMessages(prompt, onDataChunk, win) {
   await ensureOllamaRunning();
-  const selectedModel = store.get('commitModel') || 'qwen2.5-coder:32b';
+  const selectedModel = store.get('commitModel') || 'qwen2.5-coder:7b';
   const response = await fetch('http://localhost:11434/api/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
