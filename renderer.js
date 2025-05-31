@@ -543,7 +543,7 @@ async function startLiveCountdown(folderObj, msLeft) {
     
     // Dynamischer Renderbutton
     // statt dessen lieber den tree auslesen?
-    const readmePath = path.join(folder.path, 'README.md');
+    const readmePath = path.join(folder, 'README.md');
     if (fs.existsSync(readmePath)) {
       readmeBtn.textContent = 'Update README';
     } else {
