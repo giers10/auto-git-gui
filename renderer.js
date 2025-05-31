@@ -543,12 +543,8 @@ async function startLiveCountdown(folderObj, msLeft) {
     
     // Dynamischer Renderbutton
     // statt dessen lieber den tree auslesen?
-    const readmePath = folder + ('README.md');
-    if (fs.existsSync(readmePath)) {
-      readmeBtn.textContent = 'Update README';
-    } else {
-      readmeBtn.textContent = 'Generate README';
-    }
+    const hasReadme = await window.electronAPI.hasReadme(folder);
+    readmeBtn.textContent = hasReadme ? 'Update README' : 'Generate README';
 
     // --- Seitenwahl beim Ordnerwechsel ---
     let usePage = page;
