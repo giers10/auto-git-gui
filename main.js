@@ -936,7 +936,7 @@ function buildTrayMenu() {
   const folders = store.get('folders') || [];
   folders.forEach(folderObj => {
     if (fs.existsSync(path.join(folderObj.path, '.git', 'refs', 'heads', 'master'))) {
-      watchRepo(folderObj.path, win);
+      //watchRepo(folderObj.path, win);
     }
     if (folderObj.monitoring) {
       startMonitoringWatcher(folderObj.path, win);
@@ -987,7 +987,7 @@ function buildTrayMenu() {
       store.set('folders', folders);
     }
     store.set('selected', newFolder);
-    watchRepo(newFolder, win);
+    //watchRepo(newFolder, win);
     startMonitoringWatcher(newFolder, win);
     return store.get('folders');
   }
