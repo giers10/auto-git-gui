@@ -64,9 +64,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   generateReadme: (folderPath) => ipcRenderer.invoke('generate-readme', folderPath),
 });
 
-ipcRenderer.on('repo-updated', (_e, folder) => {
+/*ipcRenderer.on('repo-updated', (_e, folder) => {
   window.dispatchEvent(new CustomEvent('repo-updated', { detail: folder }));
-});
+});*/
 
 ipcRenderer.on('skymode-changed', (_e, val) => {
   window.dispatchEvent(new CustomEvent('skymode-changed', { detail: val }));
