@@ -767,7 +767,7 @@ async function startLiveCountdown(folderObj, msLeft) {
     if (currentEl) {
       currentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }
+  } 
 
   await renderSidebar();
   const initial = await window.electronAPI.getSelected();
