@@ -540,6 +540,22 @@ async function rewordCommitsSequentially(repoPath, commitMessageMap, hashes) {
   console.log('[AutoGit] All specified commit messages updated!');
   win.webContents.send('repo-updated', folder);
 }
+/*
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+*/
 
 //---- 6. Workflow ----
 async function runLLMCommitRewrite(folderObj, win) {
