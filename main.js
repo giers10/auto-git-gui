@@ -398,6 +398,61 @@ async function streamLLMCommitMessages(prompt, onDataChunk, win) {
   return fullOutput;
 }
 
+async function StreamLLMREADME(prompt, onDataChunk, win) {
+  await ensureOllamaRunning();
+  const selectedModel = store.get('readmeModel') || 'qwen2.5-coder:32b';
+  const response = await fetch('http://localhost:11434/api/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: selectedModel,
+      prompt: prompt,
+      stream: true,
+      options: { temperature: 0.4 }
+    })
+  });
+
+  if (!response.body) throw new Error('No stream returned');
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  let fullOutput = '';
+  let done = false;
+
+  // ⭐️ Starte den Stream für die Katze!
+  win.webContents.send('cat-begin');
+
+  while (!done) {
+    const { value, done: streamDone } = await reader.read();
+    done = streamDone;
+    if (value) {
+      const chunk = decoder.decode(value, { stream: true });
+      for (const line of chunk.split('\n')) {
+        if (!line.trim()) continue;
+        try {
+          const obj = JSON.parse(line);
+          if (obj.response) {
+            fullOutput += obj.response;
+            // Sende Chunk an Renderer/Katze:
+            win.webContents.send('cat-chunk', obj.response);
+            if (onDataChunk) onDataChunk(obj.response);
+          }
+          if (obj.done) break;
+        } catch (e) {
+          // ignore malformed chunk
+        }
+      }
+    }
+  }
+
+  // ⭐️ Stream ist zu Ende
+  win.webContents.send('cat-end');
+
+  return fullOutput;
+}
+
+
+
 // ---- 4. JSON Output robust parsen ----
 function parseLLMCommitMessages(rawOutput) {
   let cleaned = rawOutput.trim();
@@ -1570,7 +1625,9 @@ Source Code:
     const win = evt.sender; // für Cat-Stream
     await ensureOllamaRunning();
     const selectedModel = store.get('readmeModel') || 'qwen2.5-coder:32b';
-    let result = await streamLLMCommitMessages(prompt, null, win);
+    //let result = await streamLLMCommitMessages(prompt, null, win);
+
+    let result = await streamLLMREADME(prompt, null, win);
 
     // Output fixen: Entferne eventuelle Codeblocks
     result = result.replace(/^```markdown|^```md|^```/gmi, '').replace(/```$/gmi, '').trim();
