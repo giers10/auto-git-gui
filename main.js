@@ -538,7 +538,6 @@ async function rewordCommitsSequentially(repoPath, commitMessageMap, hashes) {
     console.log(`[AutoGit] Reworded commit ${hash} ✔`);
   }
   console.log('[AutoGit] All specified commit messages updated!');
-  win.webContents.send('repo-updated', folder);
 }
 /*
 
@@ -578,6 +577,7 @@ async function runLLMCommitRewrite(folderObj, win) {
     const messageMap = {};
     for (const entry of commitList) messageMap[entry.commit] = entry.newMessage;
     await rewordCommitsSequentially(folderPath, messageMap, hashes);
+    win.webContents.send('repo-updated', folder);
   }
 }
 //
