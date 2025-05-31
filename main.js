@@ -1479,6 +1479,54 @@ Source Code:
   });
 };
 
+
+const MAX_TOTAL_SIZE = 100 * 1024; // 100 KB
+const CODE_EXTS = [
+  '.js','.jsx','.ts','.tsx','.py','.sh','.rb','.pl','.php','.java','.c','.cpp','.h','.cs','.go','.rs','.json','.yml','.yaml','.toml','.md','.html','.css','.txt'
+];
+
+function isTextFile(filePath) {
+  // Optional: Mehr Intelligenz!
+  const ext = path.extname(filePath).toLowerCase();
+  if (CODE_EXTS.includes(ext)) return true;
+  // Ignoriere node_modules und große Binaries!
+  const stat = fs.statSync(filePath);
+  if (stat.size > 200*1024) return false;
+  const buffer = fs.readFileSync(filePath, {encoding: null, flag: 'r'});
+  for (let i = 0; i < Math.min(buffer.length, 400); i++) {
+    if (buffer[i] === 0) return false;
+  }
+  return true;
+}
+
+// --- Dateien sammeln ---
+function getRelevantFiles(dir, maxSize = MAX_TOTAL_SIZE) {
+  let files = [];
+  function walk(current) {
+    for (const f of fs.readdirSync(current)) {
+      const full = path.join(current, f);
+      if (fs.statSync(full).isDirectory()) {
+        if (f.startsWith('.')) continue; // .git etc auslassen
+        walk(full);
+      } else if (isTextFile(full)) {
+        files.push(full);
+      }
+    }
+  }
+  walk(dir);
+  // Sortiere nach Größe, nimm so viele wie ins Limit passen
+  files = files.map(f => ({f, s: fs.statSync(f).size}))
+    .sort((a,b)=>a.s-b.s);
+  let sum = 0, selected = [];
+  for (let {f,s} of files) {
+    if (sum + s > maxSize) break;
+    selected.push(f);
+    sum += s;
+  }
+  return selected;
+}
+
+
 ipcMain.on('show-folder-context-menu', (event, folderPath) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   const template = [
