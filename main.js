@@ -936,9 +936,9 @@ function buildTrayMenu() {
   // 1) Beim Start bereits gespeicherte Ordner überwachen und monitoren
   const folders = store.get('folders') || [];
   folders.forEach(folderObj => {
-    if (fs.existsSync(path.join(folderObj.path, '.git', 'refs', 'heads', 'master'))) {
+    //if (fs.existsSync(path.join(folderObj.path, '.git', 'refs', 'heads', 'master'))) {
       //watchRepo(folderObj.path, win);
-    }
+    //}
     if (folderObj.monitoring) {
       startMonitoringWatcher(folderObj.path, win);
     }
