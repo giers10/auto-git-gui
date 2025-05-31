@@ -206,6 +206,7 @@ async function ensureOllamaRunning() {
  * Startet einen File-Watcher auf .git/refs/heads/master,
  * sendet bei Änderungen 'repo-updated' an den Renderer.
  */
+/*)
 function watchRepo(folder, win) {
   const gitHead = path.join(folder, '.git', 'refs', 'heads', 'master');
   const watcher = chokidar.watch(gitHead, { ignoreInitial: true });
@@ -213,7 +214,7 @@ function watchRepo(folder, win) {
     win.webContents.send('repo-updated', folder);
   });
   repoWatchers.set(folder, watcher);
-}
+}*/
 
 /**
  * Initiiert ein Git-Repo in `folder`, falls noch nicht vorhanden,
