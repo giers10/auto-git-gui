@@ -1387,7 +1387,10 @@ function buildTrayMenu() {
     }
   });
 
-
+  ipcMain.handle('has-readme', async (_evt, folderPath) => {
+    const readmePath = path.join(folderPath, 'README.md');
+    return fs.existsSync(readmePath);
+  });
 
 
 
