@@ -1625,7 +1625,7 @@ Source Code:
 
     console.log(prompt);
     // LLM call
-    const win = evt.sender; // für Cat-Stream
+    //const win = BrowserWindow.fromWebContents(evt.sender); // für Cat-Stream
     await ensureOllamaRunning();
     const selectedModel = store.get('readmeModel') || 'qwen2.5-coder:32b';
     //let result = await streamLLMCommitMessages(prompt, null, win);
