@@ -1542,6 +1542,7 @@ ipcMain.on('show-tree-context-menu', (event, { absPath, relPath, root, type }) =
           walk(full);
         } else if (isTextFile(full)) {
           files.push(full);
+          console.log("pushed " + full)
         }
       }
     }
