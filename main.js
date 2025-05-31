@@ -1623,6 +1623,7 @@ Source Code:
     }
     prompt += `\n---\nWrite ONLY the complete README.md in markdown format. Do NOT add extra explanations, commentary, or code reviews. And remember, the license is ${licenseType}!`;
 
+    console.log(prompt);
     // LLM call
     const win = evt.sender; // für Cat-Stream
     await ensureOllamaRunning();
