@@ -1556,6 +1556,7 @@ ipcMain.on('show-tree-context-menu', (event, { absPath, relPath, root, type }) =
       selected.push(f);
       sum += s;
     }
+    console.log("files to generate readme from: " + selected)
     return selected;
   }
 
