@@ -507,8 +507,6 @@ async function startLiveCountdown(folderObj, msLeft) {
     return result;
   }
 
-  window.addEventListener('repo-updated', () => {
-  });
 
   async function getCommitPageForHash(folderObj, hash, pageSize = PAGE_SIZE) {
     // Hole alle Commits (NICHT paginiert!)
