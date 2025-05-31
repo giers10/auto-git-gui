@@ -580,10 +580,6 @@ async function runLLMCommitRewrite(folderObj, win) {
     win.webContents.send('repo-updated', folder);
   }
 }
-//
-//
-//test
-/*
 // ---- 6. Komplett-Workflow (Random instant messages für debugging) ----
 async function runLLMCommitRewrite(folderPath, hashes) {
   // Generate a mapping { hash: message }
