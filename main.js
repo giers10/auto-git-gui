@@ -1627,7 +1627,7 @@ Source Code:
     const selectedModel = store.get('readmeModel') || 'qwen2.5-coder:32b';
     //let result = await streamLLMCommitMessages(prompt, null, win);
 
-    let result = await streamLLMREADME(prompt, null, win);
+    let result = await streamLLMREADME(prompt, chunk => process.stdout.write(chunk), win);
 
     // Output fixen: Entferne eventuelle Codeblocks
     result = result.replace(/^```markdown|^```md|^```/gmi, '').replace(/```$/gmi, '').trim();
