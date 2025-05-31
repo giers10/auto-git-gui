@@ -60,7 +60,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onCatChunk:    (cb) => ipcRenderer.on('cat-chunk', cb),
   onCatEnd:      (cb) => ipcRenderer.on('cat-end', cb),
   getDailyCommitStats: () => ipcRenderer.invoke('get-daily-commit-stats'),
-
+  hasReadme: (folderPath) => ipcRenderer.invoke('has-readme', folderPath),
+  generateReadme: (folderPath) => ipcRenderer.invoke('generate-readme', folderPath),
 });
 
 ipcRenderer.on('repo-updated', (_e, folder) => {
