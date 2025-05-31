@@ -232,6 +232,7 @@ async function initGitRepo(folder) {
     await git.commit(message);
   }
 }
+//test
 
 // Map für Monitoring-Watcher (nicht repoWatchers!)
 const monitoringWatchers = new Map();
