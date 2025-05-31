@@ -1440,29 +1440,29 @@ Now write a similar README.md for the following project (think of a good name an
 
 Source Code:
   `;
-  for (const f of codeFiles) {
-    let rel = path.relative(folderPath, f);
-    prompt += `\n---\nFile: ${rel}\n${fs.readFileSync(f, 'utf-8')}\n`;
-  }
-  prompt += `\n---\nWrite ONLY the complete README.md in markdown format. Do NOT add extra explanations, commentary, or code reviews. And remember, the license is ${licenseType}!`;
+    for (const f of codeFiles) {
+      let rel = path.relative(folderPath, f);
+      prompt += `\n---\nFile: ${rel}\n${fs.readFileSync(f, 'utf-8')}\n`;
+    }
+    prompt += `\n---\nWrite ONLY the complete README.md in markdown format. Do NOT add extra explanations, commentary, or code reviews. And remember, the license is ${licenseType}!`;
 
-  // LLM call
-  const win = evt.sender; // für Cat-Stream
-  await ensureOllamaRunning();
-  const selectedModel = store.get('readmeModel') || 'qwen2.5-coder:32b';
-  let result = await streamLLMCommitMessages(prompt, null, win);
+    // LLM call
+    const win = evt.sender; // für Cat-Stream
+    await ensureOllamaRunning();
+    const selectedModel = store.get('readmeModel') || 'qwen2.5-coder:32b';
+    let result = await streamLLMCommitMessages(prompt, null, win);
 
-  // Output fixen: Entferne eventuelle Codeblocks
-  result = result.replace(/^```markdown|^```md|^```/gmi, '').replace(/```$/gmi, '').trim();
+    // Output fixen: Entferne eventuelle Codeblocks
+    result = result.replace(/^```markdown|^```md|^```/gmi, '').replace(/```$/gmi, '').trim();
 
-  // Disclaimer einbauen
-  const disclaimer = `> ⚠️ **This README.md has been automatically generated using AI and might contain hallucinations or inaccuracies. Please proceed with caution!**\n\n`;
-  // Falls nötig, Name/Author oben einbauen
-  let final = `# ${repoName}\n\n**Author:** ${authorName}\n\n${disclaimer}${result}`;
-  // Schreibe/Überschreibe README.md (wenn du willst, oder Preview)
-  fs.writeFileSync(path.join(folderPath, 'README.md'), final, 'utf-8');
-  return final;
-});
+    // Disclaimer einbauen
+    const disclaimer = `> ⚠️ **This README.md has been automatically generated using AI and might contain hallucinations or inaccuracies. Please proceed with caution!**\n\n`;
+    // Falls nötig, Name/Author oben einbauen
+    let final = `# ${repoName}\n\n**Author:** ${authorName}\n\n${disclaimer}${result}`;
+    // Schreibe/Überschreibe README.md (wenn du willst, oder Preview)
+    fs.writeFileSync(path.join(folderPath, 'README.md'), final, 'utf-8');
+    return final;
+  });
 
 
 
