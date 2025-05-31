@@ -577,11 +577,11 @@ async function runLLMCommitRewrite(folderObj, win) {
     const messageMap = {};
     for (const entry of commitList) messageMap[entry.commit] = entry.newMessage;
     await rewordCommitsSequentially(folderPath, messageMap, hashes);
-    win.webContents.send('repo-updated', folder);
+    win.webContents.send('repo-updated', folderObj.path);
   }
 }
 
-
+/*
 
 
 // ---- 6. Komplett-Workflow (Random instant messages für debugging) ----
