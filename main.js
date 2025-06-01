@@ -247,6 +247,24 @@ function buildCommitMessageFromStatus(status, prefix = '[auto]') {
   return prefix + '\n' + changes.map(l => ` ${l}`).join('\n');
 }
 
+
+
+function ensureInGitignore(folderPath, name) {
+  const gitignorePath = path.join(folderPath, '.gitignore');
+  let lines = [];
+  if (fs.existsSync(gitignorePath)) {
+    lines = fs.readFileSync(gitignorePath, 'utf-8').split(/\r?\n/);
+  }
+  // Schon drin?
+  if (lines.some(line => line.trim() === name)) return;
+  // Anfügen
+  fs.appendFileSync(gitignorePath, name + '\n');
+}
+
+
+
+
+
 function startMonitoringWatcher(folderPath, win) {
   if (monitoringWatchers.has(folderPath)) return;
   const watcher = chokidar.watch(folderPath, {
@@ -650,6 +668,18 @@ function createRewriteScript(mapping) {
 
 
 async function autoCommit(folderPath, message, win) {
+
+  for (const name of IGNORED_NAMES) {
+    if (name.includes('*')) {
+      addMatchingFilesToGitignore(folderPath, name);
+    } else {
+      const absPath = path.join(folderPath, name.replace(/\/$/, ''));
+      if (fs.existsSync(absPath)) {
+        ensureInGitignore(folderPath, name);
+      }
+    }
+  }
+
   const git = simpleGit(folderPath);
   const status = await git.status();
   if (
