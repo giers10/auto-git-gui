@@ -626,6 +626,9 @@ const IGNORED_NAMES = [
 const monitoringQueues = new Map(); // Map: folderPath -> Array<Function>
 const monitoringActive = new Map(); // Map: folderPath -> Boolean (ob Task aktiv)
 
+const monitoringQueues = new Map();
+const monitoringActive = new Map();
+
 function enqueueTask(folderPath, fn) {
   if (!monitoringQueues.has(folderPath)) monitoringQueues.set(folderPath, []);
   monitoringQueues.get(folderPath).push(fn);
@@ -642,8 +645,19 @@ async function processQueue(folderPath) {
     try { await task(); } catch (e) { console.error(e); }
   }
   monitoringActive.set(folderPath, false);
-} // <---- HIER FÜGEN!
-  
+}
+
+function ensureInGitignore(folderPath, name) {
+  const gitignorePath = path.join(folderPath, '.gitignore');
+  let lines = [];
+  if (fs.existsSync(gitignorePath)) {
+    lines = fs.readFileSync(gitignorePath, 'utf-8').split(/\r?\n/);
+  }
+  if (lines.some(line => line.trim() === name)) return false;
+  fs.appendFileSync(gitignorePath, name + '\n');
+  return true;
+}
+
 function startMonitoringWatcher(folderPath, win) {
   if (monitoringWatchers.has(folderPath)) return;
   const watcher = chokidar.watch(folderPath, {
@@ -654,53 +668,31 @@ function startMonitoringWatcher(folderPath, win) {
     awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 }
   });
 
-  // .gitignore-Update als eigene Funktion (inkl. Wildcards!)
-  function updateGitignoreIfNeeded(fileOrDirName) {
-    let changed = false;
-    for (const name of IGNORED_NAMES) {
-      if (name.includes('*')) {
-        if (micromatch.isMatch(fileOrDirName, name)) {
-          changed = ensureInGitignore(folderPath, name) || changed;
-        }
-      } else {
-        if (fileOrDirName === name.replace(/\/$/, '')) {
-          changed = ensureInGitignore(folderPath, name) || changed;
-        }
-      }
-    }
-    return changed;
-  }
-
-  // Modifiziert: ensureInGitignore gibt true zurück, wenn wirklich geschrieben wurde!
-  function ensureInGitignore(folderPath, name) {
-    const gitignorePath = path.join(folderPath, '.gitignore');
-    let lines = [];
-    if (fs.existsSync(gitignorePath)) {
-      lines = fs.readFileSync(gitignorePath, 'utf-8').split(/\r?\n/);
-    }
-    if (lines.some(line => line.trim() === name)) return false;
-    fs.appendFileSync(gitignorePath, name + '\n');
-    return true;
-  }
-
-  // Debounce für File-Events (mehrere in kurzer Zeit bündeln)
   let debounceTimer = null;
-  let dirty = false;
   let pendingNames = new Set();
 
   function handleDebounced() {
     enqueueTask(folderPath, async () => {
       const namesArr = Array.from(pendingNames);
       pendingNames.clear();
+
+      // .gitignore sofort synchron aktualisieren (im Event-Handler)
       let gitignoreChanged = false;
-
       for (const fileOrDirName of namesArr) {
-        gitignoreChanged = updateGitignoreIfNeeded(fileOrDirName) || gitignoreChanged;
+        for (const name of IGNORED_NAMES) {
+          if (name.includes('*')) {
+            if (micromatch.isMatch(fileOrDirName, name)) {
+              gitignoreChanged = ensureInGitignore(folderPath, name) || gitignoreChanged;
+            }
+          } else {
+            if (fileOrDirName === name.replace(/\/$/, '')) {
+              gitignoreChanged = ensureInGitignore(folderPath, name) || gitignoreChanged;
+            }
+          }
+        }
       }
-      // Optional: .gitignore direkt committen (uncomment falls gewünscht)
-      // if (gitignoreChanged) await autoCommit(folderPath, '[auto] Update .gitignore', win);
 
-      // Danach: Eigentliche Repo-Änderung checken und ggf. Committen
+      // Danach wie gehabt:
       const git = simpleGit(folderPath);
       const status = await git.status();
       if (
@@ -717,7 +709,6 @@ function startMonitoringWatcher(folderPath, win) {
     });
   }
 
-  // File-Events bündeln & debouncen
   ['add', 'change', 'unlink'].forEach(ev => {
     watcher.on(ev, filePath => {
       const fileOrDirName = path.basename(filePath);
