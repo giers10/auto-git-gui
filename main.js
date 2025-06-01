@@ -2310,8 +2310,20 @@ ipcMain.handle('push-to-gitea', async (_evt, folderPath) => {
       const created = await createResp.json();
       repoUrl = created.clone_url;
     } else if (checkResp.ok) {
-      // 4b) Repo already exists → use its clone_url
-      const existing = await checkResp.json();
+      // Repo already exists → first update its description
+      await fetch(`${GITEA_BASE}/repos/${username}/${repoName}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `token ${GITEA_TOKEN}`
+        },
+        body: JSON.stringify({ description })
+      });
+
+      // Now fetch the repo data so we get the up‐to‐date clone_url
+      const existing = await (await fetch(`${GITEA_BASE}/repos/${username}/${repoName}`, {
+        headers: { Authorization: `token ${GITEA_TOKEN}` }
+      })).json();
       repoUrl = existing.clone_url;
     } else {
       const txt = await checkResp.text();
