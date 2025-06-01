@@ -630,6 +630,25 @@ function enqueueTask(folderPath, fn) {
   monitoringQueues.get(folderPath).push(fn);
   processQueue(folderPath);
 }
+
+async function processQueue(folderPath) {
+  if (monitoringActive.get(folderPath)) return;
+  monitoringActive.set(folderPath, true);
+
+  const queue = monitoringQueues.get(folderPath) || [];
+  while (queue.length > 0) {
+    const task = queue.shift();
+    try { await task(); } catch (e) { console.error(e); }
+  }
+  monitoringActive.set(folderPath, false);
+}
+
+
+
+
+
+
+
 function ensureInGitignore(folderPath, name) {
   const gitignorePath = path.join(folderPath, '.gitignore');
   let lines = [];
