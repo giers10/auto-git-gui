@@ -31,6 +31,24 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+    // Readme-Button
+  const readmeBtn = document.getElementById('readmeBtn');
+    readmeBtn.addEventListener('click', async () => {
+    const selected = await window.electronAPI.getSelected();
+    if (!selected) return alert('No folder selected!');
+    readmeBtn.disabled = true;
+    readmeBtn.textContent = 'Generating...';
+    try {
+      const output = await window.electronAPI.generateReadme(selected.path);
+      alert('README.md was generated!\n\n' + output.slice(0, 500) + '…');
+    } catch (e) {
+      alert('Error generating README:\n' + (e.message || e));
+    }
+    readmeBtn.disabled = false;
+    const hasReadme = await window.electronAPI.hasReadme(selected.path);
+    readmeBtn.textContent = hasReadme ? 'Update README' : 'Generate README';
+  });
+
 
   // Drag and Drop
   document.body.addEventListener('dragover', e => {
@@ -245,7 +263,8 @@ folders.forEach(folderObj => {
     await renderContent(folderObj);
   });
 
-
+  const hasReadme = await window.electronAPI.hasReadme(folderObj.path);
+  readmeBtn.textContent = hasReadme ? 'Update README' : 'Generate README';
 
 
   const pauseBtn = li.querySelector('.pause-play-btn');
@@ -743,24 +762,7 @@ async function startLiveCountdown(folderObj, msLeft) {
       });
     });
 
-    // Readme-Button
-    readmeBtn.addEventListener('click', async () => {
-      const selected = await window.electronAPI.getSelected();
-      if (!selected) return alert('No folder selected!');
-      readmeBtn.disabled = true;
-      readmeBtn.textContent = 'Generating...';
-      try {
-        const output = await window.electronAPI.generateReadme(selected.path);
-        // Optional: Zeige Preview oder Hinweis
-        alert('README.md wurde erfolgreich generiert!\n\n' + output.slice(0,500) + '...');
-      } catch (e) {
-        alert('Fehler beim Generieren:\n' + (e.message || e));
-      }
-      readmeBtn.disabled = false;
-      // Nach dem Schreiben neu prüfen
-      const hasReadme = await window.electronAPI.hasReadme(selected.path);
-      readmeBtn.textContent = hasReadme ? 'Update README' : 'Generate README';
-    });
+
 
     // --- Aktuellen Commit in die Mitte scrollen (falls vorhanden) ---
     const currentEl = contentList.querySelector('li.current-commit');
