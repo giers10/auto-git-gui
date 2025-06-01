@@ -8,26 +8,15 @@ const { spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const Store = require('electron-store');
 const simpleGit = require('simple-git');
 const chokidar = require('chokidar');
 const micromatch = require('micromatch');
 const ignore = require('ignore');
 
-const store = new Store({
-  defaults: {
-    folders: [],
-    selected: null,
-    skymode: true,
-    skipGitPrompt: true,
-    intelligentCommitThreshold: 20,
-    minutesCommitThreshold: 5,
-    autostart: false,
-    closeToTray: true,
-    needsRelocation: false,
-    dailyCommitStats: {}
-  }
-});
+const store = require('./modules/store');
+
+
+
 
 let folders = store.get('folders') || [];
 folders = folders.map(f => ({
