@@ -1037,7 +1037,84 @@ async function runLLMCommitRewrite(folderObj, win) {
 
 
 
+  async function generateRepoDescription(folderPath, win) {
+    const repoName = path.basename(folderPath);
 
+    // 1) Pick a handful of “key” files to feed into the prompt
+    const codeFiles = getRelevantFiles(folderPath, /*maxSize=*/ 100 * 1024);
+    const topFiles  = codeFiles.slice(0, 5).map(f => path.relative(folderPath, f));
+
+    // 2) Build the prompt
+    let prompt = `
+  You are an assistant that writes a very short (<255 chars) description for a new Git repository. 
+  Do NOT exceed 255 characters and do NOT add any markdown or extra commentary—just the literal description text.
+
+  Project name: ${repoName}
+
+  Key files:
+  ${topFiles.map(n => `- ${n}`).join('\n')}
+
+  Based on the project name and the list of key files, write one concise sentence or two (under 255 chars) describing this project:
+  `.trim();
+
+    // 3) Stream it through Ollama (same model as README)
+    await ensureOllamaRunning();
+    const response = await fetch('http://localhost:11434/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: store.get('readmeModel') || 'qwen2.5-coder:32b',
+        prompt,
+        stream: true,
+        options: { temperature: 0.3 }
+      })
+    });
+
+    if (!response.body) {
+      throw new Error('No stream returned from Ollama while generating description');
+    }
+
+    // 4) Collect the streamed chunks
+    const reader  = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = '';
+    let done     = false;
+
+    win.webContents.send('cat-begin');
+    while (!done) {
+      const { value, done: readerDone } = await reader.read();
+      done = readerDone;
+      if (value) {
+        const chunk = decoder.decode(value, { stream: true });
+        // Ollama streams JSON lines like: {"response":"..."} per line
+        for (const line of chunk.split('\n')) {
+          if (!line.trim()) continue;
+          try {
+            const obj = JSON.parse(line);
+            if (obj.response) {
+              fullText += obj.response;
+              win.webContents.send('cat-chunk', obj.response);
+            }
+          } catch (e) {
+            // ignore any non-JSON lines
+          }
+        }
+      }
+    }
+    win.webContents.send('cat-end');
+
+    // 5) Clean up any ````markdown``` wrappers
+    let cleaned = fullText
+      .replace(/^```(?:markdown)?|```$/gmi, '')
+      .trim();
+
+    // 6) Truncate at 255 chars if needed
+    if (cleaned.length > 255) {
+      cleaned = cleaned.slice(0, 252).trim() + '…';
+    }
+
+    return cleaned;
+  }
 
 
 /*
