@@ -621,6 +621,7 @@ const IGNORED_NAMES = [
   '*.7z'
 ];
 
+
 const monitoringQueues = new Map(); // Map: folderPath -> Array<Function>
 const monitoringActive = new Map(); // Map: folderPath -> Boolean (ob Task aktiv)
 
