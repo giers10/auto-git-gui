@@ -4,61 +4,67 @@
 
 > ⚠️ **This README.md has been automatically generated using AI and might contain hallucinations or inaccuracies. Please proceed with caution!**
 
-# Project README
+# Project Name
 
-## Overview
-
-This project provides a user interface for configuring application settings, including theme selection, autostart functionality, and intelligent commit message generation using Ollama models.
+## Description
+A brief description of what this project does.
 
 ## Features
-
-- **Theme Selection**: Choose between different themes like Sky Theme.
-- **Autostart**: Configure the application to launch on system start.
-- **Close to Tray**: Option to close the application to the system tray.
-- **Skip Prompt**: Skip prompts for removing .git folders with only one commit and no changes.
-- **Intelligent Commit Message Generation**: Set thresholds for rewriting commits based on lines of diff or time elapsed.
-- **Ollama Model Configuration**: Select Ollama models for generating commit messages and README files.
+- Feature 1: Description.
+- Feature 2: Description.
+- Feature 3: Description.
 
 ## Installation
-
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-repo/project.git
+   git clone https://github.com/yourusername/projectname.git
    
-
 2. Navigate to the project directory:
    ```bash
-   cd project
+   cd projectname
    
-
-3. Install dependencies (if any):
+3. Install dependencies:
    ```bash
    npm install
    
 
-4. Run the application:
-   ```bash
-   npm start
-   
-
 ## Usage
-
-1. Launch the application.
-2. Configure settings using the provided interface.
-3. Save changes and close the application.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- How to use the application.
+- Example commands or steps.
 
 ## Contributing
+1. Fork the repository.
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`).
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+4. Push to the branch (`git push origin feature/AmazingFeature`).
+5. Open a pull request.
 
-Contributions are welcome! Please read the [CONTRIBUTING.md](CONTRIBUTING.md) file for guidelines on how to contribute to the project.
+## License
+MIT License
+
+Copyright (c) [year] [fullname]
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 ## Contact
+- **Name**: [Your Name]
+- **Email**: [your.email@example.com]
+- **Project Link**: [https://github.com/yourusername/projectname](https://github.com/yourusername/projectname)
 
-For any questions or support, please contact us at [support@example.com](mailto:support@example.com).
-
----
-
-**Note**: Replace placeholders like `your-repo` and email addresses with actual values relevant to your project.
+Feel free to reach out for any questions or feedback!
