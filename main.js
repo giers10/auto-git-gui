@@ -13,7 +13,6 @@ const simpleGit = require('simple-git');
 const chokidar = require('chokidar');
 const micromatch = require('micromatch');
 const ignore = require('ignore');
-const fetch = require('node-fetch');
 
 const store = new Store({
   defaults: {
@@ -2180,39 +2179,38 @@ Source Code:
 
   ipcMain.handle('push-to-gitea', async (_evt, folderPath) => {
     try {
-      // 1) Determine the repo name from the folder’s basename
+      // 1) Repo name = folder’s basename
       const repoName = path.basename(folderPath);
 
-      // 2) You need a Gitea API token. Store it as an environment variable, e.g. GITEA_TOKEN
+      // 2) Read your Gitea token from the environment
       const GITEA_TOKEN = process.env.GITEA_TOKEN;
       if (!GITEA_TOKEN) {
         throw new Error('No GITEA_TOKEN in environment');
       }
 
-      // 3) Your Gitea base URL (no trailing slash). Adapt if different.
+      // 3) Base URL for your Gitea API (no trailing slash)
       const GITEA_BASE = 'https://giers10.uber.space/api/v1';
 
-      // 4) Check if the repo already exists for the authenticated user.
-      //    For simplicity, we assume we want to create it under “your own user account.”
-      //    If you instead want to create under an organization, adjust the endpoint accordingly.
-
-      // We’ll fetch “GET /user” to discover the username associated with the token:
-      const userResponse = await fetch(`${GITEA_BASE}/user`, {
+      // 4) Fetch /user to get the username
+      const userResp = await fetch(`${GITEA_BASE}/user`, {
         headers: { Authorization: `token ${GITEA_TOKEN}` }
       });
-      if (!userResponse.ok) {
-        throw new Error(`Cannot fetch Gitea user: ${userResponse.status} ${await userResponse.text()}`);
+      if (!userResp.ok) {
+        const text = await userResp.text();
+        throw new Error(`Gitea /user failed: ${userResp.status} ${text}`);
       }
-      const userData = await userResponse.json();
+      const userData = await userResp.json();
       const username = userData.login;
 
-      // 5) Now check if /repos/{username}/{repoName} exists
-      const checkResp = await fetch(`${GITEA_BASE}/repos/${username}/${repoName}`, {
-        headers: { Authorization: `token ${GITEA_TOKEN}` }
-      });
+      // 5) Check if /repos/{username}/{repoName} already exists
+      const checkResp = await fetch(
+        `${GITEA_BASE}/repos/${username}/${repoName}`,
+        { headers: { Authorization: `token ${GITEA_TOKEN}` } }
+      );
+
       let repoUrl;
       if (checkResp.status === 404) {
-        // Repo does not exist → create it via POST /user/repos
+        // Repo does not exist → create it
         const createResp = await fetch(`${GITEA_BASE}/user/repos`, {
           method: 'POST',
           headers: {
@@ -2221,51 +2219,46 @@ Source Code:
           },
           body: JSON.stringify({
             name: repoName,
-            private: false,        // or true, as you prefer
-            description: `Repo for ${repoName}`
+            private: false,
+            description: `Auto‐created for ${repoName}`
           })
         });
         if (!createResp.ok) {
-          const bodyText = await createResp.text();
-          throw new Error(`Unable to create repo: ${createResp.status} ${bodyText}`);
+          const txt = await createResp.text();
+          throw new Error(`Could not create repo: ${createResp.status} ${txt}`);
         }
         const created = await createResp.json();
-        repoUrl = created.clone_url; // usually something like: https://giers10.uber.space/username/repo.git
+        repoUrl = created.clone_url;
       } else if (checkResp.ok) {
         // Repo already exists
         const existing = await checkResp.json();
         repoUrl = existing.clone_url;
       } else {
-        // Some other error
-        const bodyText = await checkResp.text();
-        throw new Error(`Error checking repo: ${checkResp.status} ${bodyText}`);
+        // Some other error code
+        const txt = await checkResp.text();
+        throw new Error(`Error checking repo: ${checkResp.status} ${txt}`);
       }
 
-      // 6) Now configure local Git in folderPath to push to that remote
+      // 6) Configure local Git remote “origin” to point at repoUrl
       const git = simpleGit(folderPath);
-      // If an “origin” remote already exists, we’ll replace it. Otherwise, add it.
       try {
         await git.removeRemote('origin');
-      } catch (err) { /* ignore if no origin existed */ }
-
-      // Add origin pointing at Gitea
+      } catch (e) {
+        // ignore if “origin” didn’t exist
+      }
       await git.addRemote('origin', repoUrl);
 
-      // 7) Push the current default branch (e.g. “master” or “main”)
-      //    We can detect the default branch via `revparse --abbrev-ref HEAD`.
+      // 7) Detect current branch and push
       const currentBranch = (await git.revparse(['--abbrev-ref', 'HEAD'])).trim();
-
-      // Force‐push all branches and tags:
-      //   (If you only want to push the current branch, use: await git.push('origin', currentBranch);)
+      // Push current branch + tags; adjust flags if you only want a simple push:
       await git.push(['-u', 'origin', currentBranch, '--force', '--tags']);
 
-      // 8) Return success + the repo URL so the renderer can display it
+      // 8) Return success + URL so the renderer can notify the user
       return { success: true, repoUrl };
     } catch (err) {
       return { success: false, error: err.message || String(err) };
     }
   });
-
 
 
 
