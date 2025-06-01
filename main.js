@@ -29,7 +29,7 @@ const store = new Store({
   }
 });
 
-let folders = store.get('folders') || [];asd
+let folders = store.get('folders') || [];
 folders = folders.map(f => ({
   ...f,
   needsRelocation: !fs.existsSync(f.path)
