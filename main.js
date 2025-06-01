@@ -1104,7 +1104,6 @@ function addMatchingFilesToGitignore(folderPath, pattern) {
 
 
 async function autoCommit(folderPath, message, win) {
-
   const git = simpleGit(folderPath);
   const status = await git.status();
   if (
@@ -1128,7 +1127,6 @@ async function autoCommit(folderPath, message, win) {
   }
 
   if (!currentBranch || currentBranch === 'HEAD') {
-    // === Erweiterte Logs ===
     const headCommit = (await git.revparse(['HEAD'])).trim();
     let masterCommit = null;
     let hasMaster = false;
@@ -1136,7 +1134,6 @@ async function autoCommit(folderPath, message, win) {
       masterCommit = (await git.revparse(['refs/heads/master'])).trim();
       hasMaster = true;
     } catch (e) {
-      debug('[autoCommit] master branch existiert nicht.');
       masterCommit = null;
       hasMaster = false;
     }
@@ -1144,15 +1141,11 @@ async function autoCommit(folderPath, message, win) {
     debug(`[autoCommit] master: ${masterCommit}`);
 
     if (hasMaster && headCommit === masterCommit) {
-      // HEAD ist detached, zeigt aber exakt auf master-Tip → einfach auf master auschecken.
       await git.checkout('master');
       debug('[autoCommit] HEAD war detached, zeigte aber exakt auf master – jetzt zurück auf master.');
-      // Nach dem Checkout nochmal aktuellen Branch loggen:
       currentBranch = (await git.revparse(['--abbrev-ref', 'HEAD'])).trim();
       debug(`[autoCommit] Nach checkout: Aktueller Branch: ${currentBranch}`);
-      // Jetzt **NICHT** weiter zur Umbenenn-Logik!
     } else if (hasMaster) {
-      // HEAD ist detached, zeigt auf einen anderen Commit → backup master und neuen master-Branch
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const backupBranch = `backup-master-${timestamp}`;
       await git.branch(['-m', 'master', backupBranch]);
@@ -1161,16 +1154,14 @@ async function autoCommit(folderPath, message, win) {
       debug('[autoCommit] Neuer master-Branch erstellt und ausgecheckt.');
       currentBranch = 'master';
     } else {
-      // Kein master vorhanden (erstmalig)
       await git.checkout(['-b', 'master']);
       debug('[autoCommit] Kein master-Branch vorhanden, neuer master erstellt.');
       currentBranch = 'master';
     }
   }
 
-  // --- Zeilenzählung ---
+  // Zeilen zählen
   let diffOutput = await git.diff(['--numstat']);
-  // Zeilensumme berechnen:
   let changedLines = 0;
   for (let line of diffOutput.split('\n')) {
     const match = line.match(/^(\d+|\-)\s+(\d+|\-)\s+(.*)$/);
@@ -1185,49 +1176,51 @@ async function autoCommit(folderPath, message, win) {
   let folders = store.get('folders') || [];
   let idx = folders.findIndex(f => f.path === folderPath);
   if (idx !== -1) {
-    folders[idx].linesChanged = (folders[idx].linesChanged || 0) + changedLines;
-    folders[idx].llmCandidates = folders[idx].llmCandidates || [];
+    let folderObj = folders[idx];
 
-    // ===> WICHTIG: Wir commiten ja jetzt, daher merken wir uns gleich die neue Commit-Hash
-    // Vor git.commit: Merke alten HEAD
-    const oldHead = (await git.revparse(['HEAD'])).trim();
+    // Wenn gerade ein Rebase läuft, committen wir nicht direkt in llmCandidates,
+    // sondern in pendingLLMCandidates. So hüten wir uns, das laufende Rebase zu stören.
+    if (folderObj.rebasing) {
+      await git.add(['-A']);
+      debug('[autoCommit] Alle Änderungen gestaged (während Rebase).');
+      await git.commit(message || '[auto]');
+      debug('[autoCommit] Commit erfolgreich erstellt (während Rebase).');
+      const newHead = (await git.revparse(['HEAD'])).trim();
+      folderObj.pendingLLMCandidates.push(newHead);
+      folderObj.linesChanged = (folderObj.linesChanged || 0) + changedLines;
+      folders[idx] = folderObj;
+      store.set('folders', folders);
+      return true;
+    }
 
-    // Stagen & Committen
+    // Standard-Fall: kein laufender Rebase, normal committen
     await git.add(['-A']);
     debug('[autoCommit] Alle Änderungen gestaged.');
     await git.commit(message || '[auto]');
     debug('[autoCommit] Commit erfolgreich erstellt.');
-    
-    // --- Gamification: Commit-Statistik speichern ---
-    const today = new Date().toISOString().slice(0, 10); // Format: 'YYYY-MM-DD'
-    const stats = store.get('dailyCommitStats') || {};
-    stats[today] = (stats[today] || 0) + 1;
-    store.set('dailyCommitStats', stats);
-
-    // Nach Commit: neuen HEAD ermitteln und in llmCandidates speichern
     const newHead = (await git.revparse(['HEAD'])).trim();
-    folders[idx].llmCandidates = folders[idx].llmCandidates || [];
-    folders[idx].llmCandidates.push(newHead);
-    if(folders[idx].llmCandidates.length == 1){
-      folders[idx].firstCandidateBirthday = Date.now();
+
+    folderObj.linesChanged = (folderObj.linesChanged || 0) + changedLines;
+    folderObj.llmCandidates = folderObj.llmCandidates || [];
+    folderObj.llmCandidates.push(newHead);
+    if (folderObj.llmCandidates.length === 1) {
+      folderObj.firstCandidateBirthday = Date.now();
       debug('[autoCommit] Erster Commit aufgenommen.');
     }
-    folders[idx].lastHeadHash = newHead;
-    console.log(folders[idx].llmCandidates)
+    folderObj.lastHeadHash = newHead;
 
-    // Threshold holen
     const threshold = store.get('intelligentCommitThreshold') || 10;
-    if (folders[idx].linesChanged >= threshold) {
-      debug('Congratulations! You changed enough lines of code :)');
-      await runLLMCommitRewrite(folders[idx], win);
-      //folders[idx].linesChanged = 0; // !!!!!!!!!!!!!!!!!!!!  needs logic to handle several llm runs called at the same time test
-      //folders[idx].llmCandidates = [];
-      //folders.[idx].firstCandidateBirthday = null
+    if (folderObj.linesChanged >= threshold) {
+      debug('Threshold erreicht – starte LLM-Rebase!');
+      await runLLMCommitRewrite(folderObj, win);
     }
+
+    folders[idx] = folderObj;
     store.set('folders', folders);
+    return true;
   } else {
-    // Folder not found! (Debug)
-    debug(`[autoCommit] Warning: Folder ${folderPath} not found in store`);
+    debug(`[autoCommit] Warning: Folder ${folderPath} nicht gefunden im Store`);
+    return false;
   }
 }
 
