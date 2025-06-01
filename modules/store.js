@@ -13,3 +13,4 @@ const store = new Store({
     dailyCommitStats: {}
   }
 });
+module.exports = store;
