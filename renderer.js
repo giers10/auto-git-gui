@@ -7,6 +7,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const titleArrow  = document.getElementById('folderTitleArrow');
   const contentList = document.getElementById('contentList');
   const readmeBtn   = document.getElementById('readmeBtn');
+  const pushBtn = document.getElementById('pushBtn');
   const panel       = document.querySelector('.flex-1.p-4.overflow-y-auto');
   const PAGE_SIZE = 50;
 
