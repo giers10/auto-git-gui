@@ -1101,7 +1101,27 @@ function getRandomMessage() {
 */
 
 // Nutze das Template aus dem Projektordner:
+const TEMPLATE_PATH = path.join(__dirname, 'rewrite-commit-msg.js.template');
 
+function createRewriteScript(mapping) {
+  // Lies das Template
+  let content = fs.readFileSync(TEMPLATE_PATH, 'utf-8');
+  // Ersetze __MESSAGE_MAP__ durch dein Mapping
+  content = content.replace('__MESSAGE_MAP__', JSON.stringify(mapping));
+  // Speichere als temporäre Datei
+  const scriptPath = path.join(__dirname, `rewrite-commit-msg.${Date.now()}.js`);
+  fs.writeFileSync(scriptPath, content, 'utf-8');
+  return scriptPath;
+}
+
+function addMatchingFilesToGitignore(folderPath, pattern) {
+  const files = fs.readdirSync(folderPath);
+  const matches = micromatch(files, pattern);
+  for (const file of matches) {
+    ensureInGitignore(folderPath, pattern);
+    break; // Nur einmal pro Pattern eintragen
+  }
+}
 
 
 async function autoCommit(folderPath, message, win) {
