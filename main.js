@@ -13,6 +13,7 @@ const simpleGit = require('simple-git');
 const chokidar = require('chokidar');
 const micromatch = require('micromatch');
 const ignore = require('ignore');
+const fetch = require('node-fetch');
 
 const store = new Store({
   defaults: {
