@@ -2054,37 +2054,6 @@ ipcMain.on('show-tree-context-menu', (event, { absPath, relPath, root, type }) =
     if (content && content.length > 1500) score += 2;
     return score;
   }
-  
-  function getRelevantFiles(dir, maxSize = 100*1024, ig = null, base = null) {
-    base = base || dir;
-    if (!ig) ig = getGitignoreFilter(base);
-    let files = [];
-    function walk(current) {
-      for (const f of fs.readdirSync(current)) {
-        const full = path.join(current, f);
-        const rel  = path.relative(base, full);
-        if (ig && ig.ignores(rel)) continue;
-        if (fs.statSync(full).isDirectory()) {
-          if (f.startsWith('.')) continue;
-          walk(full);
-        } else if (isTextFile(full)) {
-          const content = fs.readFileSync(full, 'utf8').slice(0, 3000); // reicht für scoring
-          files.push({ f: full, rel, s: fs.statSync(full).size, score: getFileRelevanceScore(full, rel, content) });
-        }
-      }
-    }
-    walk(dir);
-    files.sort((a, b) => b.score - a.score || a.s - b.s);
-    // Limit by maxSize
-    let sum = 0, selected = [];
-    for (let {f,s} of files) {
-      if (sum + s > maxSize) break;
-      selected.push(f);
-      sum += s;
-    }
-    return selected;
-  }
-
 
 
 
