@@ -11,6 +11,8 @@ const os = require('os');
 const Store = require('electron-store');
 const simpleGit = require('simple-git');
 const chokidar = require('chokidar');
+const debug = require('debug')('monitor');
+const ignore = require('ignore');
 
 const store = new Store({
   defaults: {
@@ -81,9 +83,9 @@ if (Array.isArray(folders)) {
 const repoWatchers = new Map();
 
 // Debug Helper
-function debug(msg) {
-  console.log(`[DEBUG ${new Date().toISOString()}] ${msg}`);
-}
+//function debug(msg) {
+//  console.log(`[DEBUG ${new Date().toISOString()}] ${msg}`);
+//}
 
 /**
  * Erstellt das BrowserWindow und lädt index.html.
