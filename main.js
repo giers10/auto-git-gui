@@ -12,6 +12,10 @@ const Store = require('electron-store');
 const simpleGit = require('simple-git');
 const chokidar = require('chokidar');
 
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
+});
+
 const store = new Store({
   defaults: {
     folders: [],
@@ -1196,16 +1200,6 @@ function buildTrayMenu() {
 
 
 
-
-
-
-
-
-  // Auto-Verzeichnisstruktur
-  const IGNORED_NAMES = [ 
-    '.DS_Store', 'node_modules', '.git', 'dist', 'build',
-    '.cache', 'out', '.venv', '.mypy_cache', '__pycache__', 'package-lock.json'
-  ];
 
   function isIgnored(name) {
     return IGNORED_NAMES.includes(name);
