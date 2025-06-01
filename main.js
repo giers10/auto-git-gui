@@ -314,81 +314,89 @@ const IGNORED_NAMES = [
   // Maven Wrapper
   'mvnw.cmd', 'mvnw', '.mvn/wrapper/maven-wrapper.jar'
 ];
+/**
+ * Liest die .gitignore im Repo (falls vorhanden) und gibt eine "ignore"-Instanz
+ * zurück, die alle aktuellen Einträge kennt. Sollte keine .gitignore existieren,
+ * wird eine leere Instanz zurückgegeben.
+ */
+async function loadGitignoreFilter(folderPath) {
+  const gitignorePath = path.join(folderPath, '.gitignore');
+  let raw;
+  try {
+    raw = await fs.readFile(gitignorePath, 'utf8');
+  } catch (e) {
+    // Wenn keine .gitignore existiert, gibt's eine leere Instanz
+    raw = '';
+  }
+  // ignore() versteht Git-Ignore-Syntax (Kommentare, Leerzeilen, Glob-Pattern etc.)
+  const ig = ignore();
+  ig.add(raw.split(/\r?\n/)); 
+  return ig;
+}
 
 /**
- * Überprüft, ob ein gegebener Pfad einem Eintrag in IGNORED_NAMES entspricht.
- * Wir testen dabei, ob der Dateiname oder ein Teil des Pfades mit einem der
- * Einträge übereinstimmt. Wildcards (z.B. "*.log") werden mit minimiertem Regex-Check abgeglichen.
+ * Wie zuvor: Prüft, ob ein relativer Pfad (innerhalb folderPath) mit einem
+ * Eintrag in IGNORED_NAMES übereinstimmt. (Wildcards, Ordnernamen, Dateiendungen etc.)
  */
-function isIgnored(filePathRelative) {
+function isIgnoredByList(filePathRelative) {
   const basename = path.basename(filePathRelative);
-  return IGNORED_NAMES.some((pattern) => {
+  return IGNORED_NAMES.some(pattern => {
     if (pattern.includes('*')) {
-      // Einfacher Umgang mit "*"-Wildcard: z. B. "*.log"
+      // Einfacher Wildcard-Abgleich: "*.log" -> /^.*\.log$/ 
       const regex = new RegExp('^' + pattern.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$');
       return regex.test(basename);
     }
-    // genaues Match am Dateinamen oder irgendwo im Pfad
     return basename === pattern || filePathRelative.split(path.sep).includes(pattern);
   });
 }
 
 /**
- * Fügt einen Eintrag in die .gitignore im Zielordner hinzu, falls er noch nicht existiert.
+ * Schreibt einen Eintrag in .gitignore, falls noch nicht vorhanden.
  */
 async function ensureIgnoredInGitignore(folderPath, entry) {
   const gitignorePath = path.join(folderPath, '.gitignore');
   let content = '';
   try {
-    content = await fs.readFile(gitignorePath, { encoding: 'utf8' });
-  } catch (err) {
-    // .gitignore existiert noch nicht => wird beim Schreiben erstellt
+    content = await fs.readFile(gitignorePath, 'utf8');
+  } catch (e) {
     content = '';
   }
-  const lines = content.split(/\r?\n/);
+  const lines = content.split(/\r?\n/).map(l => l.trim());
   if (!lines.includes(entry)) {
     const newContent = content.trim().length > 0
       ? content.trim() + '\n' + entry + '\n'
       : entry + '\n';
-    await fs.writeFile(gitignorePath, newContent, { encoding: 'utf8' });
+    await fs.writeFile(gitignorePath, newContent, 'utf8');
     debug(`[IGNORE] Eintrag "${entry}" zu .gitignore hinzugefügt in ${folderPath}`);
     return true;
   }
   return false;
-} 
-
-
+}
 
 /**
- * Kombinierte Funktion: Initialer Commit und Watcher in einem.
+ * Die kombinierte Funktion für initialen Commit + Watcher.
  */
-function startMonitoringWatcher(folderPath, win) {
+async function startMonitoringWatcher(folderPath, win) {
   if (monitoringWatchers.has(folderPath)) return;
-
-  const watcher = chokidar.watch(folderPath, {
-    ignored: /(^|[\/\\])\.git/,
-    ignoreInitial: true,
-    persistent: true,
-    depth: 99,
-    awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 }
-  });
 
   const git = simpleGit(folderPath);
 
+  // 1. Lade oder lege eine .gitignore-Filterinstanz an
+  let igFilter = await loadGitignoreFilter(folderPath);
+
   /**
-   * Führt einen Git-Status-Check durch, filtert ignorierbare Dateien raus und
-   * schreibt sie ggfs. in die .gitignore, bevor die verbleibenden Änderungen committed werden.
+   * Führt Git-Status-Check aus, filtert Dateien heraus, 
+   * die in IGNORED_NAMES stehen, schreibt sie ggf. in .gitignore,
+   * und committet dann verbleibende Änderungen.
    */
   async function doAutoCommitWithIgnoreCheck() {
     const status = await git.status();
 
-    // Dateien, die ignoriert werden sollen (nach IGNORED_NAMES)
-    const toIgnore = [
-      ...status.not_added,
-      ...status.created
-    ].filter(filePathRel => isIgnored(filePathRel));
+    // 2. Alle not_added/created-Dateien, die in unserer IGNORED_NAMES-Liste stehen:
+    const toIgnore = [ ...status.not_added, ...status.created ]
+      .filter(rel => isIgnoredByList(rel));
 
-    // Dateien, die tatsächlich committed werden sollen
+    // 3. Der Rest geht in toCommit:
     const toCommit = {
       not_added: status.not_added.filter(p => !toIgnore.includes(p)),
       created:   status.created.filter(p => !toIgnore.includes(p)),
@@ -397,26 +405,28 @@ function startMonitoringWatcher(folderPath, win) {
       renamed:   status.renamed.slice()
     };
 
-    // 1. Ignorierbare Dateien in .gitignore schreiben
+    // 4. Zuerst .gitignore aktualisieren, falls nötig
     let ignoreWritten = false;
-    for (const fileRel of toIgnore) {
-      // Den Eintrag so in .gitignore setzen, dass er relativ zum Repo-Wurzel passt
-      // z.B. "node_modules/myLib" => "node_modules/"
-      const parts = fileRel.split(path.sep);
-      const entry = parts.length > 1 ? parts[0] : fileRel;
+    for (const relPath of toIgnore) {
+      const parts = relPath.split(path.sep);
+      const entry = parts.length > 1 ? parts[0] + '/' : relPath; 
+      // "/" anhängen, damit Ordner wie "node_modules/" korrekt ignoriert werden
       const didWrite = await ensureIgnoredInGitignore(folderPath, entry);
       if (didWrite) ignoreWritten = true;
     }
     if (ignoreWritten) {
+      // .gitignore wurde angepasst → committen
       await git.add('.gitignore');
       await git.commit('auto-git: Aktualisiere .gitignore um ignorierte Dateien');
       win.webContents.send('repo-updated', folderPath);
-      debug('[MONITOR] .gitignore Commit ausgeführt');
-      // nach dem Schreiben in .gitignore möchte man nochmal den Status neu holen
-      return await doAutoCommitWithIgnoreCheck();
+
+      // Neue .gitignore einladen, damit unser Filter aktuell ist
+      igFilter = await loadGitignoreFilter(folderPath);
+      // Danach Status erneut prüfen (Rekursionsaufruf), weil sich nun ignore-Muster geändert haben
+      return doAutoCommitWithIgnoreCheck();
     }
 
-    // 2. Commit für die verbleibenden Änderungen (falls vorhanden)
+    // 5. Wenn keine .gitignore-Anpassung nötig war, committen wir alle echten Änderungen:
     const hasChanges =
       toCommit.not_added.length > 0 ||
       toCommit.created.length > 0 ||
@@ -425,7 +435,6 @@ function startMonitoringWatcher(folderPath, win) {
       toCommit.renamed.length > 0;
 
     if (hasChanges) {
-      // Build-Message aus den gefilterten Status-Feldern
       const fakeStatus = {
         not_added: toCommit.not_added,
         created:   toCommit.created,
@@ -440,34 +449,60 @@ function startMonitoringWatcher(folderPath, win) {
     }
   }
 
-  // --- Initialer Commit-Check ---
+  // 6. Chokidar-Watcher startet – nutzt eine Funktion, die sowohl .gitignore-Muster
+  //    abfragt als auch das .git-Verzeichnis immer aussperrt.
+  const watcher = chokidar.watch(folderPath, {
+    ignored: (filePath) => {
+      // Immer das .git-Verzeichnis ausschließen
+      const isInDotGit = /(^|[\/\\])\.git(?:[\/\\]|$)/.test(filePath);
+      if (isInDotGit) return true;
+
+      // Relativer Pfad zum Repo
+      const rel = path.relative(folderPath, filePath);
+      // 1) Wenn die Datei in der .gitignore steht → ignorieren
+      if (igFilter.ignores(rel)) return true;
+      // 2) Ansonsten wird die Änderung durch unseren Code ohnehin 
+      //    beim Commit-Check berücksichtigt (wir ignorieren nur, was auch wirklich in IGNORED_NAMES ist).
+      return false;
+    },
+    ignoreInitial: true,
+    persistent: true,
+    depth: 99,
+    awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 }
+  });
+
+  // 7. Initialer Commit-Check
   (async () => {
     debug(`[MONITOR] Starte initialen Commit-Check für ${folderPath}`);
     await doAutoCommitWithIgnoreCheck();
   })();
 
-  // --- Watcher: bei jedem Dateisystem-Event ---
+  // 8. Bei jedem Event: Prüfen, ob Pfad in .gitignore gehört, 
+  //    sonst normal doAutoCommitWithIgnoreCheck() aufrufen.
   watcher.on('all', async (event, filePathAbsolute) => {
-    // Relativer Pfad zum Repository
-    const filePathRel = path.relative(folderPath, filePathAbsolute);
+    const rel = path.relative(folderPath, filePathAbsolute);
 
-    // Zuerst prüfen, ob die Änderung eine Datei betrifft, die wir ignorieren wollen
-    if (isIgnored(filePathRel)) {
-      // Sicherstellen, dass der Eintrag in .gitignore steht
-      const entry = filePathRel.split(path.sep)[0];
+    // a) Prüfe, ob dieser Pfad durch die aktuell geladene .gitignore
+    //    bereits ausgeschlossen ist (z.B. node_modules/foo.js):
+    if (igFilter.ignores(rel)) {
+      // Falls wir bisher noch nicht in .gitignore hatten, dort hinzufügen:
+      // (Aber eigentlich sollte .gitignore aktuell sein, weil doAutoCommitWithIgnoreCheck() 
+      //   ja erst dafür gesorgt hat.)
+      const parts = rel.split(path.sep);
+      const entry = parts.length > 1 ? parts[0] + '/' : rel;
       const didWrite = await ensureIgnoredInGitignore(folderPath, entry);
       if (didWrite) {
-        // Wenn in .gitignore geschrieben wurde, committen wir das und senden Update
+        // Neue .gitignore-Muster einladen
+        igFilter = await loadGitignoreFilter(folderPath);
         await git.add('.gitignore');
         await git.commit('auto-git: Hinzufügen zu .gitignore');
         win.webContents.send('repo-updated', folderPath);
         debug(`[WATCHER] "${entry}" zu .gitignore hinzugefügt und committed`);
       }
-      // Änderung wird nicht weiter committed
       return;
     }
 
-    // Ansonsten ganz normal: Status abfragen und committen
+    // b) Ansonsten ganz normal alle Änderungen committen
     await doAutoCommitWithIgnoreCheck();
   });
 
