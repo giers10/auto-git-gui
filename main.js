@@ -968,7 +968,7 @@ async function rewordCommitsSequentially(repoPath, commitMessageMap, hashes) {
     // await auf Promise – aber OHNE zweiten for!
     await new Promise((resolve, reject) => {
       const proc = spawn('git', [
-        'rebase', '--continue', '-i', `${hash}^`
+        'rebase', '-i', `${hash}^`
       ], {
         cwd: repoPath,
         env: {
