@@ -642,6 +642,7 @@ async function processQueue(folderPath) {
     try { await task(); } catch (e) { console.error(e); }
   }
   monitoringActive.set(folderPath, false);
+} // <---- HIER FÜGEN!
   
 function startMonitoringWatcher(folderPath, win) {
   if (monitoringWatchers.has(folderPath)) return;
