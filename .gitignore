@@ -4,3 +4,13 @@ dist.DS_Store
 .git
 .gitignore
 .DS_Store
+*.iml
+yarn.lock
+*.lock
+Makefile
+*.exe
+tsconfig.tsbuildinfo
+*.dll
+*.pdb
+*.py[cod]
+*.dylib
