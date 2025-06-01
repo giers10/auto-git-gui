@@ -174,7 +174,7 @@ function killOllamaOnPort() {
 async function ensureOllamaRunning() {
   function pingOllama() {
     return new Promise((resolve, reject) => {
-      const req = http.request({ hostname: 'localhost', port: 11434, path: '/', method: 'GET', timeout: 500 }, res => {
+      const req = http.request({ hostname: '127.0.0.1', port: 11434, path: '/', method: 'GET', timeout: 500 }, res => {
         res.destroy(); resolve(true);
       });
       req.on('error', reject);
@@ -810,7 +810,7 @@ ${JSON.stringify(commits, null, 2)}
 async function streamLLMCommitMessages(prompt, onDataChunk, win) {
   await ensureOllamaRunning();
   const selectedModel = store.get('commitModel') || 'qwen2.5-coder:7b';
-  const response = await fetch('http://localhost:11434/api/generate', {
+  const response = await fetch('http://127.0.0.1:11434/api/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -863,7 +863,7 @@ async function streamLLMCommitMessages(prompt, onDataChunk, win) {
 async function streamLLMREADME(prompt, onDataChunk, win) {
   await ensureOllamaRunning();
   const selectedModel = store.get('readmeModel') || 'qwen2.5-coder:32b';
-  const response = await fetch('http://localhost:11434/api/generate', {
+  const response = await fetch('http://127.0.0.1:11434/api/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -951,76 +951,92 @@ function parseLLMCommitMessages(rawOutput) {
 
 // --- Hauptfunktion ---
 /**
- * Rewords commit messages for each hash (oldest to newest) using git rebase -i in a loop.
- * @param {string} repoPath - Path to your repo
- * @param {object} commitMessageMap - { fullHash: newMessage }
- * @param {string[]} hashes - array of full commit hashes (oldest first!)
+ * Plattformübergreifendes Rewording von Commit-Nachrichten.
+ *
+ * @param {string} repoPath            Pfad zum Git-Repo
+ * @param {object} commitMessageMap    Objekt { "<shortOderFullHash>": "<neue Nachricht>" }
+ * @param {string[]} hashes            Array mit kurzen/vollen Hashes (älteste zuerst)
  */
 async function rewordCommitsSequentially(repoPath, commitMessageMap, hashes) {
   const git = simpleGit(repoPath);
 
-  // Sort hashes...
+  // --- Schritt 1: Alle Commits holen und die übergebenen Hashes chronologisch sortieren ---
   const allCommits = (await git.log()).all;
   const hashesOrdered = hashes
     .map(h => allCommits.find(c => c.hash.startsWith(h)))
     .filter(Boolean)
     .sort((a, b) =>
-      allCommits.findIndex(c => c.hash === a.hash) - allCommits.findIndex(c => c.hash === b.hash)
+      allCommits.findIndex(c => c.hash === a.hash)
+      - allCommits.findIndex(c => c.hash === b.hash)
     )
     .map(c => c.hash);
 
-  // EIN Loop!
-  for (const hash of hashesOrdered) {
-    // --- Lookup: full hash oder short hash
-    let msg = commitMessageMap[hash];
-    if (!msg) msg = commitMessageMap[hash.substring(0, 7)];
-    if (!msg) {
-      console.warn('No commit message found for hash', hash, 'or', hash.substring(0, 7));
+  for (const fullHash of hashesOrdered) {
+    // --- Schritt 2: Neue Nachricht für den Commit suchen ---
+    let newMsg = commitMessageMap[fullHash] 
+                  || commitMessageMap[fullHash.substring(0, 7)];
+    if (!newMsg) {
+      console.warn('[AutoGit] Kein neue Nachricht gefunden für Hash:', fullHash);
       continue;
     }
-    const commitMsg = msg.replace(/(["$`\\])/g, '\\$1');
-    const sequenceEditor = `sed -i '' '1s/pick/reword/'`;
+    // Escape für Zeichen wie ", $, `, \
+    const commitMsgEscaped = newMsg.replace(/(["$`\\])/g, '\\$1');
 
-    try {
-      await new Promise((resolve, reject) => {
-        const abortProc = spawn('git', ['rebase', '--abort'], {
-          cwd: repoPath,
-          env: process.env,
-          stdio: 'inherit'
-        });
-        abortProc.on('exit', code => {
-          if (code === 0) {
-            console.log('[AutoGit] Vorheriger Rebase-Prozess wurde abgebrochen.');
-          } else {
-            console.log('[AutoGit] Kein laufender Rebase-Prozess zum Abbrechen (vermutlich).');
-          }
-          resolve(); // Selbst bei Fehler einfach weiter
-        });
+    // --- Schritt 3: Vorherigen Rebase abbrechen, falls offen (Fehler ignorieren) ---
+    await new Promise(resolve => {
+      const abortProc = spawn('git', ['rebase', '--abort'], {
+        cwd: repoPath,
+        stdio: 'ignore'
       });
-    } catch (err) {
-      console.warn('[AutoGit] Fehler beim Abbrechen des Rebase-Prozesses:', err.message);
+      abortProc.on('exit', () => resolve());
+    }).catch(() => {
+      /* Ignoriere, falls kein Rebase läuft */
+    });
+
+    // --- Schritt 4: GIT_SEQUENCE_EDITOR plattformspezifisch setzen ---
+    let sequenceEditor;
+    if (process.platform === 'win32') {
+      // Windows: Nutze unser kleines Node-Skript, das in rebase-sequence-windows.js liegt.
+      // Git ruft später automatisch „node rebase-sequence-windows.js <todoFile>“ auf.
+      sequenceEditor = `node "${path.join(__dirname, 'rebase-sequence-windows.js')}"`;
+    } else {
+      // macOS / Linux: Der gewohnte sed-Aufruf („-i ''“ für macOS-kompatibel)
+      sequenceEditor = `sed -i '' '1s/^pick /reword /'`;
     }
 
+    // --- Schritt 5: GIT_EDITOR-Befehl erzeugen (schreibt die neue Commit-Nachricht) ---
+    // Beispiel: echo "Mein neuer Message-Text" >
+    const gitEditor = `echo "${commitMsgEscaped}" >`;
 
-    // await auf Promise – aber OHNE zweiten for!
+    // --- Schritt 6: Interaktives Rebase starten ---
     await new Promise((resolve, reject) => {
-      const proc = spawn('git', [
-        'rebase', '-i', `${hash}^`
-      ], {
+      const env = {
+        ...process.env,
+        GIT_SEQUENCE_EDITOR: sequenceEditor,
+        GIT_EDITOR: gitEditor
+      };
+
+      const proc = spawn('git', ['rebase', '-i', `${fullHash}^`], {
         cwd: repoPath,
-        env: {
-          ...process.env,
-          GIT_SEQUENCE_EDITOR: sequenceEditor,
-          GIT_EDITOR: `echo "${commitMsg}" >`
-        },
+        env: env,
         stdio: 'inherit'
       });
-      proc.on('exit', code => code === 0 ? resolve() : reject(new Error(`Failed to reword ${hash}`)));
+
+      proc.on('exit', code => {
+        if (code === 0) {
+          console.log(`[AutoGit] Commit ${fullHash.substring(0,7)} erfolgreich reworded.`);
+          resolve();
+        } else {
+          reject(new Error(`Rewording für ${fullHash.substring(0,7)} fehlgeschlagen (ExitCode=${code})`));
+        }
+      });
     });
-    console.log(`[AutoGit] Reworded commit ${hash} ✔`);
   }
-  console.log('[AutoGit] All specified commit messages updated!');
+
+  console.log('[AutoGit] Alle Commit-Nachrichten wurden aktualisiert.');
 }
+
+module.exports = { rewordCommitsSequentially };
 
 //---- 6. Workflow ----
 async function runLLMCommitRewrite(folderObj, win) {
@@ -1498,7 +1514,7 @@ function buildTrayMenu() {
 
     // 3) Stream it through Ollama (same model as README)
     await ensureOllamaRunning();
-    const response = await fetch('http://localhost:11434/api/generate', {
+    const response = await fetch('http://127.0.0.1:11434/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
