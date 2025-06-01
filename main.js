@@ -15,6 +15,10 @@ const ignore = require('ignore');
 
 const debug = require('debug')('monitor');
 
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
+});
+
 const store = new Store({
   defaults: {
     folders: [],
@@ -462,10 +466,13 @@ async function startMonitoringWatcher(folderPath, win) {
 
       // Relativer Pfad zum Repo
       const rel = path.relative(folderPath, filePath);
-      // 1) Wenn die Datei in der .gitignore steht → ignorieren
+
+      // --- HIER DER FIX ---
+      if (!rel || rel === '' || rel === '.') return false;
+
+      // In .gitignore? → ignorieren
       if (igFilter.ignores(rel)) return true;
-      // 2) Ansonsten wird die Änderung durch unseren Code ohnehin 
-      //    beim Commit-Check berücksichtigt (wir ignorieren nur, was auch wirklich in IGNORED_NAMES ist).
+
       return false;
     },
     ignoreInitial: true,
@@ -473,7 +480,7 @@ async function startMonitoringWatcher(folderPath, win) {
     depth: 99,
     awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 }
   });
-
+  
   // 7. Initialer Commit-Check
   (async () => {
     debug(`[MONITOR] Starte initialen Commit-Check für ${folderPath}`);
