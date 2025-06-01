@@ -965,6 +965,28 @@ async function rewordCommitsSequentially(repoPath, commitMessageMap, hashes) {
     const commitMsg = msg.replace(/(["$`\\])/g, '\\$1');
     const sequenceEditor = `sed -i '' '1s/pick/reword/'`;
 
+    // await auf Promise – aber OHNE zweiten for!
+    await new Promise((resolve, reject) => {
+      const proc = spawn('git', [
+        'rebase', '--continue', '-i', `${hash}^`
+      ], {
+        cwd: repoPath,
+        env: {
+          ...process.env,
+          GIT_SEQUENCE_EDITOR: sequenceEditor,
+          GIT_EDITOR: `echo "${commitMsg}" >`
+        },
+        stdio: 'inherit'
+      });
+      proc.on('exit', code => code === 0 ? resolve() : reject(new Error(`Failed to reword ${hash}`)));
+    });
+    console.log(`[AutoGit] Reworded commit ${hash} ✔`);
+  }
+  console.log('[AutoGit] All specified commit messages updated!');
+}
+/*
+
+
 
 
 
