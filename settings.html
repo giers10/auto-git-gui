@@ -169,6 +169,7 @@
     const cancel      = document.getElementById('cancelBtn');
     const cbAutostart  = document.getElementById('autostart');
     const cbCloseToTray= document.getElementById('closeToTray');
+    const giteaTokenInput = document.getElementById('giteaTokenInput');
 
     const [initialAutostart, initialCloseToTray] = await Promise.all([
       window.settingsAPI.getAutostart(),
@@ -196,6 +197,13 @@
       await window.settingsAPI.setSkyMode(cbSky.checked);
       document.body.classList.toggle('sky-mode', cbSky.checked);
     });
+
+
+    const initialToken = await window.settingsAPI.getGiteaToken();
+    giteaTokenInput.value = initialToken || '';
+
+
+
     // OK: alles final speichern
     ok.addEventListener('click', async () => {
       await window.settingsAPI.setSkipPrompt(cbSkip.checked);
@@ -222,6 +230,9 @@
       if (commitSel) await window.settingsAPI.setCommitModel(commitSel.value);
       if (readmeSel)  await window.settingsAPI.setReadmeModel(readmeSel.value);
 
+      await window.settingsAPI.setGiteaToken(giteaTokenInput.value.trim());
+
+
       window.settingsAPI.close();
     });
     // Cancel / Close: SkyMode zurücksetzen, dann schließen
@@ -238,7 +249,7 @@
     if (res.status === 'no-cli') {
       container.innerHTML = `
         <div style="color:red;font-weight:bold;margin:1em 0;">
-          !! You need to install Ollama to use intelligent message & README generation !!
+          You need to install Ollama to use the cool stuff !!
         </div>`;
       return;
     }
@@ -313,6 +324,7 @@
         <input type="checkbox" id="skymode" />
         Sky Theme
       </label>
+      <!--
       <label class="option" style="align-items:center;">
         Theme:
         <select id="themeSelect" style="margin-left:1em;">
@@ -322,6 +334,7 @@
           <option value="yinyang" disabled>Yin/Yang (coming soon)</option>
         </select>
       </label>
+      -->
       <label class="option">
         <input type="checkbox" id="skipPrompt" class="flex-none" />
         Skip prompt asking to remove .git folder if it has only one commit and no changes
@@ -336,6 +349,15 @@
       <div class="options">
         <!-- Hier kommt das Model-Selector-HTML rein -->
         <div id="ollama-model-selectors"></div>
+      </div>
+        <div class="row">
+        <label class="block mb-2 font-semibold">Gitea API Token:</label>
+        <input
+          type="password"
+          id="giteaTokenInput"
+          placeholder="Enter your Gitea token…"
+          class="border rounded px-2 py-1 w-20 mx-1" class="flex-none"
+        />
       </div>
 
       <!-- Weitere Optionen in Zukunft hier hinzufügen -->

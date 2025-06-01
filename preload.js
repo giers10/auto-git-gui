@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('settingsAPI', {
   setAutostart: val => ipcRenderer.invoke('set-autostart', val),
   getCloseToTray: () => ipcRenderer.invoke('get-close-to-tray'),
   setCloseToTray: val => ipcRenderer.invoke('set-close-to-tray', val),
+  getGiteaToken:  () => ipcRenderer.invoke('get-gitea-token'),
+  setGiteaToken:  (token) => ipcRenderer.invoke('set-gitea-token', token),
 });
 
 contextBridge.exposeInMainWorld('electronAPI', {

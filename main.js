@@ -13,6 +13,22 @@ const simpleGit = require('simple-git');
 const chokidar = require('chokidar');
 const micromatch = require('micromatch');
 const ignore = require('ignore');
+let isQuiting = false;
+
+// Wenn wir gebündelt sind (= gepackte App), erweitern wir den PATH um die typischen Ollama-Verzeichnisse:
+if (app.isPackaged) {
+  // Homebrew‐Pfad (M1/M2): /opt/homebrew/bin, bzw. /usr/local/bin
+  const extraPaths = [
+    '/opt/homebrew/bin',
+    '/usr/local/bin',
+    '/usr/bin',
+    '/bin'
+  ].filter(p => fs.existsSync(p));
+
+  // Ganz vorne in PATH einfügen, damit "ollama" gefunden wird
+  process.env.PATH = extraPaths.join(':') + ':' + process.env.PATH;
+}
+
 
 const store = new Store({
   defaults: {
@@ -25,7 +41,8 @@ const store = new Store({
     autostart: false,
     closeToTray: true,
     needsRelocation: false,
-    dailyCommitStats: {}
+    dailyCommitStats: {},
+    giteaToken: ''
   }
 });
 
@@ -38,7 +55,6 @@ store.set('folders', folders);
 console.log("Startup-Folders:", store.get('folders'));
 
 let tray = null;
-let isQuiting = false;
 
 
 
@@ -95,7 +111,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 900,
     height: 600,
-    minWidth: 600,
+    minWidth: 800,
     minHeight: 500,
     title: 'Auto-Git',
     webPreferences: {
@@ -117,8 +133,8 @@ function openSettings(win) {
  settingsWin = new BrowserWindow({
    parent: win,
    modal: true,
-   width: 450,
-   height: 450, 
+   width: 600,
+   height: 500, 
    resizable: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -127,7 +143,7 @@ function openSettings(win) {
   });
   settingsWin.removeMenu();
   settingsWin.loadFile('settings.html');
-  settingsWin.webContents.openDevTools({ mode: 'detach' });
+  //settingsWin.webContents.openDevTools({ mode: 'detach' });
   settingsWin.on('closed', () => settingsWin = null);
 }
 
@@ -1254,6 +1270,14 @@ async function main() {
     }
   });
 
+  win.on('close', (e) => {
+    // Wenn closeToTray aktiv ist und wir NICHT wirklich beenden wollen,
+    // wird das Schließen abgefangen und das Fenster nur versteckt.
+    if (!isQuiting && store.get('closeToTray')) {
+      e.preventDefault();
+      win.hide();
+    }
+  });
 
   /* ──────────────────────────────────────────────────── */
 
@@ -1322,7 +1346,11 @@ async function main() {
       role: 'appMenu',
       submenu: [
         { label: 'Settings', click: () => openSettings(win) },
-        { label: 'Quit', role: 'quit', click: () => { isQuiting = true; app.quit(); } }
+        { label: 'Quit', click: () => { 
+            isQuiting = true; 
+            app.quit(); 
+          } 
+        }
       ]
     },
     { role: 'editMenu' }
@@ -1388,7 +1416,11 @@ function buildTrayMenu() {
       }
     },
     { type: 'separator' },
-    { label: 'Beenden', click: () => { isQuiting = true; app.quit(); } }
+    { label: 'Beenden', click: () => { 
+        isQuiting = true; 
+        app.quit(); 
+      } 
+    }
   ]);
 }
 
@@ -1400,13 +1432,6 @@ function buildTrayMenu() {
     tray.setContextMenu(buildTrayMenu());
   });
 
-  // Optional: Minimieren auf Tray bei Fenster-Schließen
-  win.on('close', (e) => {
-    if (!app.isQuiting) {
-      e.preventDefault();
-      win.hide();
-    }
-  });
 
   // Doppelklick aufs Tray: Fenster zeigen
   tray.on('double-click', () => {
@@ -1874,15 +1899,14 @@ function buildTrayMenu() {
   });
 
   ipcMain.handle('ollama-list', async () => {
-    // Versuche erst JSON-Ausgabe
     return new Promise(resolve => {
       exec('ollama list --json', (err, stdout, stderr) => {
         if (err) {
-          // ENOENT → ollama CLI fehlt
-          if (err.code === 'ENOENT') {
+          // FEHLENDER Befehl kann err.code === 'ENOENT' ODER err.code === 127 sein.
+          if (err.code === 'ENOENT' || err.code === 127) {
             return resolve({ status: 'no-cli' });
           }
-          // JSON-Modus nicht unterstützt? Dann Fallback auf plain text
+          // Falls ollama installiert ist, aber „--json“ nicht unterstützt wird, Fallback auf plain text
           return parsePlain();
         }
         try {
@@ -1896,15 +1920,16 @@ function buildTrayMenu() {
         }
       });
 
-      // Fallback-Funktion: parst die tabellarische Ausgabe
       function parsePlain() {
         exec('ollama list', (err2, out2, stderr2) => {
+          // Auch hier prüfen, ob ollama fehlt
           if (err2) {
-            if (err2.code === 'ENOENT') return resolve({ status: 'no-cli' });
+            if (err2.code === 'ENOENT' || err2.code === 127) {
+              return resolve({ status: 'no-cli' });
+            }
             return resolve({ status: 'error', msg: stderr2 || err2.message });
           }
           const models = [];
-          // Jede Zeile nach HEADER ignorieren, Spalten splitten
           out2.split('\n').slice(1).forEach(line => {
             const cols = line.trim().split(/\s{2,}/);
             if (cols[0]) models.push({ name: cols[0] });
@@ -2262,9 +2287,10 @@ Source Code:
 ipcMain.handle('push-to-gitea', async (_evt, folderPath) => {
   try {
     const repoName = path.basename(folderPath);
-    const GITEA_TOKEN = process.env.GITEA_TOKEN;
+    // read token from store instead of process.env
+    const GITEA_TOKEN = store.get('giteaToken');
     if (!GITEA_TOKEN) {
-      throw new Error('No GITEA_TOKEN set in environment');
+      throw new Error('No Gitea API token configured – open Settings and enter it first');
     }
     const GITEA_BASE = 'https://giers10.uber.space/api/v1';
 
@@ -2349,7 +2375,14 @@ ipcMain.handle('push-to-gitea', async (_evt, folderPath) => {
   }
 });
 
+  ipcMain.handle('get-gitea-token', () => {
+    return store.get('giteaToken') || '';
+  });
 
+  // Set/save the Gitea token
+  ipcMain.handle('set-gitea-token', (_e, token) => {
+    store.set('giteaToken', token);
+  });
 
 
 
@@ -2362,15 +2395,6 @@ ipcMain.handle('push-to-gitea', async (_evt, folderPath) => {
 
   // … Ende der IPC-Handler …
 
-  
-  win.webContents.openDevTools({ mode: 'detach' });
-  // clean up on exit
-  win.on('close', (e) => {
-    if (!isQuiting && store.get('closeToTray')) {
-      e.preventDefault();
-      win.hide();
-    }
-  });
 };
 
 

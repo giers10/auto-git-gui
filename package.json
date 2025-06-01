@@ -1,32 +1,13 @@
 {
   "productName": "Auto-Git",
   "name": "Auto-Git",
-  "description": "Auto-Git: Git-Surveillance with automatic LLM-Commit-Message and README.md compilation",
   "version": "1.0.0",
+  "description": "Auto-Git: Git-Überwachung mit automatischer LLM-Commit-Message und README-Erstellung",
   "author": "Victor Giers",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder"
-  },
-  "build": {
-    "appId": "com.victorgiers.auto-git",
-    "productName": "Auto-Git",
-    "files": [
-      "**/*"
-    ],
-    "directories": {
-      "buildResources": "assets/icon"
-    },
-    "mac": {
-      "icon": "mac/icon.icns"
-    },
-    "win": {
-      "icon": "win/icon.ico"
-    },
-    "linux": {
-      "icon": "linux/icon.png"
-    }
+    "dist": "electron-builder --publish never"
   },
   "dependencies": {
     "chokidar": "^4.0.3",
@@ -43,5 +24,32 @@
     "electron-builder": "^26.0.12",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.1.7"
+  },
+  "build": {
+    "appId": "com.victorgiers.auto-git",
+    "productName": "Auto-Git",
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer.js",
+      "index.html",
+      "settings.html",
+      "animeCat.js",
+      "rewrite-commit-msg.js.template",
+      "assets/**/*",
+      "node_modules/**/*"
+    ],
+    "directories": {
+      "buildResources": "assets/icon"
+    },
+    "mac": {
+      "icon": "mac/icon.icns"
+    },
+    "win": {
+      "icon": "win/icon.ico"
+    },
+    "linux": {
+      "icon": "linux/icon.png"
+    }
   }
 }
