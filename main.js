@@ -841,28 +841,6 @@ async function streamLLMCommitMessages(prompt, onDataChunk, win) {
   // ⭐️ Stream ist zu Ende
   win.webContents.send('cat-end');
 
-  return fullOutput;
-}
-
-async function streamLLMREADME(prompt, onDataChunk, win) {
-  await ensureOllamaRunning();
-  const selectedModel = store.get('readmeModel') || 'qwen2.5-coder:32b';
-  const response = await fetch('http://localhost:11434/api/generate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: selectedModel,
-      prompt: prompt,
-      stream: true,
-      options: { temperature: 0.4 }
-    })
-  });
-
-  if (!response.body) throw new Error('No stream returned');
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-
-  let fullOutput = '';
   let done = false;
 
   // ⭐️ Starte den Stream für die Katze!
