@@ -20,8 +20,8 @@ Auto-Git is a unique and interactive desktop application designed to help you ma
 
 ## Installation
 
-1. Download the latest release from the [Releases page](https://github.com/your-repo/gitcat/releases).
-2. Run the installer for your operating system (Windows, macOS, Linux).
+1. Make sure you have git and ollama installed
+2. Download the latest release: Windows / Mac
 
 ## Usage
 
