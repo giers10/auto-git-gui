@@ -500,7 +500,7 @@ async function startMonitoringWatcher(folderPath, win) {
         await git.commit('auto-git: Hinzufügen zu .gitignore');
         win.webContents.send('repo-updated', folderPath);
         debug(`[WATCHER] "${entry}" zu .gitignore hinzugefügt und committed`);
-      }
+      } 
       return;
     }
 
@@ -522,7 +522,7 @@ async function startMonitoringWatcher(folderPath, win) {
     // ... Normal weiter committen
     await doAutoCommitWithIgnoreCheck();
   });
-  
+
   monitoringWatchers.set(folderPath, watcher);
   debug(`[MONITOR] Watcher aktiv für ${folderPath}`);
 }
