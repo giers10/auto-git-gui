@@ -7,71 +7,49 @@
 # Repository Manager
 
 ## Description
-
-Repository Manager is a desktop application designed to help you manage multiple Git repositories efficiently. It provides features such as adding and removing folders, monitoring repository updates, generating README files, and more.
+Repository Manager is a desktop application designed to help users manage their Git repositories efficiently. It provides features such as adding folders, monitoring repository updates, generating README files, and more.
 
 ## Features
-
-- **Add/Remove Folders**: Easily add or remove folders from your list of monitored repositories.
-- **Monitor Repository Updates**: Automatically detect changes in your repositories and update the UI accordingly.
-- **Generate README Files**: Generate or update README.md files for your repositories with a single click.
-- **Snapshot Commits**: Save snapshots of specific commits to your local machine.
-- **Checkout Commits**: Checkout specific commits directly from the application.
-- **Commit Changes**: Commit changes in your repository with a custom message.
-- **Daily Commit Stats**: Track and visualize your daily commit statistics.
+- **Add Folders**: Easily add new folders to be monitored.
+- **Monitor Repositories**: Automatically check for updates in selected repositories.
+- **Generate README**: Generate or update README.md files for your projects.
+- **Snapshot Commits**: Save snapshots of specific commits for backup or review.
+- **Checkout Commits**: Switch between different commits within a repository.
+- **Commit Changes**: Commit changes directly from the application (feature pending).
+- **Tray Integration**: Manage repositories via system tray notifications and actions.
 
 ## Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/repository-manager.git
-   
-
-2. Navigate to the project directory:
-   ```bash
-   cd repository-manager
-   
-
-3. Install dependencies:
-   ```bash
-   npm install
-   
-
-4. Build and run the application:
-   ```bash
-   npm start
-   
+1. Download the latest release from the [Releases](https://github.com/yourusername/repository-manager/releases) page.
+2. Extract the downloaded archive to your desired location.
+3. Run the executable file to start the application.
 
 ## Usage
+- **Add a Folder**: Click on the `+` button in the sidebar to add a new folder.
+- **Select a Folder**: Click on a folder in the sidebar to view its commits and other details.
+- **Generate README**: Click on the "Generate README" or "Update README" button to create or update a README.md file for the selected repository.
+- **Snapshot a Commit**: Click on the snapshot icon next to a commit to save it as a backup.
+- **Checkout a Commit**: Click on the checkout icon next to a commit to switch to that version of the repository.
 
-1. **Add a Folder**: Click on the "Add" button to add a new folder to your list of monitored repositories.
-2. **Remove a Folder**: Right-click on a folder in the sidebar and select "Remove" to remove it from the list.
-3. **Monitor Updates**: The application will automatically detect changes in your repositories and update the UI accordingly.
-4. **Generate README**: Click on the "Generate README" button to generate or update a README.md file for the selected repository.
-5. **Snapshot Commits**: Click on the "Snapshot" button next to a commit to save it locally.
-6. **Checkout Commits**: Click on the "Checkout" button next to a commit to switch to that commit.
-7. **Commit Changes**: Enter a commit message and click on the "Commit" button to commit changes in your repository.
+## Contributing
+Contributions are welcome! Please follow these steps:
+1. Fork the repository.
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`).
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+4. Push to the branch (`git push origin feature/AmazingFeature`).
+5. Open a pull request.
 
 ## License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-The MIT License (MIT)
+## Acknowledgements
+- Thanks to all contributors and users who have supported this project.
+- Special thanks to Electron for providing the framework to build cross-platform desktop applications.
 
-Copyright © 2023 Your Name
+## Contact
+For any questions or feedback, please contact us at:
+- Email: your.email@example.com
+- GitHub: [yourusername](https://github.com/yourusername)
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+---
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+**Note**: This README is a template and should be customized according to your specific project details.
