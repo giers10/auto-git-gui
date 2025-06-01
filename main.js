@@ -379,7 +379,7 @@ async function ensureIgnoredInGitignore(folderPath, entry) {
     const newContent = content.trim().length > 0
       ? content.trim() + '\n' + entry + '\n'
       : entry + '\n';
-    await fs.writeFile(gitignorePath, newContent, 'utf8');
+    await fs.promises.writeFile(gitignorePath, newContent, 'utf8');
     debug(`[IGNORE] Eintrag "${entry}" zu .gitignore hinzugefügt in ${folderPath}`);
     return true;
   }
