@@ -366,7 +366,7 @@ function startMonitoringWatcher(folderPath, win) {
   if (monitoringWatchers.has(folderPath)) return;
 
   const watcher = chokidar.watch(folderPath, {
-    ignored: /(^|[\/\\])\..|node_modules|\.git/,
+    ignored: /(^|[\/\\])\.git/,
     ignoreInitial: true,
     persistent: true,
     depth: 99,
