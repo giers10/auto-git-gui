@@ -276,7 +276,7 @@ function ensureInGitignore(folderPath, name) {
   // Schon drin?
   if (lines.some(line => line.trim() === name)) return;
   // Anfügen
-  fs.appendFileSync(gitignorePath, name + '\n');
+  fs.appendFileSync(gitignorePath, '\n' + name + '\n');
 }
 
 const IGNORED_NAMES = [
