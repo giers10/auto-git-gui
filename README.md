@@ -15,17 +15,15 @@
 Auto-Git: Git-Surveillance with automatic LLM-Commit-Message and README.md compilation.
 
 ## Features
-- Monitors changes in your Git repositories.
+- Monitors selected git repositories for changes.
 - Automatically generates commit messages using a Large Language Model (LLM).
-- Compiles README.md files for your projects.
+- Compiles and updates the `README.md` file based on the project's source code.
 
-## Usage
-
-### Installation
+## Installation
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-repo/auto-git.git
+   git clone https://github.com/victorgiers/auto-git.git
    cd auto-git
    
 
@@ -39,10 +37,12 @@ Auto-Git: Git-Surveillance with automatic LLM-Commit-Message and README.md compi
    npm start
    
 
-### Configuration
+## Usage
 
-- Configure your Git repositories in the `settings.json` file.
-- Set up your preferred LLM model and other parameters.
+1. Open the application.
+2. Add your git repositories to be monitored.
+3. Configure settings such as LLM model and author details.
+4. Let Auto-Git handle commit messages and README compilation.
 
 ## License
 
