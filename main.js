@@ -1023,27 +1023,178 @@ async function rewordCommitsSequentially(repoPath, commitMessageMap, hashes) {
 */
 
 //---- 6. Workflow ----
+/**
+ * Rewords commit messages für alle angegebenen Hashes in einem einzigen
+ * interaktiven Rebase, indem jeweils “pick” durch “reword” ersetzt wird
+ * und dabei immer das gleiche, vertraute Editor-Script (editor-reword.js)
+ * zum Einsetzen der neuen Nachrichten verwendet wird.
+ *
+ * @param {string} repoPath             - Pfad zum Repository
+ * @param {{ [hash: string]: string }} commitMessageMap - Mapping (fullHash oder 7-stelliger ShortHash) → neue Commit-Message
+ * @param {string[]} hashes             - Liste aller Hashes, älteste zuerst
+ */
+async function rewordCommitsSequentially(repoPath, commitMessageMap, hashes) {
+  const git = simpleGit(repoPath);
+
+  // 1. Holen der gesamten Commit-Historie, um die übergebenen hashes chronologisch zu sortieren
+  const allCommits = (await git.log()).all;
+  const hashesOrdered = hashes
+    .map(h => allCommits.find(c => c.hash.startsWith(h)))
+    .filter(Boolean)
+    .sort((a, b) => {
+      const idxA = allCommits.findIndex(c => c.hash === a.hash);
+      const idxB = allCommits.findIndex(c => c.hash === b.hash);
+      return idxA - idxB;
+    })
+    .map(c => c.hash);
+
+  if (hashesOrdered.length === 0) {
+    console.warn('[rewordCommitsSequentially] Keine passenden Commits gefunden.');
+    return;
+  }
+
+  // 2. Full Hash des ältesten Commits ermitteln
+  const oldestHash = hashesOrdered[0];
+
+  // 3. Serielles Aborten eines eventuell laufenden Rebase, damit stets sauber gestartet wird
+  try {
+    await git.raw(['rebase', '--abort']);
+  } catch {
+    // Falls kein Rebase offen, ignorieren
+  }
+
+  // 4. Pfad zum vertrauten Editor-Script:
+  //    (editor-reword.js liest process.env.REBASE_COMMIT_MAP und ersetzt
+  //     nur dann, wenn GIT_COMMIT im Map existiert.)
+  const editorScript = path.join(__dirname, 'editor-reword.js');
+  if (!fs.existsSync(editorScript)) {
+    throw new Error(`[rewordCommitsSequentially] Konnte editor-reword.js nicht finden unter ${editorScript}`);
+  }
+
+  // 5. GIT_SEQUENCE_EDITOR: Ersetze in der Rebase-Todo-Liste alle “pick ”-Zeilen durch “reword ”
+  //    Dadurch hält Git für jeden Commit an und ruft unseren GIT_EDITOR (editor-reword.js) auf.
+  //    Unter macOS/Linux:
+  const sequenceEditor = `sed -i '' 's/^pick /reword /'`;
+
+  // 6. Setze Umgebungsvariablen für den Rebase-Aufruf
+  //    - REBASE_COMMIT_MAP: JSON-String, den editor-reword.js parsen wird
+  //    - GIT_SEQUENCE_EDITOR: oben definierter sed-Befehl
+  //    - GIT_EDITOR: “node editor-reword.js” (wir übergeben den JSON-String über ENV)
+  const envVars = {
+    ...process.env,
+    REBASE_COMMIT_MAP: JSON.stringify(commitMessageMap),
+    GIT_SEQUENCE_EDITOR: sequenceEditor,
+    GIT_EDITOR: `node "${editorScript}"`
+  };
+
+  // 7. Interaktiver Rebase für <oldestHash>^ starten
+  await new Promise((resolve, reject) => {
+    const proc = spawn('git', ['rebase', '-i', `${oldestHash}^`], {
+      cwd: repoPath,
+      env: envVars,
+      stdio: 'inherit'
+    });
+    proc.on('exit', code => {
+      if (code === 0) {
+        console.log('[AutoGit] Reworded commits erfolgreich. ✔');
+        resolve();
+      } else {
+        reject(new Error(`git rebase -i ist mit Exit-Code ${code} fehlgeschlagen.`));
+      }
+    });
+  });
+}
+
+
+/**
+ * Führt das Umschreiben aller gesammelten LLM-Kandidaten per interaktivem Rebase durch.
+ * Dabei wird unser vertrautes editor-reword.js-Skript erneut aufgerufen, indem wir
+ * REBASE_COMMIT_MAP mit dem kompletten Map-Objekt füllen und “pick” → “reword” umwandeln.
+ *
+ * @param {object} folderObj - Das Folder-Objekt aus dem Store
+ * @param {BrowserWindow} win - Referenz auf das Electron-Fenster (für Notifications/Streaming)
+ */
 async function runLLMCommitRewrite(folderObj, win) {
-  if(!folderObj.needsRelocation){
-    const hashes = folderObj.llmCandidates;
-    const birthday = folderObj.firstCandidateBirthday;
-    const folderPath = folderObj.path;
-    folderObj.llmCandidates = [];
-    folderObj.firstCandidateBirthday = null;
-    folderObj.linesChanged = 0;
-    const folders = store.get('folders') || [];
-    const idx = folders.findIndex(f => f.path === folderObj.path);
-    if (idx !== -1) {
-      folders[idx] = folderObj;
-      store.set('folders', folders);
-    }
-    const prompt = await generateLLMCommitMessages(folderPath, hashes);
+  // Initialisiere Felder, falls undefined
+  folderObj.llmCandidates           = folderObj.llmCandidates           || [];
+  folderObj.pendingLLMCandidates    = folderObj.pendingLLMCandidates    || [];
+  folderObj.inProgressLLMCandidates = folderObj.inProgressLLMCandidates || [];
+  folderObj.rebasing                = folderObj.rebasing                || false;
+  folderObj.linesChanged            = folderObj.linesChanged            || 0;
+
+  // Abbrechen, falls Ordner verlagert ist oder bereits ein Rebase läuft
+  if (folderObj.needsRelocation || folderObj.rebasing) return;
+
+  // Rebasing-Flag setzen
+  folderObj.rebasing = true;
+
+  // 1) Falls in pendingLLMCandidates Hashes liegen, diese zuerst mit aufnehmen und leeren
+  if (folderObj.pendingLLMCandidates.length > 0) {
+    folderObj.llmCandidates.push(...folderObj.pendingLLMCandidates);
+    folderObj.pendingLLMCandidates = [];
+  }
+
+  // 2) Sicherstellen, dass wir eine aktuelle Kopie aller Kandidaten haben, und zurücksetzen
+  folderObj.inProgressLLMCandidates = folderObj.llmCandidates.slice();
+  folderObj.llmCandidates = [];
+  folderObj.linesChanged = 0;
+  folderObj.firstCandidateBirthday = null;
+
+  // 3) Sofort in den Store schreiben, damit UI das laufende Rebase anzeigt
+  let allFolders = store.get('folders') || [];
+  const idx = allFolders.findIndex(f => f.path === folderObj.path);
+  if (idx !== -1) {
+    allFolders[idx] = folderObj;
+    store.set('folders', allFolders);
+  }
+
+  const folderPath      = folderObj.path;
+  const hashesToProcess = folderObj.inProgressLLMCandidates.slice(); // Kopie
+
+  try {
+    // 4) Prompt für LLM erstellen
+    const prompt = await generateLLMCommitMessages(folderPath, hashesToProcess);
+
+    // 5) Streaming-Call
     const llmRaw = await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk), win);
+
+    // 6) JSON-Antwort parsen
     const commitList = parseLLMCommitMessages(llmRaw);
     const messageMap = {};
-    for (const entry of commitList) messageMap[entry.commit] = entry.newMessage;
-    await rewordCommitsSequentially(folderPath, messageMap, hashes);
+    for (const entry of commitList) {
+      messageMap[entry.commit] = entry.newMessage;
+    }
+
+    // 7) EIN EINZIGER Rebase-Aufruf für alle hashesToProcess
+    await rewordCommitsSequentially(folderPath, messageMap, hashesToProcess);
+  } catch (err) {
+    console.error('[runLLMCommitRewrite] Fehler:', err);
+    // Falls etwas schiefläuft, die Hashes zurück in llmCandidates schieben
+    for (const hash of hashesToProcess) {
+      if (!folderObj.llmCandidates.includes(hash)) {
+        folderObj.llmCandidates.push(hash);
+      }
+    }
+  } finally {
+    // 8) Rebase-Flag zurücksetzen und Store updaten
+    folderObj.rebasing = false;
+    let updated = store.get('folders') || [];
+    const i = updated.findIndex(f => f.path === folderObj.path);
+    if (i !== -1) {
+      updated[i] = folderObj;
+      store.set('folders', updated);
+    }
+
+    // 9) Renderer benachrichtigen
     win.webContents.send('repo-updated', folderObj.path);
+    debug(`[runLLMCommitRewrite] Fertig. llmCandidates = ${JSON.stringify(folderObj.llmCandidates)}`);
+
+    // 10) Wenn während des Rebases neue Kandidaten hinzugekommen sind, direkt weiterfahren
+    if (folderObj.llmCandidates.length > 0) {
+      setTimeout(() => {
+        runLLMCommitRewrite(folderObj, win);
+      }, 100);
+    }
   }
 }
 
