@@ -262,7 +262,364 @@ function ensureInGitignore(folderPath, name) {
   fs.appendFileSync(gitignorePath, name + '\n');
 }
 
+const IGNORED_NAMES = [
+  // Betriebssystem-spezifische Dateien
+  '.DS_Store',         // macOS
+  'Thumbs.db',         // Windows
+  'desktop.ini',       // Windows
+  '.AppleDouble',      // macOS
+  '.LSOverride',       // macOS
+  'ehthumbs.db',       // Windows
+  'Icon\r',            // macOS (Icon-Datei)
+  
+  // Git- und Versionskontrolle
+  '.git',              // Git-Repository selbst
+  '.gitignore',        // Lokale Einstellungen (falls man es nicht committen will)
+  '.gitattributes',
+  
+  // Node.js / JavaScript / TypeScript
+  'node_modules',      
+  'npm-debug.log*',    
+  'yarn-error.log',    
+  'yarn-debug.log*',   
+  'pnpm-debug.log*',   
+  'package-lock.json', // falls man es nicht committen möchte (normalerweise aber doch)
+  'yarn.lock',         // falls man es nicht committen möchte (normalerweise aber doch)
+  'tsconfig.tsbuildinfo',
+  'dist',              
+  'build',             
+  '.cache',            
+  'out',               
+  '.next',             // Next.js-Build-Verzeichnis
+  '.turbo',            // Turborepo Cache
+  
+  // Python
+  '.venv',             
+  'venv/',             
+  '__pycache__/',      
+  '*.py[cod]',         
+  '*$py.class',        
+  '.mypy_cache/',      
+  '.pytest_cache/',    
+  '.tox/',             
+  'dist/',             
+  'build/',            
+  '*.egg-info/',       
+  'eggs/',             
+  'parts/',            
+  'var/',              
+  'sdist/',            
+  'develop-eggs/',     
+  'lib/',              
+  'lib64/',            
+  'wheelhouse/',       
+  '*.egg',             
+  '*.egg-info',        
+  '.coverage',         
+  'htmlcov/',          
+  '.cache/',           
+  '.env',              
+  '.env.*',            
+  
+  // Java
+  'target/',           // Maven/Gradle Build-Ordner
+  '*.class',           
+  '*.jar',             
+  '*.war',             
+  '*.ear',             
+  '*.nar',             
+  '*.zip',             
+  '*.tar.gz',          
+  '*.rar',             
+  '*.log',             
+  '*.iml',             
+  '.idea/',            
+  '.project',          
+  '.classpath',        
+  '.settings/',        
+  '*.launch',          
+  'hs_err_pid*',       
+  '*.hprof',           
+  '*.log',             
+  '*.jks',             
+  'out/',              
+  'build/',            
+  
+  // C / C++ / Objective-C
+  '*.o',               
+  '*.obj',             
+  '*.so',              
+  '*.dylib',           
+  '*.dll',             
+  '*.exe',             
+  '*.out',             
+  '*.app',             
+  '*.ilk',             
+  '*.pch',             
+  '*.pdb',             
+  '*.lib',             
+  '*.a',               
+  '*.lo',              
+  '*.la',              
+  'CMakeFiles/',       
+  'CMakeCache.txt',    
+  'cmake_install.cmake',
+  'Makefile',          
+  '*.mk',              
+  'Debug/',            
+  'Release/',          
+  'build/',            
+  'xcodebuild/',       
+  '*.xcworkspace',     
+  '*.xcuserstate',     
+  '*.xcuserdatad',     
+  
+  // Go
+  'bin/',              
+  'pkg/',              
+  'vendor/',           
+  
+  // Rust
+  'target/',          
+  'Cargo.lock',       // in Bibliotheksprojekten oft ignoriert, in Binaries meistens nicht
+  
+  // Ruby
+  '*.gem',            
+  '*.rbc',            
+  '.bundle/',         
+  'vendor/bundle/',   
+  'log/',             
+  'tmp/',             
+  'coverage/',        
+  'byebug_history',   
+  
+  // PHP / Composer
+  'vendor/',          
+  'composer.lock',    // in Bibliotheken oft ignoriert, in Projekten meist committed
+  '*.cache',          
+  '*.log',            
+  '*.session',        
+  
+  // .NET / Visual Studio
+  '*.user',           
+  '*.rsuser',         
+  '*.suo',            
+  '*.userosscache',   
+  '*.sln.docstates',  
+  '*.pdb',            
+  '*.cache',          
+  '*.ilk',            
+  '*.log',            
+  'bin/',             
+  'obj/',             
+  'Debug/',           
+  'Release/',         
+  'TestResults/',     
+  '.vs/',             
+  '*.exe',            
+  '*.dll',            
+  '*.nupkg',          
+  '*.snk',            
+  
+  // Java IDEs (IntelliJ / Eclipse / NetBeans)
+  '.idea/',          
+  '*.iml',           
+  '*.ipr',           
+  '*.iws',           
+  '.classpath',      
+  '.project',        
+  '.settings/',      
+  'nbproject/',      
+  'build/',          
+  
+  // Editors
+  '.vscode/',        
+  '.history/',       // VSCode-Erweiterung „Local History“
+  '*.code-workspace',
+  '*.sublime-project',
+  '*.sublime-workspace',
+  '*.komodoproject',
+  '.ropeproject/',    // Python-Rope
+  '.jupyter/',       // Jupyter Notebooks
+  
+  // Vim / Emacs / Editor-Temp
+  '*.swp',           
+  '*.swo',           
+  '*.tmp',           
+  '*.bak',           
+  '*~',              
+  '.netrwhist',      
+  '.session',        
+  '.emacs.desktop',  
+  '.emacs.desktop.lock',
+  
+  // Logs / Reports / Coverage
+  '*.log',           
+  'logs/',           
+  'log/',            
+  '*.trace',         
+  'coverage/',       
+  'test-results/',   
+  'lcov-report/',    
+  
+  // Database-Dateien
+  '*.sqlite3',       
+  '*.sqlite3-journal',
+  '*.db',            
+  '*.db-journal',    
+  
+  // Docker / Container
+  'docker-compose.override.yml',
+  '.docker/',        
+  'docker-compose.*.yml',  
+  'docker-compose.*.env',  
+  '*.pid',           
+  '*.seed',          
+  '*.pid.lock',      
+  
+  // Terraform
+  '.terraform/',     
+  '*.tfstate',       
+  '*.tfstate.backup',
+  '.terraform.lock.hcl',
+  
+  // Kubernetes / Helm
+  'helm-debug.log',  
+  '.helm/',          
+  'kustomization.yaml~',
+  
+  // Ansible
+  'ansible.cfg~',    
+  'inventory.ini',   
+  
+  // Allgemein temporäre/versteckte Dateien
+  '*.backup',        
+  '*.swp',           
+  '*.swo',           
+  '*.old',           
+  '*.orig',          
+  '*.rej',           
+  '*.~',             
+  '*.tmp',           
+  '.*~',             
+  '#*#',             
+  '.#*',             
+  '*.kate-swp',      
+  '*.directory',     
+  '.Trash-*',        
+  '.fseventsd',      
+  
+  // Paketmanager / Lockfiles (falls man sie ignorieren will)
+  'Pipfile.lock',    
+  'yarn.lock',       
+  'pnpm-lock.yaml',  
+  'composer.lock',   
+  'package-lock.json',
+  'Gemfile.lock',    
+  'Gopkg.lock',      
+  
+  // Cloud-spezifisch
+  '.terraform/',     
+  '.serverless/',    // Serverless Framework
+  '.aws-sam/',       
+  
+  // Editor- und IDE-Cache
+  '.cache/',         
+  '.gradle/',        
+  '.meteor/local/',  
+  '.expo/',          
+  '.next/',          
+  '.nuxt/',          
+  '.parcel-cache/',  
+  '.fusebox/',       
+  '.web-types/',     
+  '.stryker-tmp/',   
+  
+  // Sonstige generierte Artefakte
+  'dist/',           
+  'build/',          
+  'public/dist/',    
+  'public/build/',   
+  'out/',            
+  'reports/',        
+  'coverage/',
+  
+  // Beispiel: JetBrains Rider
+  '*.sln.iml',       
+  '.idea/',          
+  '*.DotSettings.user',  
 
+  // Beispiel: Android / Flutter
+  '*.apk',           
+  '*.ap_',           
+  '*.aab',           
+  'android/.gradle', 
+  'android/gradle/', 
+  'android/local.properties', 
+  '*.keystore',      
+  'build/',          
+  '.android/',       
+  '.flutter-plugins',  
+  '.flutter-plugins-dependencies', 
+  '.packages',      
+  
+  // Swift / Xcode
+  '*.xcworkspace',   
+  'xcuserdata/',     
+  '*.xcuserdatad',   
+  '*.xcuserstate',   
+  'DerivedData/',    
+  'build/',          
+  '*.hmap',          
+  '*.ipa',           
+  '*.dSYM.zip',      
+  '*.dSYM',         
+  
+  // Unity
+  'Library/',        
+  'Temp/',           
+  'Obj/',            
+  'Build/',          
+  'Builds/',         
+  'Logs/',           
+  'MemoryCaptures/', 
+  '*.csproj',        
+  '*.unityproj',     
+  '*.sln',           
+  '*.userprefs',     
+  '*.pidb',          
+  '*.booproj',       
+  '*.svd',           
+  '*.user',          
+  '*.pidb.meta',     
+  '*.pdb',           
+  '*.mdb',           
+  '*.opendb',        
+  '*.VC.db',         
+  
+  // Unreal Engine
+  'Binaries/',       
+  'DerivedDataCache/',
+  'Intermediate/',   
+  'Saved/',          
+  'Build/',          
+  '*.sln',           
+  '*.vcxproj*',      
+
+  // Maven Wrapper
+  'mvnw.cmd',        
+  'mvnw',            
+  '.mvn/wrapper/maven-wrapper.jar',
+  
+  // Allgemeine Lock-Dateien
+  '*.lock',
+  
+  // Temporäre Archive / komprimierte Dateien
+  '*.zip',           
+  '*.tar.gz',        
+  '*.rar',           
+  '*.7z'
+];
 
 
 
