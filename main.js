@@ -247,8 +247,124 @@ function buildCommitMessageFromStatus(status, prefix = '[auto]') {
   return prefix + '\n' + changes.map(l => ` ${l}`).join('\n');
 }
 
+// Erweitertes Ignore-Array (aus vorheriger Liste)
+const IGNORED_NAMES = [
+  // Betriebssystem-spezifische Dateien
+  '.DS_Store', 'Thumbs.db', 'desktop.ini', '.AppleDouble', '.LSOverride', 'ehthumbs.db', 'Icon\r',
+  // Git- und Versionskontrolle
+  '.git', '.gitattributes',
+  // Node.js / JavaScript / TypeScript
+  'node_modules', 'npm-debug.log', 'npm-debug.log*', 'yarn-error.log', 'yarn-debug.log*', 'pnpm-debug.log*',
+  'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'tsconfig.tsbuildinfo', 'dist', 'build', '.cache', 'out',
+  '.next', '.turbo',
+  // Python
+  '.venv', 'venv', '__pycache__', '*.py[cod]', '*$py.class', '.mypy_cache', '.pytest_cache', '.tox', 'dist',
+  'build', '*.egg-info', 'eggs', 'parts', 'var', 'sdist', 'develop-eggs', 'lib', 'lib64', 'wheelhouse', '*.egg',
+  '*.egg-info', '.coverage', 'htmlcov', '.cache', '.env', '.env.*',
+  // Java (Maven/Gradle)
+  'target', '*.class', '*.jar', '*.war', '*.ear', '*.nar', '*.zip', '*.tar.gz', '*.rar', '*.log', '*.iml',
+  '.idea', '.project', '.classpath', '.settings', '*.launch', 'hs_err_pid*', '*.hprof',
+  // C / C++ / Objective-C
+  '*.o', '*.obj', '*.so', '*.dylib', '*.dll', '*.exe', '*.out', '*.app', '*.ilk', '*.pch', '*.pdb', '*.lib',
+  '*.a', '*.lo', '*.la', 'CMakeFiles', 'CMakeCache.txt', 'cmake_install.cmake', 'Makefile', '*.mk', 'Debug',
+  'Release', 'build', 'xcodebuild', '*.xcworkspace', '*.xcuserstate', '*.xcuserdatad',
+  // Go
+  'bin', 'pkg', 'vendor',
+  // Rust
+  'target', 'Cargo.lock',
+  // Ruby
+  '*.gem', '*.rbc', '.bundle', 'vendor/bundle', 'log', 'tmp', 'coverage', 'byebug_history',
+  // PHP / Composer
+  'vendor', 'composer.lock', '*.cache', '*.log', '*.session',
+  // .NET / Visual Studio
+  '*.user', '*.rsuser', '*.suo', '*.userosscache', '*.sln.docstates', '*.pdb', '*.ilk', '*.cache', '*.log',
+  'bin', 'obj', 'Debug', 'Release', 'TestResults', '.vs', '*.exe', '*.dll', '*.nupkg', '*.snk',
+  // IDEs allgemein
+  '.vscode', '.history', '*.code-workspace', '*.sublime-project', '*.sublime-workspace', '*.komodoproject',
+  '.ropeproject', '.jupyter',
+  // Vim / Emacs / Editor-Temp
+  '*.swp', '*.swo', '*.tmp', '*.bak', '*~', '.netrwhist', '.session', '.emacs.desktop', '.emacs.desktop.lock',
+  // Logs / Coverage / Reports
+  '*.log', 'logs', 'log', '*.trace', 'coverage', 'test-results', 'lcov-report',
+  // Datenbanken & SQLite
+  '*.sqlite3', '*.sqlite3-journal', '*.db', '*.db-journal',
+  // Docker / Container
+  'docker-compose.override.yml', '.docker', 'docker-compose.*.yml', 'docker-compose.*.env', '*.pid', '*.pid.lock',
+  // Terraform
+  '.terraform', '*.tfstate', '*.tfstate.backup', '.terraform.lock.hcl',
+  // Kubernetes / Helm
+  'helm-debug.log', '.helm', 'kustomization.yaml~',
+  // Ansible
+  'ansible.cfg~', 'inventory.ini',
+  // Allgemein temporäre/versteckte Dateien
+  '*.backup', '*.old', '*.orig', '*.rej', '#*#', '.*~', '*.kate-swp', '*.directory', '.Trash-*', '.fseventsd',
+  // Lock-Dateien allgemein
+  '*.lock',
+  // Komprimierte/Archivdateien
+  '*.zip', '*.tar.gz', '*.rar', '*.7z',
+  // Mobile/Plattform-spezifisch
+  '*.apk', '*.ap_', '*.aab', 'android/.gradle', 'android/gradle', 'android/local.properties',
+  '*.keystore', '.android', '.flutter-plugins', '.flutter-plugins-dependencies', '.packages',
+  'DerivedData', '*.hmap', '*.ipa', '*.dSYM.zip', '*.dSYM',
+  // Unity
+  'Library', 'Temp', 'Obj', 'Builds', 'Logs', 'MemoryCaptures', '*.csproj', '*.unityproj', '*.userprefs',
+  '*.pidb', '*.booproj', '*.svd', '*.opendb', '*.VC.db',
+  // Unreal Engine
+  'Binaries', 'DerivedDataCache', 'Intermediate', 'Saved', 'Build', '*.vcxproj', '*.sln',
+  // Maven Wrapper
+  'mvnw.cmd', 'mvnw', '.mvn/wrapper/maven-wrapper.jar'
+];
+
+/**
+ * Überprüft, ob ein gegebener Pfad einem Eintrag in IGNORED_NAMES entspricht.
+ * Wir testen dabei, ob der Dateiname oder ein Teil des Pfades mit einem der
+ * Einträge übereinstimmt. Wildcards (z.B. "*.log") werden mit minimiertem Regex-Check abgeglichen.
+ */
+function isIgnored(filePathRelative) {
+  const basename = path.basename(filePathRelative);
+  return IGNORED_NAMES.some((pattern) => {
+    if (pattern.includes('*')) {
+      // Einfacher Umgang mit "*"-Wildcard: z. B. "*.log"
+      const regex = new RegExp('^' + pattern.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$');
+      return regex.test(basename);
+    }
+    // genaues Match am Dateinamen oder irgendwo im Pfad
+    return basename === pattern || filePathRelative.split(path.sep).includes(pattern);
+  });
+}
+
+/**
+ * Fügt einen Eintrag in die .gitignore im Zielordner hinzu, falls er noch nicht existiert.
+ */
+async function ensureIgnoredInGitignore(folderPath, entry) {
+  const gitignorePath = path.join(folderPath, '.gitignore');
+  let content = '';
+  try {
+    content = await fs.readFile(gitignorePath, { encoding: 'utf8' });
+  } catch (err) {
+    // .gitignore existiert noch nicht => wird beim Schreiben erstellt
+    content = '';
+  }
+  const lines = content.split(/\r?\n/);
+  if (!lines.includes(entry)) {
+    const newContent = content.trim().length > 0
+      ? content.trim() + '\n' + entry + '\n'
+      : entry + '\n';
+    await fs.writeFile(gitignorePath, newContent, { encoding: 'utf8' });
+    debug(`[IGNORE] Eintrag "${entry}" zu .gitignore hinzugefügt in ${folderPath}`);
+    return true;
+  }
+  return false;
+}
+
+
+
+/**
+ * Kombinierte Funktion: Initialer Commit und Watcher in einem.
+ */
 function startMonitoringWatcher(folderPath, win) {
   if (monitoringWatchers.has(folderPath)) return;
+
   const watcher = chokidar.watch(folderPath, {
     ignored: /(^|[\/\\])\..|node_modules|\.git/,
     ignoreInitial: true,
@@ -257,48 +373,110 @@ function startMonitoringWatcher(folderPath, win) {
     awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 }
   });
 
-  // Initialer Commit
-  (async () => {
-    debug(`[MONITOR] Starte initialen Commit-Check für ${folderPath}`);
+  const git = simpleGit(folderPath);
 
-    const git = simpleGit(folderPath);
+  /**
+   * Führt einen Git-Status-Check durch, filtert ignorierbare Dateien raus und
+   * schreibt sie ggfs. in die .gitignore, bevor die verbleibenden Änderungen committed werden.
+   */
+  async function doAutoCommitWithIgnoreCheck() {
     const status = await git.status();
-    if (
-      status.not_added.length > 0 ||
-      status.created.length > 0 ||
-      status.modified.length > 0 ||
-      status.deleted.length > 0 ||
-      status.renamed.length > 0
-    ) {
-      const msg = buildCommitMessageFromStatus(status, 'auto-git: ');
-      const did = await autoCommit(folderPath, msg, win);
-      if (did) {
-        win.webContents.send('repo-updated', folderPath);
-        debug(`[MONITOR] Initialer Auto-Commit für ${folderPath} durchgeführt:\n${msg}`);
-      }
+
+    // Dateien, die ignoriert werden sollen (nach IGNORED_NAMES)
+    const toIgnore = [
+      ...status.not_added,
+      ...status.created
+    ].filter(filePathRel => isIgnored(filePathRel));
+
+    // Dateien, die tatsächlich committed werden sollen
+    const toCommit = {
+      not_added: status.not_added.filter(p => !toIgnore.includes(p)),
+      created:   status.created.filter(p => !toIgnore.includes(p)),
+      modified:  status.modified.slice(),
+      deleted:   status.deleted.slice(),
+      renamed:   status.renamed.slice()
+    };
+
+    // 1. Ignorierbare Dateien in .gitignore schreiben
+    let ignoreWritten = false;
+    for (const fileRel of toIgnore) {
+      // Den Eintrag so in .gitignore setzen, dass er relativ zum Repo-Wurzel passt
+      // z.B. "node_modules/myLib" => "node_modules/"
+      const parts = fileRel.split(path.sep);
+      const entry = parts.length > 1 ? parts[0] : fileRel;
+      const didWrite = await ensureIgnoredInGitignore(folderPath, entry);
+      if (didWrite) ignoreWritten = true;
     }
-  })();
+    if (ignoreWritten) {
+      await git.add('.gitignore');
+      await git.commit('auto-git: Aktualisiere .gitignore um ignorierte Dateien');
+      win.webContents.send('repo-updated', folderPath);
+      debug('[MONITOR] .gitignore Commit ausgeführt');
+      // nach dem Schreiben in .gitignore möchte man nochmal den Status neu holen
+      return await doAutoCommitWithIgnoreCheck();
+    }
 
-  // Bei jedem Event → status neu holen, Message wie beim initialen Check bauen
-  watcher.on('all', async () => {
-    const git = simpleGit(folderPath);
-    const status = await git.status();
-    if (
-      status.not_added.length > 0 ||
-      status.created.length > 0 ||
-      status.modified.length > 0 ||
-      status.deleted.length > 0 ||
-      status.renamed.length > 0
-    ) {
-      const msg = buildCommitMessageFromStatus(status, 'auto-git: ');
+    // 2. Commit für die verbleibenden Änderungen (falls vorhanden)
+    const hasChanges =
+      toCommit.not_added.length > 0 ||
+      toCommit.created.length > 0 ||
+      toCommit.modified.length > 0 ||
+      toCommit.deleted.length > 0 ||
+      toCommit.renamed.length > 0;
+
+    if (hasChanges) {
+      // Build-Message aus den gefilterten Status-Feldern
+      const fakeStatus = {
+        not_added: toCommit.not_added,
+        created:   toCommit.created,
+        modified:  toCommit.modified,
+        deleted:   toCommit.deleted,
+        renamed:   toCommit.renamed
+      };
+      const msg = buildCommitMessageFromStatus(fakeStatus, 'auto-git: ');
       await autoCommit(folderPath, msg, win);
       win.webContents.send('repo-updated', folderPath);
+      debug(`[MONITOR] Auto-Commit durchgeführt:\n${msg}`);
     }
+  }
+
+  // --- Initialer Commit-Check ---
+  (async () => {
+    debug(`[MONITOR] Starte initialen Commit-Check für ${folderPath}`);
+    await doAutoCommitWithIgnoreCheck();
+  })();
+
+  // --- Watcher: bei jedem Dateisystem-Event ---
+  watcher.on('all', async (event, filePathAbsolute) => {
+    // Relativer Pfad zum Repository
+    const filePathRel = path.relative(folderPath, filePathAbsolute);
+
+    // Zuerst prüfen, ob die Änderung eine Datei betrifft, die wir ignorieren wollen
+    if (isIgnored(filePathRel)) {
+      // Sicherstellen, dass der Eintrag in .gitignore steht
+      const entry = filePathRel.split(path.sep)[0];
+      const didWrite = await ensureIgnoredInGitignore(folderPath, entry);
+      if (didWrite) {
+        // Wenn in .gitignore geschrieben wurde, committen wir das und senden Update
+        await git.add('.gitignore');
+        await git.commit('auto-git: Hinzufügen zu .gitignore');
+        win.webContents.send('repo-updated', folderPath);
+        debug(`[WATCHER] "${entry}" zu .gitignore hinzugefügt und committed`);
+      }
+      // Änderung wird nicht weiter committed
+      return;
+    }
+
+    // Ansonsten ganz normal: Status abfragen und committen
+    await doAutoCommitWithIgnoreCheck();
   });
 
   monitoringWatchers.set(folderPath, watcher);
   debug(`[MONITOR] Watcher aktiv für ${folderPath}`);
 }
+
+
+
 
 function stopMonitoringWatcher(folderPath) {
   const watcher = monitoringWatchers.get(folderPath);
@@ -1201,11 +1379,6 @@ function buildTrayMenu() {
 
 
 
-  // Auto-Verzeichnisstruktur
-  const IGNORED_NAMES = [ 
-    '.DS_Store', 'node_modules', '.git', 'dist', 'build',
-    '.cache', 'out', '.venv', '.mypy_cache', '__pycache__', 'package-lock.json'
-  ];
 
   function isIgnored(name) {
     return IGNORED_NAMES.includes(name);
