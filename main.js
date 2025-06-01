@@ -274,7 +274,6 @@ const IGNORED_NAMES = [
   
   // Git- und Versionskontrolle
   '.git',              // Git-Repository selbst
-  '.gitignore',        // Lokale Einstellungen (falls man es nicht committen will)
   '.gitattributes',
   
   // Node.js / JavaScript / TypeScript
