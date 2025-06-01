@@ -657,6 +657,19 @@ function startMonitoringWatcher(folderPath, win) {
 
   // Bei jedem Event → status neu holen, Message wie beim initialen Check bauen
   watcher.on('all', async () => {
+    // === .gitignore updaten, falls nötig ===
+    for (const name of IGNORED_NAMES) {
+      if (name.includes('*')) {
+        addMatchingFilesToGitignore(folderPath, name);
+      } else {
+        const absPath = path.join(folderPath, name.replace(/\/$/, ''));
+        if (fs.existsSync(absPath)) {
+          ensureInGitignore(folderPath, name);
+        }
+      }
+    }
+
+    // Jetzt wie gehabt:
     const git = simpleGit(folderPath);
     const status = await git.status();
     if (
@@ -1035,17 +1048,6 @@ function addMatchingFilesToGitignore(folderPath, pattern) {
 
 
 async function autoCommit(folderPath, message, win) {
-  // ---- AUTOGENERATE .gitignore ----
-  for (const name of IGNORED_NAMES) {
-    if (name.includes('*')) {
-      addMatchingFilesToGitignore(folderPath, name);
-    } else {
-      const absPath = path.join(folderPath, name.replace(/\/$/, ''));
-      if (fs.existsSync(absPath)) {
-        ensureInGitignore(folderPath, name);
-      }
-    }
-  }
 
   const git = simpleGit(folderPath);
   const status = await git.status();
