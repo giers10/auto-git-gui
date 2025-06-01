@@ -1961,11 +1961,22 @@ ipcMain.on('show-tree-context-menu', (event, { absPath, relPath, root, type }) =
     const gitignorePath = path.join(folderPath, '.gitignore');
     if (!fs.existsSync(gitignorePath)) return null;
     const content = fs.readFileSync(gitignorePath, 'utf8');
-    const ig = ignore().add(content);
-    return ig;
+    return ignore().add(content);
   }
-  
-  function getRelevantFiles(dir, maxSize = MAX_TOTAL_SIZE, ig = null, base = null) {
+
+  function getFileRelevanceScore(filename, relPath) {
+    const base = path.basename(filename).toLowerCase();
+    let score = 0;
+    if (/main|index|app|server/.test(base)) score += 10;
+    if (/test|mock|example|spec/.test(base)) score -= 20;
+    if (/package\.json|requirements\.txt|pyproject\.toml|makefile|cargo\.toml/.test(base)) score += 10;
+    if (path.dirname(relPath) === '.') score += 5;
+    if (/\.(js|py|ts|rb|pl|php|java|c|cpp|h|cs|go|rs|json|yml|yaml|toml|md|html|css|txt)$/.test(base)) score += 5;
+    if (/\.min\./.test(base)) score -= 10;
+    return score;
+  }
+
+  function getRelevantFiles(dir, maxSize = 100*1024, ig = null, base = null) {
     base = base || dir;
     if (!ig) ig = getGitignoreFilter(base);
     let files = [];
@@ -1978,24 +1989,27 @@ ipcMain.on('show-tree-context-menu', (event, { absPath, relPath, root, type }) =
           if (f.startsWith('.')) continue;
           walk(full);
         } else if (isTextFile(full)) {
-          files.push(full);
+          files.push({ f: full, rel });
         }
       }
     }
     walk(dir);
-    // Sortiere nach Größe, nimm so viele wie ins Limit passen
-    files = files.map(f => ({f, s: fs.statSync(f).size}))
-      .sort((a,b)=>a.s-b.s);
+    // Score & sort
+    files = files.map(({f, rel}) => ({
+      f, rel, score: getFileRelevanceScore(f, rel),
+      s: fs.statSync(f).size
+    }))
+      .sort((a, b) => b.score - a.score || a.s - b.s);
+
+    // Limit by max size
     let sum = 0, selected = [];
     for (let {f,s} of files) {
       if (sum + s > maxSize) break;
       selected.push(f);
       sum += s;
     }
-    console.log("files to generate readme from: " + selected)
     return selected;
   }
-
 
 
 
