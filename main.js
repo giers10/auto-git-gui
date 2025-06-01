@@ -12,6 +12,7 @@ const Store = require('electron-store');
 const simpleGit = require('simple-git');
 const chokidar = require('chokidar');
 const micromatch = require('micromatch');
+const ignore = require('ignore');
 
 const store = new Store({
   defaults: {
