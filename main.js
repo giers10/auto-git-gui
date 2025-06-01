@@ -13,6 +13,8 @@ const simpleGit = require('simple-git');
 const chokidar = require('chokidar');
 const ignore = require('ignore');
 
+const debug = require('debug')('monitor');
+
 const store = new Store({
   defaults: {
     folders: [],
@@ -82,9 +84,9 @@ if (Array.isArray(folders)) {
 const repoWatchers = new Map();
 
 // Debug Helper
-function debug(msg) {
-  console.log(`[DEBUG ${new Date().toISOString()}] ${msg}`);
-}
+//function debug(msg) {
+//  console.log(`[DEBUG ${new Date().toISOString()}] ${msg}`);
+//}
 
 /**
  * Erstellt das BrowserWindow und lädt index.html.
