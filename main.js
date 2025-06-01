@@ -115,7 +115,7 @@ function openSettings(win) {
  settingsWin = new BrowserWindow({
    parent: win,
    modal: true,
-   width: 450,
+   width: 600,
    height: 450, 
    resizable: false,
     webPreferences: {
@@ -1191,6 +1191,16 @@ function buildTrayMenu() {
   ipcMain.handle('get-skip-git-prompt', ()    => store.get('skipGitPrompt'));
   ipcMain.handle('set-skip-git-prompt', (_e,val) => store.set('skipGitPrompt', val));
 
+
+
+
+
+
+
+
+
+
+
   // Auto-Verzeichnisstruktur
   const IGNORED_NAMES = [ 
     '.DS_Store', 'node_modules', '.git', 'dist', 'build',
@@ -1225,6 +1235,17 @@ function buildTrayMenu() {
       return [];
     }
   });
+
+  
+
+
+
+
+
+
+
+
+/*
 
   ipcMain.handle('commit-current-folder', async (_e, folderObj, message) => {
     if (folderObj.needsRelocation || !fs.existsSync(folderObj.path)) {
@@ -1309,6 +1330,11 @@ function buildTrayMenu() {
       return { success: false, error: err.message };
     }
   });
+
+*/
+
+
+
 
   ipcMain.handle('set-monitoring', async (_e, folderPath, monitoring) => {
     let folders = store.get('folders') || [];
