@@ -355,7 +355,7 @@ async function ensureIgnoredInGitignore(folderPath, entry) {
     return true;
   }
   return false;
-}
+} 
 
 
 
