@@ -7,42 +7,44 @@
 # Project Name
 
 ## Description
-A brief description of what this project does.
+This project provides a comprehensive interface for managing Git repositories and generating README files automatically. It includes features such as folder management, commit tracking, snapshot creation, and integration with an animated cat character to enhance user experience.
 
 ## Features
-- Feature 1: Description.
-- Feature 2: Description.
-- Feature 3: Description.
+- **Folder Management**: Add, remove, and monitor multiple folders.
+- **Commit Tracking**: View commit history and checkout specific commits.
+- **Snapshot Creation**: Save snapshots of repository states.
+- **README Generation**: Automatically generate README files for repositories.
+- **Animated Cat Integration**: Interactive animated cat character to provide feedback.
 
 ## Installation
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/projectname.git
+   git clone https://github.com/yourusername/project-name.git
    
 2. Navigate to the project directory:
    ```bash
-   cd projectname
+   cd project-name
    
 3. Install dependencies:
    ```bash
    npm install
    
+4. Run the application:
+   ```bash
+   npm start
+   
 
 ## Usage
-- How to use the application.
-- Example commands or steps.
-
-## Contributing
-1. Fork the repository.
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`).
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-4. Push to the branch (`git push origin feature/AmazingFeature`).
-5. Open a pull request.
+- **Add Folder**: Click on the "Add" button to add a new Git repository folder.
+- **View Commits**: The commit history will be displayed in the main content area.
+- **Checkout Commit**: Click on a commit hash to checkout that specific commit.
+- **Create Snapshot**: Click on the snapshot button next to a commit to create a snapshot of the repository state.
+- **Generate README**: Click on the "Generate README" button to automatically generate a README file for the selected repository.
 
 ## License
 MIT License
 
-Copyright (c) [year] [fullname]
+Copyright (c) 2023 Your Name
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -61,10 +63,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-## Contact
-- **Name**: [Your Name]
-- **Email**: [your.email@example.com]
-- **Project Link**: [https://github.com/yourusername/projectname](https://github.com/yourusername/projectname)
-
-Feel free to reach out for any questions or feedback!
