@@ -221,6 +221,83 @@ function watchRepo(folder, win) {
   repoWatchers.set(folder, watcher);
 }*/
 
+
+
+
+
+
+
+const IGNORED_NAMES = [
+  // Betriebssystem-spezifische Dateien
+  '.DS_Store', 'Thumbs.db', 'desktop.ini', '.AppleDouble', '.LSOverride', 'ehthumbs.db', 'Icon\r',
+  // Git- und Versionskontrolle
+  '.git', '.gitattributes',
+  // Node.js / JavaScript / TypeScript
+  'node_modules', 'npm-debug.log', 'npm-debug.log*', 'yarn-error.log', 'yarn-debug.log*', 'pnpm-debug.log*',
+  'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'tsconfig.tsbuildinfo', 'dist', 'build', '.cache', 'out',
+  '.next', '.turbo',
+  // Python
+  '.venv', 'venv', '__pycache__', '*.py[cod]', '*$py.class', '.mypy_cache', '.pytest_cache', '.tox', 'dist',
+  'build', '*.egg-info', 'eggs', 'parts', 'var', 'sdist', 'develop-eggs', 'lib', 'lib64', 'wheelhouse', '*.egg',
+  '*.egg-info', '.coverage', 'htmlcov', '.cache', '.env', '.env.*',
+  // Java (Maven/Gradle)
+  'target', '*.class', '*.jar', '*.war', '*.ear', '*.nar', '*.zip', '*.tar.gz', '*.rar', '*.log', '*.iml',
+  '.idea', '.project', '.classpath', '.settings', '*.launch', 'hs_err_pid*', '*.hprof',
+  // C / C++ / Objective-C
+  '*.o', '*.obj', '*.so', '*.dylib', '*.dll', '*.exe', '*.out', '*.app', '*.ilk', '*.pch', '*.pdb', '*.lib',
+  '*.a', '*.lo', '*.la', 'CMakeFiles', 'CMakeCache.txt', 'cmake_install.cmake', 'Makefile', '*.mk', 'Debug',
+  'Release', 'build', 'xcodebuild', '*.xcworkspace', '*.xcuserstate', '*.xcuserdatad',
+  // Go
+  'bin', 'pkg', 'vendor',
+  // Rust
+  'target', 'Cargo.lock',
+  // Ruby
+  '*.gem', '*.rbc', '.bundle', 'vendor/bundle', 'log', 'tmp', 'coverage', 'byebug_history',
+  // PHP / Composer
+  'vendor', 'composer.lock', '*.cache', '*.log', '*.session',
+  // .NET / Visual Studio
+  '*.user', '*.rsuser', '*.suo', '*.userosscache', '*.sln.docstates', '*.pdb', '*.ilk', '*.cache', '*.log',
+  'bin', 'obj', 'Debug', 'Release', 'TestResults', '.vs', '*.exe', '*.dll', '*.nupkg', '*.snk',
+  // IDEs allgemein
+  '.vscode', '.history', '*.code-workspace', '*.sublime-project', '*.sublime-workspace', '*.komodoproject',
+  '.ropeproject', '.jupyter',
+  // Vim / Emacs / Editor-Temp
+  '*.swp', '*.swo', '*.tmp', '*.bak', '*~', '.netrwhist', '.session', '.emacs.desktop', '.emacs.desktop.lock',
+  // Logs / Coverage / Reports
+  '*.log', 'logs', 'log', '*.trace', 'coverage', 'test-results', 'lcov-report',
+  // Datenbanken & SQLite
+  '*.sqlite3', '*.sqlite3-journal', '*.db', '*.db-journal',
+  // Docker / Container
+  'docker-compose.override.yml', '.docker', 'docker-compose.*.yml', 'docker-compose.*.env', '*.pid', '*.pid.lock',
+  // Terraform
+  '.terraform', '*.tfstate', '*.tfstate.backup', '.terraform.lock.hcl',
+  // Kubernetes / Helm
+  'helm-debug.log', '.helm', 'kustomization.yaml~',
+  // Ansible
+  'ansible.cfg~', 'inventory.ini',
+  // Allgemein temporäre/versteckte Dateien
+  '*.backup', '*.old', '*.orig', '*.rej', '#*#', '.*~', '*.kate-swp', '*.directory', '.Trash-*', '.fseventsd',
+  // Lock-Dateien allgemein
+  '*.lock',
+  // Komprimierte/Archivdateien
+  '*.zip', '*.tar.gz', '*.rar', '*.7z',
+  // Mobile/Plattform-spezifisch
+  '*.apk', '*.ap_', '*.aab', 'android/.gradle', 'android/gradle', 'android/local.properties',
+  '*.keystore', '.android', '.flutter-plugins', '.flutter-plugins-dependencies', '.packages',
+  'DerivedData', '*.hmap', '*.ipa', '*.dSYM.zip', '*.dSYM',
+  // Unity
+  'Library', 'Temp', 'Obj', 'Builds', 'Logs', 'MemoryCaptures', '*.csproj', '*.unityproj', '*.userprefs',
+  '*.pidb', '*.booproj', '*.svd', '*.opendb', '*.VC.db',
+  // Unreal Engine
+  'Binaries', 'DerivedDataCache', 'Intermediate', 'Saved', 'Build', '*.vcxproj', '*.sln',
+  // Maven Wrapper
+  'mvnw.cmd', 'mvnw', '.mvn/wrapper/maven-wrapper.jar'
+];
+
+
+
+
+
 /**
  * Initiiert ein Git-Repo in `folder`, falls noch nicht vorhanden,
  * und erzeugt einen Initial-Commit mit Timestamp.
@@ -266,6 +343,9 @@ async function loadGitignoreFilter(folderPath) {
   ig.add(raw.split(/\r?\n/)); 
   return ig;
 }
+
+
+
 
 /**
  * Wie zuvor: Prüft, ob ein relativer Pfad (innerhalb folderPath) mit einem
