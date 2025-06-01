@@ -626,9 +626,6 @@ const IGNORED_NAMES = [
 const monitoringQueues = new Map(); // Map: folderPath -> Array<Function>
 const monitoringActive = new Map(); // Map: folderPath -> Boolean (ob Task aktiv)
 
-const monitoringQueues = new Map();
-const monitoringActive = new Map();
-
 function enqueueTask(folderPath, fn) {
   if (!monitoringQueues.has(folderPath)) monitoringQueues.set(folderPath, []);
   monitoringQueues.get(folderPath).push(fn);
