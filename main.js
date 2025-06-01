@@ -668,7 +668,7 @@ function createRewriteScript(mapping) {
 
 
 async function autoCommit(folderPath, message, win) {
-
+  // ---- AUTOGENERATE .gitignore ----
   for (const name of IGNORED_NAMES) {
     if (name.includes('*')) {
       addMatchingFilesToGitignore(folderPath, name);
