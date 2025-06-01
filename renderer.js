@@ -31,8 +31,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-    // Readme-Button
-    readmeBtn.addEventListener('click', async () => {
+  // Readme-Button nur einmal binden
+  readmeBtn.addEventListener('click', async () => {
     const selected = await window.electronAPI.getSelected();
     if (!selected) return alert('No folder selected!');
     readmeBtn.disabled = true;
@@ -48,7 +48,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     readmeBtn.textContent = hasReadme ? 'Update README' : 'Generate README';
   });
 
-
   // Drag and Drop
   document.body.addEventListener('dragover', e => {
     e.preventDefault();
@@ -59,10 +58,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     e.preventDefault();
     const files = [...e.dataTransfer.files];
     if (!files.length) return;
-    // Prüfe, ob Ordner:
     for (let f of files) {
-      // f ist File, hat .path und .type, aber bei Folders oft type="" (leerer String)
-      if (f.type === "" /* = Ordner (bei DnD) */) {
+      if (f.type === "") {
         await window.electronAPI.addFolderByPath(f.path);
         await renderSidebar();
         const sel = await window.electronAPI.getSelected();
@@ -70,7 +67,6 @@ window.addEventListener('DOMContentLoaded', async () => {
       }
     }
   });
-
 
 
   // Farben für Sky-Mode
@@ -105,7 +101,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       skyIntervalId = setInterval(updateBackground, 60_000);
       function updateAllTextColors() { setTextColor('sky'); }
       updateAllTextColors();
-      titleIntervalId = setInterval(updateAllTextColors, 60_000); // damit sich die Farbe nachts/tags ändert
+      titleIntervalId = setInterval(updateAllTextColors, 60_000);
     } else {
       panel.style.backgroundColor = '';
       setTextColor('default');
@@ -118,193 +114,139 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 
   function setTextColor(mode) {
-    // Default: Schwarz
     let textColor = '#111';
     if (mode === 'sky') {
       const hour = new Date().getHours();
-      // Sky-Mode: Tagsüber schwarz, nachts weiß
       textColor = (hour >= 18 || hour < 6) ? '#fff' : '#111';
     }
     titleEl.style.color = textColor;
     treeviewEl.style.color = textColor;
     titleArrow.style.color = textColor;
-    // Auch die Pagination einfärben:
     paginationEl.style.color = textColor;
-    // Falls Treeview geöffnet und HTML gerendert: auch alle Spans darin einfärben
     if (treeviewEl.querySelectorAll) {
       treeviewEl.querySelectorAll('.tree-file, .tree-dir').forEach(el => el.style.color = textColor);
     }
   }
 
 
-
-
   function basename(fullPath) {
     return fullPath.replace(/.*[\\/]/, '');
   }
 
-  // Utility für FolderObj-Suche per Path
   async function getFolderObjByPath(path) {
     const folders = await window.electronAPI.getFolders();
     return folders.find(f => f.path === path) || null;
   }
 
 
-
-
   async function renderSidebar() {
     const folders  = await window.electronAPI.getFolders();
-    //console.log("Renderer-Folders:", folders);
     const selected = await window.electronAPI.getSelected();
     folderList.innerHTML = '';
 
-folders.forEach(folderObj => {
-  const folder = folderObj.path;
-  const isMonitoring = folderObj.monitoring;
-  const li = document.createElement('li');
-  li.setAttribute('data-folder-id', encodeURIComponent(folder));
-  li.className = [
-    'flex items-center justify-between px-3 py-2 rounded cursor-pointer',
-    selected && folder === selected.path ? 'selected' : '',
-    folderObj.needsRelocation ? 'needs-relocation' : ''
-  ].join(' ');
-  
-  // beide Buttons schon im Template unter „right“
-  li.innerHTML = `
-    <div class="flex items-center space-x-2 overflow-hidden">
-      <!-- links: Icon + Name -->
-      <svg xmlns="http://www.w3.org/2000/svg"
-           class="h-5 w-5 flex-shrink-0"
-           fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/>
-      </svg>
-      <span class="truncate text-sm font-medium">${basename(folder)}</span>
-    </div>
-    <div class="flex items-center space-x-2">
-      ${
-        folderObj.needsRelocation
-          ? `<span class="relocation-warning-symbol" title="Ordner fehlt / verschoben">!</span>`
-          : ''
-      }
-      <button class="pause-play-btn p-1 rounded${folderObj.needsRelocation ? ' disabled' : ''}"
-        title="${isMonitoring ? 'Monitoring pausieren' : 'Monitoring starten'}"
-        ${folderObj.needsRelocation ? 'disabled' : ''}>
-        ${isMonitoring
-          ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/>
-               <rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/>
-             </svg>`
-          : `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <polygon points="7,5 19,12 7,19" fill="currentColor"/>
-             </svg>`
-        }
-      </button>
-      <button class="remove-btn p-1 rounded" title="Ordner entfernen">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"/>
-        </svg>
-      </button>
-    </div>
-  `;
+    for (const folderObj of folders) {
+      const folder = folderObj.path;
+      const isMonitoring = folderObj.monitoring;
+      const li = document.createElement('li');
+      li.setAttribute('data-folder-id', encodeURIComponent(folder));
+      li.className = [
+        'flex items-center justify-between px-3 py-2 rounded cursor-pointer',
+        selected && folder === selected.path ? 'selected' : '',
+        folderObj.needsRelocation ? 'needs-relocation' : ''
+      ].join(' ');
 
-  // jetzt Listener setzen
+      li.innerHTML = `
+        <div class="flex items-center space-x-2 overflow-hidden">
+          <svg xmlns="http://www.w3.org/2000/svg"
+               class="h-5 w-5 flex-shrink-0"
+               fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/>
+          </svg>
+          <span class="truncate text-sm font-medium">${basename(folder)}</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          ${
+            folderObj.needsRelocation
+              ? `<span class="relocation-warning-symbol" title="Ordner fehlt / verschoben">!</span>`
+              : ''
+          }
+          <button class="pause-play-btn p-1 rounded${folderObj.needsRelocation ? ' disabled' : ''}"
+            title="${isMonitoring ? 'Monitoring pausieren' : 'Monitoring starten'}"
+            ${folderObj.needsRelocation ? 'disabled' : ''}>
+            ${isMonitoring
+              ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/>
+                   <rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/>
+                 </svg>`
+              : `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <polygon points="7,5 19,12 7,19" fill="currentColor"/>
+                 </svg>`
+            }
+          </button>
+          <button class="remove-btn p-1 rounded" title="Ordner entfernen">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      `;
 
-  // relocate missing folder
-  li.addEventListener('click', async e => { 
-    if (e.target.closest('.pause-play-btn, .remove-btn')) return;
-
-    // Nur wenn Folder fehlt
-    if (folderObj.needsRelocation) {
-      // 1. Ordner wählen
-      const paths = await window.electronAPI.pickFolder();
-      const newPath = paths && paths[0];
-      if (!newPath) return;
-
-      // 2. Prüfen ob Git-Repo
-      const isGit = await window.electronAPI.isGitRepo(newPath);
-      if (!isGit) {
-        alert('Das ist kein gültiges Git-Repository.');
-        return;
-      }
-
-      // 3. Hash-Vergleich
-      const lastKnownHash = folderObj.lastHeadHash;
-      if (!lastKnownHash) {
-        alert('Kein gespeicherter Hash – Vergleich nicht möglich.');
-        return;
-      }
-      const isMatch = await window.electronAPI.repoHasCommit(newPath, lastKnownHash); // WAKE UP MR. FREEMAN! WAKE UP AND... SMELL THE HASHES
-      if (!isMatch) {
-        alert('Das ist nicht das ursprüngliche Repo (Commit-Hash fehlt).');
-        return;
-      }
-
-      // 4. Folder umziehen
-      await window.electronAPI.relocateFolder(folderObj.path, newPath);
-      await renderSidebar();
-
-      
-      // Ggf. neuen Ordner direkt selektieren:
-      const newFolderObj = (await window.electronAPI.getFolders())
-        .find(f => f.path === newPath);
-      if (newFolderObj) {
-        await window.electronAPI.setSelected(newFolderObj);
-        await renderContent(newFolderObj);
-      }
-      return;
-    }
-
-    // Sonst Standardverhalten (Folder auswählen)
-    await window.electronAPI.setSelected(folderObj);
-    await renderSidebar();
-    await renderContent(folderObj);
-  });
-
-  const hasReadme = await window.electronAPI.hasReadme(folderObj.path);
-  readmeBtn.textContent = hasReadme ? 'Update README' : 'Generate README';
-
-
-  const pauseBtn = li.querySelector('.pause-play-btn');
-  pauseBtn.addEventListener('click', async e => {
-    e.stopPropagation();
-    await window.electronAPI.setMonitoring(folderObj, !isMonitoring);
-    await renderSidebar();
-  });
-
-  const removeBtn = li.querySelector('.remove-btn');
-  removeBtn.addEventListener('click', async e => {
-    e.stopPropagation();
-    // ... dein Remove-Logic hier ...
-  });
-
-  // Kontextmenü / Click zum Select
-  li.addEventListener('contextmenu', e => {
-    e.preventDefault();
-    window.electronAPI.showFolderContextMenu(folderObj.path);
-  });
-  li.addEventListener('click', async e => {
-    if (e.target.closest('.pause-play-btn, .remove-btn')) return;
-    await window.electronAPI.setSelected(folderObj);
-    await renderSidebar();
-    await renderContent(folderObj);
-  });
-
-  folderList.appendChild(li);
-      li.addEventListener('contextmenu', e => {
-        e.preventDefault();
-        window.electronAPI.showFolderContextMenu(folderObj.path);
-      });
-
+      // relocate missing folder
       li.addEventListener('click', async e => {
-        if (e.target.closest('.remove-btn')) return;
+        if (e.target.closest('.pause-play-btn, .remove-btn')) return;
+
+        if (folderObj.needsRelocation) {
+          const paths = await window.electronAPI.pickFolder();
+          const newPath = paths && paths[0];
+          if (!newPath) return;
+
+          const isGit = await window.electronAPI.isGitRepo(newPath);
+          if (!isGit) {
+            alert('Das ist kein gültiges Git-Repository.');
+            return;
+          }
+
+          const lastKnownHash = folderObj.lastHeadHash;
+          if (!lastKnownHash) {
+            alert('Kein gespeicherter Hash – Vergleich nicht möglich.');
+            return;
+          }
+          const isMatch = await window.electronAPI.repoHasCommit(newPath, lastKnownHash);
+          if (!isMatch) {
+            alert('Das ist nicht das ursprüngliche Repo (Commit-Hash fehlt).');
+            return;
+          }
+
+          await window.electronAPI.relocateFolder(folderObj.path, newPath);
+          await renderSidebar();
+
+          const newFolderObj = (await window.electronAPI.getFolders())
+            .find(f => f.path === newPath);
+          if (newFolderObj) {
+            await window.electronAPI.setSelected(newFolderObj);
+            await renderContent(newFolderObj);
+          }
+          return;
+        }
+
         await window.electronAPI.setSelected(folderObj);
         await renderSidebar();
         await renderContent(folderObj);
       });
 
-      li.querySelector('.remove-btn').addEventListener('click', async e => {
+      // Monitoring-Button
+      const pauseBtn = li.querySelector('.pause-play-btn');
+      pauseBtn.addEventListener('click', async e => {
+        e.stopPropagation();
+        await window.electronAPI.setMonitoring(folderObj, !isMonitoring);
+        await renderSidebar();
+      });
+
+      // Remove-Button
+      const removeBtn = li.querySelector('.remove-btn');
+      removeBtn.addEventListener('click', async e => {
         e.stopPropagation();
         const count      = await window.electronAPI.getCommitCount(folderObj);
         const hasUnstaged= await window.electronAPI.hasDiffs(folderObj);
@@ -343,113 +285,111 @@ folders.forEach(folderObj => {
         }
       });
 
+      // Kontextmenü / Click zum Select
+      li.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        window.electronAPI.showFolderContextMenu(folderObj.path);
+      });
+
       folderList.appendChild(li);
-    });
-  }
+    }
 
-
-  // Update stats
-  // Countdown in MM:SS-Format
-
-let countdownInterval = null;
-
-function getCommitColor(commitCount) {
-  const stops = [
-    { c:   0, color: [157, 157, 157] },
-    { c:   5, color: [255, 255, 255] },
-    { c:  15, color: [30, 255, 0] },
-    { c:  50, color: [0, 112, 221] },
-    { c: 100, color: [163, 53, 238] },
-    { c: 500, color: [255, 128, 0] }
-  ];
-  function lerp(a, b, t) { return a + (b - a) * t; }
-  function lerpColor(a, b, t) {
-    return [
-      Math.round(lerp(a[0], b[0], t)),
-      Math.round(lerp(a[1], b[1], t)),
-      Math.round(lerp(a[2], b[2], t))
-    ];
-  }
-  let lower = stops[0], upper = stops[stops.length-1];
-  for (let i=0; i<stops.length-1; ++i) {
-    if (commitCount >= stops[i].c && commitCount < stops[i+1].c) {
-      lower = stops[i]; upper = stops[i+1]; break;
+    // Aktualisiere README-Button-Text für das aktuell ausgewählte Repo
+    const sel = await window.electronAPI.getSelected();
+    if (sel) {
+      const hasReadme = await window.electronAPI.hasReadme(sel.path);
+      readmeBtn.textContent = hasReadme ? 'Update README' : 'Generate README';
     }
   }
-  const range = upper.c - lower.c || 1;
-  const t = Math.min(Math.max((commitCount - lower.c) / range, 0), 1);
-  return lerpColor(lower.color, upper.color, t);
-}
 
-function formatCountdown(ms) {
-  if (!ms || ms <= 0) return '00:00';
-  const s = Math.floor(ms / 1000);
-  const m = Math.floor(s / 60).toString().padStart(2, '0');
-  const sec = (s % 60).toString().padStart(2, '0');
-  return `${m}:${sec}`;
-}
 
-async function updateInteractionBar(folderObj) {
-  // Commits Today
-  const stats = await window.electronAPI.getDailyCommitStats();
-  const today = new Date().toISOString().slice(0, 10);
-  const commitsToday = stats[today] || 0;
+  let countdownInterval = null;
 
-  // Globale Variablen aus Settings holen (am besten beim Start speichern)
-  const intelligentCommitThreshold = await window.electronAPI.getIntelligentCommitThreshold?.() || 20;
-  const minutesCommitThreshold = await window.electronAPI.getMinutesCommitThreshold?.() || 5;
+  function getCommitColor(commitCount) {
+    const stops = [
+      { c:   0, color: [157, 157, 157] },
+      { c:   5, color: [255, 255, 255] },
+      { c:  15, color: [30, 255, 0] },
+      { c:  50, color: [0, 112, 221] },
+      { c: 100, color: [163, 53, 238] },
+      { c: 500, color: [255, 128, 0] }
+    ];
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function lerpColor(a, b, t) {
+      return [
+        Math.round(lerp(a[0], b[0], t)),
+        Math.round(lerp(a[1], b[1], t)),
+        Math.round(lerp(a[2], b[2], t))
+      ];
+    }
+    let lower = stops[0], upper = stops[stops.length-1];
+    for (let i = 0; i < stops.length - 1; ++i) {
+      if (commitCount >= stops[i].c && commitCount < stops[i+1].c) {
+        lower = stops[i]; upper = stops[i+1]; break;
+      }
+    }
+    const range = upper.c - lower.c || 1;
+    const t = Math.min(Math.max((commitCount - lower.c) / range, 0), 1);
+    return lerpColor(lower.color, upper.color, t);
+  }
 
-  // Lines until next Rewrite
-  const linesChanged = folderObj?.linesChanged || 0;
-  const linesUntilRewrite = Math.max(0, intelligentCommitThreshold - linesChanged);
+  function formatCountdown(ms) {
+    if (!ms || ms <= 0) return '00:00';
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60).toString().padStart(2, '0');
+    const sec = (s % 60).toString().padStart(2, '0');
+    return `${m}:${sec}`;
+  }
 
-  // Time until next Rewrite: *Initial berechnen, Live-Countdown separat*
-  let countdown = "00:00";
-  let msLeft = 0;
-  if (folderObj?.firstCandidateBirthday) {
+  async function updateInteractionBar(folderObj) {
+    const stats = await window.electronAPI.getDailyCommitStats();
+    const today = new Date().toISOString().slice(0, 10);
+    const commitsToday = stats[today] || 0;
+
+    const intelligentCommitThreshold = await window.electronAPI.getIntelligentCommitThreshold?.() || 20;
+    const minutesCommitThreshold = await window.electronAPI.getMinutesCommitThreshold?.() || 5;
+
+    const linesChanged = folderObj?.linesChanged || 0;
+    const linesUntilRewrite = Math.max(0, intelligentCommitThreshold - linesChanged);
+
+    let countdown = "00:00";
+    let msLeft = 0;
+    if (folderObj?.firstCandidateBirthday) {
+      const msThreshold = minutesCommitThreshold * 60 * 1000;
+      const endTime = new Date(folderObj.firstCandidateBirthday).getTime() + msThreshold;
+      msLeft = Math.max(0, endTime - Date.now());
+      countdown = formatCountdown(msLeft);
+    }
+
+    const [r, g, b] = getCommitColor(commitsToday);
+    document.getElementById('commitsToday').textContent = commitsToday;
+    document.getElementById('commitsToday').style.color = `rgb(${r},${g},${b})`;
+    document.getElementById('linesUntilRewrite').textContent = linesUntilRewrite;
+    document.getElementById('countdown').textContent = countdown;
+
+    startLiveCountdown(folderObj, msLeft);
+  }
+
+  async function startLiveCountdown(folderObj, msLeft) {
+    if (countdownInterval) clearInterval(countdownInterval);
+
+    if (!folderObj?.firstCandidateBirthday || msLeft <= 0) {
+      document.getElementById('countdown').textContent = "00:00";
+      return;
+    }
+
+    const minutesCommitThreshold = await window.electronAPI.getMinutesCommitThreshold?.() || 5;
     const msThreshold = minutesCommitThreshold * 60 * 1000;
     const endTime = new Date(folderObj.firstCandidateBirthday).getTime() + msThreshold;
-    msLeft = Math.max(0, endTime - Date.now());
-    countdown = formatCountdown(msLeft);
+
+    countdownInterval = setInterval(() => {
+      const msL = Math.max(0, endTime - Date.now());
+      document.getElementById('countdown').textContent = formatCountdown(msL);
+      if (msL <= 0) {
+        clearInterval(countdownInterval);
+      }
+    }, 1000);
   }
-
-  // In die Bar schreibenx
-  const [r, g, b] = getCommitColor(commitsToday);
-  document.getElementById('commitsToday').textContent = commitsToday;
-  document.getElementById('commitsToday').style.color = `rgb(${r},${g},${b})`;
-  document.getElementById('linesUntilRewrite').textContent = linesUntilRewrite;
-  document.getElementById('countdown').textContent = countdown;
-
-  // Live-Countdown starten, aber nur wenn noch Zeit übrig
-  startLiveCountdown(folderObj, msLeft);
-}
-
-async function startLiveCountdown(folderObj, msLeft) {
-  if (countdownInterval) clearInterval(countdownInterval);
-
-  // Wenn kein Countdown nötig: 00:00 anzeigen
-  if (!folderObj?.firstCandidateBirthday || msLeft <= 0) {
-    document.getElementById('countdown').textContent = "00:00";
-    return;
-  }
-
-  const minutesCommitThreshold = await window.electronAPI.getMinutesCommitThreshold?.() || 5;
-  const msThreshold = minutesCommitThreshold * 60 * 1000;
-  const endTime = new Date(folderObj.firstCandidateBirthday).getTime() + msThreshold;
-
-  countdownInterval = setInterval(() => {
-    const msLeft = Math.max(0, endTime - Date.now());
-    document.getElementById('countdown').textContent = formatCountdown(msLeft);
-    if (msLeft <= 0) {
-      clearInterval(countdownInterval);
-    }
-  }, 1000);
-}
-
-
-
-
-
 
 
   const folderTitleDrop = document.getElementById('folderTitleDrop');
@@ -465,39 +405,33 @@ async function startLiveCountdown(folderObj, msLeft) {
     const selected = await window.electronAPI.getSelected();
     if (!selected || !selected.path) return;
 
-    // Show loading text
     folderHierarchyDropdown.textContent = 'Lade Verzeichnis…';
     folderHierarchyDropdown.classList.remove('hidden');
     folderTitleArrow.classList.add('open');
     isDropdownOpen = true;
 
-    // Lade Tree
     const tree = await window.electronAPI.getFolderTree(selected.path);
-    console.log(selected.path);
-    console.log(tree);
     folderHierarchyDropdown.innerHTML = renderFolderTreeAscii(tree, '.', '');
     setTextColor(document.body.classList.contains('sky-mode') ? 'sky' : 'default');
   });
 
   folderHierarchyDropdown.addEventListener('contextmenu', function(e) {
-      const el = e.target.closest('.tree-file, .tree-dir');
-      if (!el) return;
-      e.preventDefault();
+    const el = e.target.closest('.tree-file, .tree-dir');
+    if (!el) return;
+    e.preventDefault();
 
-      const relPath = el.getAttribute('data-path');
-      const type    = el.getAttribute('data-type'); // "file" oder "dir"
-      const selected = window.electronAPI.getSelectedSync?.()
-        || (window.currentSelectedFolderObj || {});
-      // Tipp: Implementiere eine Sync-Methode für getSelected (siehe Preload)
-      const absPath = selected.path + '/' + relPath;
+    const relPath = el.getAttribute('data-path');
+    const type    = el.getAttribute('data-type');
+    const selected = window.electronAPI.getSelectedSync?.() || (window.currentSelectedFolderObj || {});
+    const absPath = selected.path + '/' + relPath;
 
-      window.electronAPI.showTreeContextMenu({
-        absPath,
-        relPath,
-        root: selected.path,
-        type
-      });
+    window.electronAPI.showTreeContextMenu({
+      absPath,
+      relPath,
+      root: selected.path,
+      type
     });
+  });
 
   function closeDropdown() {
     folderHierarchyDropdown.classList.add('hidden');
@@ -505,7 +439,6 @@ async function startLiveCountdown(folderObj, msLeft) {
     isDropdownOpen = false;
   }
 
-  // Diese Funktion generiert die Treeview-Zeilen mit data-path und data-type
   function renderFolderTreeAscii(tree, prefix = '', indent = '', relPath = '.') {
     if (!Array.isArray(tree)) return '';
     let result = '';
@@ -527,27 +460,10 @@ async function startLiveCountdown(folderObj, msLeft) {
 
 
   async function getCommitPageForHash(folderObj, hash, pageSize = PAGE_SIZE) {
-    // Hole alle Commits (NICHT paginiert!)
-    const { commits } = await window.electronAPI.getCommits(folderObj, 1, 100000); // genug große Zahl
+    const { commits } = await window.electronAPI.getCommits(folderObj, 1, 100000);
     const idx = commits.findIndex(c => c.hash === hash || hash.startsWith(c.hash));
-    if (idx === -1) return 1; // fallback: erste Seite
-    return Math.floor(idx / pageSize) + 1;
-  }
-   async function getPageForCurrentCommit(folderObj, pageSize = 50) { //should probably be fused with the function above
-    // Holt alle Commits (nur die Hashes, schnell genug für moderne Maschinen)
-    const { head, total } = await window.electronAPI.getCommits(folderObj, 1, 100000); // Großer Wert, um alle zu holen (du kannst auch einen eigenen IPC machen, der NUR die Hashes returned)
-    const { commits } = await window.electronAPI.getCommits(folderObj, 1, total);
-    const idx = commits.findIndex(c => c.hash === head);
     if (idx === -1) return 1;
     return Math.floor(idx / pageSize) + 1;
-  }
-
-
-  // Helper: gibt die Seite für einen Commit-Hash zurück
-  async function getCommitPageForHash(folderObj, hash, pageSize) {
-    const allHashes = await window.electronAPI.getAllCommitHashes(folderObj); // Muss in Main implementiert sein!
-    const idx = allHashes.findIndex(h => h.startsWith(hash));
-    return idx === -1 ? 1 : Math.floor(idx / pageSize) + 1;
   }
 
   async function renderContent(folderObj, page) {
@@ -556,23 +472,18 @@ async function startLiveCountdown(folderObj, msLeft) {
     await updateInteractionBar(folderObj);
     titleEl.textContent = folder;
     setTextColor(document.body.classList.contains('sky-mode') ? 'sky' : 'default');
-    
-    // Dynamischer Renderbutton
-    // statt dessen lieber den tree auslesen?
+
     const hasReadme = await window.electronAPI.hasReadme(folder);
     readmeBtn.textContent = hasReadme ? 'Update README' : 'Generate README';
 
-    // --- Seitenwahl beim Ordnerwechsel ---
     let usePage = page;
     if (!usePage || folder !== lastFolderPath) {
-      // Wenn keine Seite gegeben oder Ordner gewechselt: Seite für aktuellen HEAD suchen
-      const { head } = await window.electronAPI.getCommits(folderObj, 1, 1); // nur für den Hash!
+      const { head } = await window.electronAPI.getCommits(folderObj, 1, 1);
       usePage = await getCommitPageForHash(folderObj, head, PAGE_SIZE);
     }
     lastFolderPath = folder;
     lastPage = usePage;
 
-    // Paginierte Commits holen
     const { head, commits, total, page: currentPage, pageSize, pages } =
       await window.electronAPI.getCommits(folderObj, usePage, PAGE_SIZE);
 
@@ -582,7 +493,6 @@ async function startLiveCountdown(folderObj, msLeft) {
       return;
     }
 
-    // Commit-Liste rendern
     contentList.innerHTML = commits.map(c => {
       const isQueued = folderObj.llmCandidates && folderObj.llmCandidates.some(fullHash =>
         fullHash.startsWith(c.hash)
@@ -590,62 +500,62 @@ async function startLiveCountdown(folderObj, msLeft) {
       return `
         <li style="position:relative;" class="w-full p-3 mb-2 bg-white border border-gray-200 rounded shadow-sm
                    ${c.hash === head ? 'current-commit' : ''}">
-        <div class="flex justify-between text-sm text-gray-600 mb-1">
-          <span>${c.hash}</span>
-          <span>${new Date(c.date).toLocaleString()}</span>
-        </div>
-        <div class="text-gray-800 mb-2">${c.message}</div>
-        <div class="flex space-x-2 mb-2">
-          <button class="diff-btn flex items-center px-2 py-1 text-xs border rounded hover:bg-gray-100" data-hash="${c.hash}">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 rotate" viewBox="0 0 24 24"
-                 stroke="currentColor" fill="none">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 5l7 7-7 7"/>
-            </svg>
-            Changes
-          </button>
-          <button class="snapshot-btn flex items-center px-2 py-1 text-xs border rounded hover:bg-gray-100" data-hash="${c.hash}">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                   d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12"/>
-            </svg>
-            Snapshot
-          </button>
-          <button
-            class="checkout-btn flex items-center px-2 py-1 text-xs border rounded ${c.hash === head ? 'disabled' : 'hover:bg-gray-100'}"
-            data-hash="${c.hash}"
-            ${c.hash === head ? 'disabled' : ''}>
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M15 12H3m12 0l-4-4m4 4l-4 4"/>
-            </svg>
-            Jump Here
-          </button>
-        </div>
-        <div class="diff-container relative">
-          <button class="copy-diff-btn absolute top-1 right-1 p-1 border rounded hover:bg-gray-100 flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h6a2 2 0 012 2v2m0 4h2a2 2 0 002-2v-6a2 2 0 00-2-2h-6a2 2 0 00-2 2v2" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M16 16h2a2 2 0 002-2v-2m0 0V8a2 2 0 00-2-2h-2m0 4v6m0 0H8m8 0h2" />
-            </svg>
-          </button>
-          <pre class="m-0"></pre>
-        </div>
-        ${
-          isQueued
-            ? `<img src="assets/cat/paw.png"
-                    alt="In Rewrite Queue"
-                    title="In Rewrite Queue"
-                    class="paw-queued"
-                    style="pointer-events: none; z-index:10;">`
-            : ''
-        }
-      </li>`;
+          <div class="flex justify-between text-sm text-gray-600 mb-1">
+            <span>${c.hash}</span>
+            <span>${new Date(c.date).toLocaleString()}</span>
+          </div>
+          <div class="text-gray-800 mb-2">${c.message}</div>
+          <div class="flex space-x-2 mb-2">
+            <button class="diff-btn flex items-center px-2 py-1 text-xs border rounded hover:bg-gray-100" data-hash="${c.hash}">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 rotate" viewBox="0 0 24 24"
+                   stroke="currentColor" fill="none">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 5l7 7-7 7"/>
+              </svg>
+              Changes
+            </button>
+            <button class="snapshot-btn flex items-center px-2 py-1 text-xs border rounded hover:bg-gray-100" data-hash="${c.hash}">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                     d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12"/>
+              </svg>
+              Snapshot
+            </button>
+            <button
+              class="checkout-btn flex items-center px-2 py-1 text-xs border rounded ${c.hash === head ? 'disabled' : 'hover:bg-gray-100'}"
+              data-hash="${c.hash}"
+              ${c.hash === head ? 'disabled' : ''}>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M15 12H3m12 0l-4-4m4 4l-4 4"/>
+              </svg>
+              Jump Here
+            </button>
+          </div>
+          <div class="diff-container relative">
+            <button class="copy-diff-btn absolute top-1 right-1 p-1 border rounded hover:bg-gray-100 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h6a2 2 0 012 2v2m0 4h2a2 2 0 002-2v-6a2 2 0 00-2-2h-6a2 2 0 00-2 2v2" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M16 16h2a2 2 0 002-2v-2m0 0V8a2 2 0 00-2-2h-2m0 4v6m0 0H8m8 0h2" />
+              </svg>
+            </button>
+            <pre class="m-0"></pre>
+          </div>
+          ${
+            isQueued
+              ? `<img src="assets/cat/paw.png"
+                      alt="In Rewrite Queue"
+                      title="In Rewrite Queue"
+                      class="paw-queued"
+                      style="pointer-events: none; z-index:10;">`
+              : ''
+          }
+        </li>`;
     }).join('');
 
-    // --- PAGINATION ---
+    // PAGINATION
     if (pages > 1) {
       paginationEl.innerHTML = `
         <button id="page-prev" class="px-2 py-1 border rounded" ${currentPage === 1 ? 'disabled' : ''}>«</button>
@@ -660,7 +570,7 @@ async function startLiveCountdown(folderObj, msLeft) {
       paginationEl.style.display = 'none';
     }
 
-    // Diff-Buttons prüfen und ggf. deaktivieren
+    // Diff-Buttons prüfen
     contentList.querySelectorAll('.diff-btn').forEach(async btn => {
       const hash = btn.dataset.hash;
       const diffText = await window.electronAPI.diffCommit(folderObj, hash);
@@ -724,7 +634,7 @@ async function startLiveCountdown(folderObj, msLeft) {
       });
     });
 
-    // Checkout-Button: Seite neu bestimmen!
+    // Checkout-Button
     contentList.querySelectorAll('.checkout-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const hash = btn.dataset.hash;
@@ -761,14 +671,11 @@ async function startLiveCountdown(folderObj, msLeft) {
       });
     });
 
-
-
-    // --- Aktuellen Commit in die Mitte scrollen (falls vorhanden) ---
     const currentEl = contentList.querySelector('li.current-commit');
     if (currentEl) {
       currentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  } 
+  }
 
   await renderSidebar();
   const initial = await window.electronAPI.getSelected();
@@ -781,14 +688,11 @@ async function startLiveCountdown(folderObj, msLeft) {
     if (sel) await renderContent(sel);
   });
 
-  // Repo-Update Handling jetzt mit Lookup für folderObj
-  
   window.addEventListener('repo-updated', async e => {
     closeDropdown();
     const obj = await getFolderObjByPath(e.detail);
     if (!obj) return;
 
-    // Hole aktuell selektierten Ordner
     const selected = await window.electronAPI.getSelected();
     if (!selected || selected.path !== obj.path) {
       await window.electronAPI.setSelected(obj);
@@ -803,40 +707,17 @@ async function startLiveCountdown(folderObj, msLeft) {
       window.electronAPI.showFolderContextMenu(titleEl.textContent);
     }
   });
-/*
-  const commitBtn = document.getElementById('commitBtn');
-  commitBtn.addEventListener('click', async () => {
-    const folderObj = await window.electronAPI.getSelected();
-    if (!folderObj || !folderObj.path) {
-      alert('Kein Ordner ausgewählt!');
-      return;
-    }
-    const message = 'test'
-    commitBtn.disabled   = true;
-    commitBtn.textContent = 'Committing…';
-
-    const result = await window.electronAPI.commitCurrentFolder(folderObj, message);
-    if (result.success) {
-      alert('Commit erfolgreich!');
-      await renderContent(folderObj);
-    } else {
-      alert('Commit fehlgeschlagen:\n' + result.error);
-    }
-
-    commitBtn.disabled   = false;
-    commitBtn.textContent = 'Commit';
-  });
-*/
 
   window.electronAPI.onTrayToggleMonitoring(async (_e, folderPath) => {
     const folders = await window.electronAPI.getFolders();
     const folder = folders.find(f => f.path === folderPath);
     if (folder) {
       await window.electronAPI.setMonitoring(folder, !folder.monitoring);
-      await renderSidebar();                       // <--- UI REFRESH!
+      await renderSidebar();
       const selected = await window.electronAPI.getSelected();
-      if (selected && selected.path === folderPath)
-        await renderContent(folder);               // falls im Content aktiv
+      if (selected && selected.path === folderPath) {
+        await renderContent(folder);
+      }
     }
   });
 
@@ -845,8 +726,7 @@ async function startLiveCountdown(folderObj, msLeft) {
     const folder = folders.find(f => f.path === folderPath);
     if (folder) {
       await window.electronAPI.removeFolder(folder);
-      await renderSidebar();                       // <--- UI REFRESH!
-      // Wähle ggf. neuen Folder oder setze UI auf "No folder selected"
+      await renderSidebar();
       const all = await window.electronAPI.getFolders();
       if (all.length === 0) {
         titleEl.textContent = 'No folder selected';
@@ -860,47 +740,30 @@ async function startLiveCountdown(folderObj, msLeft) {
 
   window.electronAPI.onTrayAddFolder(async () => {
     await window.electronAPI.addFolder();
-    await renderSidebar();                         // <--- UI REFRESH!
+    await renderSidebar();
     const sel = await window.electronAPI.getSelected();
     if (sel) await renderContent(sel);
   });
 
   window.electronAPI.onFoldersLocationUpdated(folderObj => {
     const selector = `[data-folder-id="${encodeURIComponent(folderObj.path)}"]`;
-    console.log('Selector:', selector);
     const li = document.querySelector(selector);
-    console.log('Gefundenes li:', li);
     if (li) {
       if (folderObj.needsRelocation) {
         li.classList.add('needs-relocation');
-        li.setAttribute.disabled;
-        // evtl. !-Icon einblenden
+        li.setAttribute('disabled', '');
       } else {
         li.classList.remove('needs-relocation');
-        // evtl. !-Icon ausblenden
       }
       renderSidebar();
     }
   });
 
-
-
-
-  /*
-  window.cat.beginSpeech();
-  let msg = "Ich bin wieder da!";
-  for (let ch of msg) {
-    setTimeout(() => window.cat.appendSpeech(ch), 50);
-  }
-  setTimeout(() => window.cat.endSpeech(), 2000);
-  */
-
   window.electronAPI.onCatBegin(() => window.cat && window.cat.beginSpeech());
   window.electronAPI.onCatChunk((_e, chunk) => window.cat && window.cat.appendSpeech(chunk));
   window.electronAPI.onCatEnd(() => window.cat && window.cat.endSpeech());
   const speakToCat = msg => {
-  window.cat.beginSpeech();
-    // Zeig Nachricht Zeichen für Zeichen:
+    window.cat.beginSpeech();
     let i = 0;
     function nextChar() {
       if (i < msg.length) {
@@ -912,34 +775,14 @@ async function startLiveCountdown(folderObj, msLeft) {
     }
     nextChar();
   };
-  /*
-  const slot = document.getElementById('catSlot');
-  const cat = new AnimeCat(slot, {
-    images: {
-      default:    'assets/cat/default.png',
-      eyesClosed: 'assets/cat/eyes_closed.png',
-      mouthOpen:  'assets/cat/mouth_open.png'
-    }
-  });
-  // Stelle sie global zur Verfügung:
-  window.cat = {
-    begin: () => cat.beginSpeech(),
-    streamText: txt => cat.appendSpeech(txt),
-    end: () => cat.endSpeech()
-  };
-  */
 
-  // Hole die Commit-Stats beim Laden der Seite
   window.electronAPI.getDailyCommitStats().then(stats => {
     const today = new Date().toISOString().slice(0, 10);
     const todayCount = stats[today] || 0;
-    console.log('Commits heute:', todayCount);
     window.updateCatGlow(todayCount);
   });
 
   window.updateCatGlow = function(commitCount) {
     if (window.cat) window.cat.animateCatGlow(commitCount);
   };
-  
-
 });
