@@ -38,3 +38,4 @@ Auto-Git is a unique and interactive desktop application designed to help you ma
 - **Close to Tray**: Minimize Auto-Git to the system tray instead of closing it completely.
 - **Intelligent Commit Thresholds**: Set file change or time-based thresholds for automatic committing.
 - **Set your AI model**: Default is qwen2.5-coder:7b for Commit Message inference and qwen2.5-coder:32b for README.md generation
+- **Set Gitea API-Key**: Push the Repo online with one click!
