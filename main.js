@@ -1965,18 +1965,39 @@ ipcMain.on('show-tree-context-menu', (event, { absPath, relPath, root, type }) =
     return ignore().add(content);
   }
 
-  function getFileRelevanceScore(filename, relPath) {
+  function getFileRelevanceScore(filename, relPath, content) {
     const base = path.basename(filename).toLowerCase();
     let score = 0;
-    if (/main|index|app|server/.test(base)) score += 10;
-    if (/test|mock|example|spec/.test(base)) score -= 20;
-    if (/package\.json|requirements\.txt|pyproject\.toml|makefile|cargo\.toml/.test(base)) score += 10;
-    if (path.dirname(relPath) === '.') score += 5;
-    if (/\.(js|py|ts|rb|pl|php|java|c|cpp|h|cs|go|rs|json|yml|yaml|toml|md|html|css|txt)$/.test(base)) score += 5;
-    if (/\.min\./.test(base)) score -= 10;
+    // 1. Dateiname und Entry-Patterns
+    if (/^(main|index|app|server)\.(js|py|ts|go|rb|php|java|c|cpp)$/.test(base)) score += 20;
+    if (/package\.json|requirements\.txt|pyproject\.toml|makefile|cargo\.toml/.test(base)) score += 20;
+    if (path.dirname(relPath) === '.') score += 10;
+    if (/test|mock|example|spec|demo/.test(relPath)) score -= 30;
+    if (/\.min\./.test(base)) score -= 20;
+    // 2. Exports / Functions / Klassen
+    if (content) {
+      // Viele Exports
+      const exportCount = (content.match(/export\s+(function|class|const|let|var)/g) || []).length;
+      const moduleExportCount = (content.match(/module\.exports/g) || []).length;
+      score += (exportCount + moduleExportCount) * 2;
+      // Viele Funktionen/Klassen
+      const functionCount = (content.match(/function\s+/g) || []).length;
+      const classCount    = (content.match(/class\s+/g) || []).length;
+      score += (functionCount + classCount);
+      // Für Python
+      const pyDefCount   = (content.match(/^def\s+/gm) || []).length;
+      const pyClassCount = (content.match(/^class\s+/gm) || []).length;
+      score += (pyDefCount + pyClassCount);
+      // Typische Utility-Signaturen
+      if (content.includes('main(') || content.includes('if __name__ == "__main__":')) score += 5;
+    }
+    // 3. Reduziere Score für zu kurze Dateien (<20 Zeilen)
+    if (content && content.split('\n').length < 20) score -= 5;
+    // 4. Ein bisschen Bonus für große Dateien (viel Logik, solange keine Data-Files)
+    if (content && content.length > 1500) score += 2;
     return score;
   }
-
+  
   function getRelevantFiles(dir, maxSize = 100*1024, ig = null, base = null) {
     base = base || dir;
     if (!ig) ig = getGitignoreFilter(base);
