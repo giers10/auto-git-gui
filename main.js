@@ -1016,34 +1016,6 @@ async function rewordCommitsSequentially(repoPath, commitMessageMap, hashes) {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 */
 
 //---- 6. Workflow ----
