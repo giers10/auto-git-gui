@@ -4,47 +4,59 @@
 
 > ⚠️ **This README.md has been automatically generated using AI and might contain hallucinations or inaccuracies. Please proceed with caution!**
 
-# Project Name
+# Repository Manager
 
 ## Description
-This project provides a comprehensive interface for managing Git repositories and generating README files automatically. It includes features such as folder management, commit tracking, snapshot creation, and integration with an animated cat character to enhance user experience.
+
+Repository Manager is a desktop application designed to help you manage multiple Git repositories efficiently. It provides features such as adding and removing folders, monitoring repository updates, generating README files, and more.
 
 ## Features
-- **Folder Management**: Add, remove, and monitor multiple folders.
-- **Commit Tracking**: View commit history and checkout specific commits.
-- **Snapshot Creation**: Save snapshots of repository states.
-- **README Generation**: Automatically generate README files for repositories.
-- **Animated Cat Integration**: Interactive animated cat character to provide feedback.
+
+- **Add/Remove Folders**: Easily add or remove folders from your list of monitored repositories.
+- **Monitor Repository Updates**: Automatically detect changes in your repositories and update the UI accordingly.
+- **Generate README Files**: Generate or update README.md files for your repositories with a single click.
+- **Snapshot Commits**: Save snapshots of specific commits to your local machine.
+- **Checkout Commits**: Checkout specific commits directly from the application.
+- **Commit Changes**: Commit changes in your repository with a custom message.
+- **Daily Commit Stats**: Track and visualize your daily commit statistics.
 
 ## Installation
+
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/project-name.git
+   git clone https://github.com/yourusername/repository-manager.git
    
+
 2. Navigate to the project directory:
    ```bash
-   cd project-name
+   cd repository-manager
    
+
 3. Install dependencies:
    ```bash
    npm install
    
-4. Run the application:
+
+4. Build and run the application:
    ```bash
    npm start
    
 
 ## Usage
-- **Add Folder**: Click on the "Add" button to add a new Git repository folder.
-- **View Commits**: The commit history will be displayed in the main content area.
-- **Checkout Commit**: Click on a commit hash to checkout that specific commit.
-- **Create Snapshot**: Click on the snapshot button next to a commit to create a snapshot of the repository state.
-- **Generate README**: Click on the "Generate README" button to automatically generate a README file for the selected repository.
+
+1. **Add a Folder**: Click on the "Add" button to add a new folder to your list of monitored repositories.
+2. **Remove a Folder**: Right-click on a folder in the sidebar and select "Remove" to remove it from the list.
+3. **Monitor Updates**: The application will automatically detect changes in your repositories and update the UI accordingly.
+4. **Generate README**: Click on the "Generate README" button to generate or update a README.md file for the selected repository.
+5. **Snapshot Commits**: Click on the "Snapshot" button next to a commit to save it locally.
+6. **Checkout Commits**: Click on the "Checkout" button next to a commit to switch to that commit.
+7. **Commit Changes**: Enter a commit message and click on the "Commit" button to commit changes in your repository.
 
 ## License
-MIT License
 
-Copyright (c) 2023 Your Name
+The MIT License (MIT)
+
+Copyright © 2023 Your Name
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
