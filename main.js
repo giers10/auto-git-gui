@@ -29,6 +29,18 @@ const store = new Store({
   }
 });
 
+let folders = store.get('folders') || [];
+folders = folders.map(f => ({
+  ...f,
+  needsRelocation: !fs.existsSync(f.path)
+}));
+store.set('folders', folders);
+console.log("Startup-Folders:", store.get('folders'));
+
+let tray = null;
+let isQuiting = false;
+
+
 
 function createTray(win) {
   const iconPath = path.join(__dirname, 'assets/icon/trayicon.png');
