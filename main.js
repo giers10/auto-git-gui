@@ -812,6 +812,34 @@ async function streamLLMCommitMessages(prompt, onDataChunk, win) {
   let fullOutput = '';
   let done = false;
 
+  // ⭐️ Starte den Stream für die Katze!
+  win.webContents.send('cat-begin');
+
+  while (!done) {
+    const { value, done: streamDone } = await reader.read();
+    done = streamDone;
+    if (value) {
+      const chunk = decoder.decode(value, { stream: true });
+      for (const line of chunk.split('\n')) {
+        if (!line.trim()) continue;
+        try {
+          const obj = JSON.parse(line);
+          if (obj.response) {
+            fullOutput += obj.response;
+            // Sende Chunk an Renderer/Katze:
+            win.webContents.send('cat-chunk', obj.response);
+            if (onDataChunk) onDataChunk(obj.response);
+          }
+          if (obj.done) break;
+        } catch (e) {
+          // ignore malformed chunk
+        }
+      }
+    }
+  }
+
+  // ⭐️ Stream ist zu Ende
+  win.webContents.send('cat-end');
 
   return fullOutput;
 }
