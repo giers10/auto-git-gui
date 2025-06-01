@@ -33,7 +33,7 @@ Auto-Git is a unique and interactive desktop application designed to help you ma
 
 ## Settings
 
-- **Sky Mode**: Toggle between light and dark themes.
+- **Sky Mode**: Toggle between light and dynamic themes (adjusts color to actual current sky color in your area).
 - **Autostart**: Enable or disable GitCat to start automatically on system boot.
 - **Close to Tray**: Minimize GitCat to the system tray instead of closing it completely.
 - **Intelligent Commit Thresholds**: Set file change or time-based thresholds for automatic committing.
