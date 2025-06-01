@@ -62,6 +62,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDailyCommitStats: () => ipcRenderer.invoke('get-daily-commit-stats'),
   hasReadme: (folderPath) => ipcRenderer.invoke('has-readme', folderPath),
   generateReadme: (folderPath) => ipcRenderer.invoke('generate-readme', folderPath),
+  pushToGitea: (folderPath) => ipcRenderer.invoke('push-to-gitea', folderPath),
 });
 
 ipcRenderer.on('repo-updated', (_e, folder) => {
