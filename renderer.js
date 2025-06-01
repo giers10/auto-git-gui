@@ -12,12 +12,10 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   const paginationEl = document.createElement('div');
   paginationEl.className = 'pagination flex justify-center items-center my-2 space-x-2';
-  contentList.parentElement.insertBefore(paginationEl, contentList); // nur einmal beim Initialisieren
+  contentList.parentElement.insertBefore(paginationEl, contentList);
 
-  // Speichere zuletzt angezeigten Folder/Seite
   let lastFolderPath = null;
   let lastPage = null;
-
 
   const slot = document.getElementById('catSlot');
   window.cat = new window.AnimeCat(slot, {
@@ -53,7 +51,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
   });
-
   document.body.addEventListener('drop', async e => {
     e.preventDefault();
     const files = [...e.dataTransfer.files];
@@ -68,11 +65,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-
-  // Farben für Sky-Mode
+  // Sky-Mode Setup
   const DAY_COLOR   = [173, 216, 230];
   const NIGHT_COLOR = [0,   0,   50];
-
   function lerpColor(c1, c2, t) {
     return c1.map((v, i) => Math.round(v + t * (c2[i] - v)));
   }
@@ -95,7 +90,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.body.classList.toggle('sky-mode', enabled);
     clearInterval(skyIntervalId);
     clearInterval(titleIntervalId);
-
     if (enabled) {
       updateBackground();
       skyIntervalId = setInterval(updateBackground, 60_000);
@@ -107,11 +101,9 @@ window.addEventListener('DOMContentLoaded', async () => {
       setTextColor('default');
     }
   }
-
   const initialSky = await window.settingsAPI.getSkyMode();
   applySkyMode(initialSky);
   window.addEventListener('skymode-changed', e => applySkyMode(e.detail));
-
 
   function setTextColor(mode) {
     let textColor = '#111';
@@ -128,16 +120,13 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-
   function basename(fullPath) {
     return fullPath.replace(/.*[\\/]/, '');
   }
-
   async function getFolderObjByPath(path) {
     const folders = await window.electronAPI.getFolders();
     return folders.find(f => f.path === path) || null;
   }
-
 
   async function renderSidebar() {
     const folders  = await window.electronAPI.getFolders();
@@ -193,7 +182,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         </div>
       `;
 
-      // relocate missing folder
+      // Folder-Klick (inkl. Relocation-Logik)
       li.addEventListener('click', async e => {
         if (e.target.closest('.pause-play-btn, .remove-btn')) return;
 
@@ -285,7 +274,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         }
       });
 
-      // Kontextmenü / Click zum Select
+      // Kontextmenü
       li.addEventListener('contextmenu', e => {
         e.preventDefault();
         window.electronAPI.showFolderContextMenu(folderObj.path);
@@ -293,18 +282,10 @@ window.addEventListener('DOMContentLoaded', async () => {
 
       folderList.appendChild(li);
     }
-
-    // Aktualisiere README-Button-Text für das aktuell ausgewählte Repo
-    const sel = await window.electronAPI.getSelected();
-    if (sel) {
-      const hasReadme = await window.electronAPI.hasReadme(sel.path);
-      readmeBtn.textContent = hasReadme ? 'Update README' : 'Generate README';
-    }
   }
 
 
   let countdownInterval = null;
-
   function getCommitColor(commitCount) {
     const stops = [
       { c:   0, color: [157, 157, 157] },
@@ -385,9 +366,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     countdownInterval = setInterval(() => {
       const msL = Math.max(0, endTime - Date.now());
       document.getElementById('countdown').textContent = formatCountdown(msL);
-      if (msL <= 0) {
-        clearInterval(countdownInterval);
-      }
+      if (msL <= 0) clearInterval(countdownInterval);
     }, 1000);
   }
 
@@ -398,10 +377,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   let isDropdownOpen = false;
 
   folderTitleDrop.addEventListener('click', async () => {
-    if (isDropdownOpen) {
-      closeDropdown();
-      return;
-    }
+    if (isDropdownOpen) { closeDropdown(); return; }
     const selected = await window.electronAPI.getSelected();
     if (!selected || !selected.path) return;
 
@@ -419,18 +395,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     const el = e.target.closest('.tree-file, .tree-dir');
     if (!el) return;
     e.preventDefault();
-
     const relPath = el.getAttribute('data-path');
     const type    = el.getAttribute('data-type');
     const selected = window.electronAPI.getSelectedSync?.() || (window.currentSelectedFolderObj || {});
     const absPath = selected.path + '/' + relPath;
-
-    window.electronAPI.showTreeContextMenu({
-      absPath,
-      relPath,
-      root: selected.path,
-      type
-    });
+    window.electronAPI.showTreeContextMenu({ absPath, relPath, root: selected.path, type });
   });
 
   function closeDropdown() {
@@ -458,7 +427,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     return result;
   }
 
-
   async function getCommitPageForHash(folderObj, hash, pageSize = PAGE_SIZE) {
     const { commits } = await window.electronAPI.getCommits(folderObj, 1, 100000);
     const idx = commits.findIndex(c => c.hash === hash || hash.startsWith(c.hash));
@@ -473,6 +441,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     titleEl.textContent = folder;
     setTextColor(document.body.classList.contains('sky-mode') ? 'sky' : 'default');
 
+    // Jetzt erst den Readme-Button-Text aktualisieren:
     const hasReadme = await window.electronAPI.hasReadme(folder);
     readmeBtn.textContent = hasReadme ? 'Update README' : 'Generate README';
 
@@ -555,7 +524,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         </li>`;
     }).join('');
 
-    // PAGINATION
+    // Pagination
     if (pages > 1) {
       paginationEl.innerHTML = `
         <button id="page-prev" class="px-2 py-1 border rounded" ${currentPage === 1 ? 'disabled' : ''}>«</button>
@@ -570,7 +539,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       paginationEl.style.display = 'none';
     }
 
-    // Diff-Buttons prüfen
+    // Diff-Buttons überprüfen
     contentList.querySelectorAll('.diff-btn').forEach(async btn => {
       const hash = btn.dataset.hash;
       const diffText = await window.electronAPI.diffCommit(folderObj, hash);
@@ -580,7 +549,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
-    // Diff-Toggle & Highlighting
+    // Diff-Toggle & Hervorhebung
     contentList.querySelectorAll('.diff-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const li = btn.closest('li');
