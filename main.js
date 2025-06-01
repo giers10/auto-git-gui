@@ -11,6 +11,7 @@ const os = require('os');
 const Store = require('electron-store');
 const simpleGit = require('simple-git');
 const chokidar = require('chokidar');
+const ignore = require('ignore');
 
 process.on('unhandledRejection', (err) => {
   console.error('Unhandled Rejection:', err);
