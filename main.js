@@ -399,7 +399,7 @@ async function streamLLMCommitMessages(prompt, onDataChunk, win) {
   return fullOutput;
 }
 
-async function streamLLMREADME(prompt, onDataChunk, win) {
+async function streamLLMREADME(prompt, onDataChunk, win) { //merge with streamLLMCommit please
   await ensureOllamaRunning();
   const selectedModel = store.get('readmeModel') || 'qwen2.5-coder:32b';
   const response = await fetch('http://localhost:11434/api/generate', {
