@@ -47,6 +47,32 @@ window.addEventListener('DOMContentLoaded', async () => {
     readmeBtn.textContent = hasReadme ? 'Update README' : 'Generate README';
   });
 
+  pushBtn.addEventListener('click', async () => {
+    const selected = await window.electronAPI.getSelected();
+    if (!selected || !selected.path) {
+      return alert('No folder selected to push!');
+    }
+
+    pushBtn.disabled = true;
+    pushBtn.textContent = 'Pushing…';
+
+    try {
+      // send the folder‐path to main via a new IPC channel 'push-to-gitea'
+      const result = await window.electronAPI.pushToGitea(selected.path);
+      if (result.success) {
+        alert('✔ Pushed successfully to Gitea: ' + result.repoUrl);
+      } else {
+        alert('❌ Push failed:\n' + result.error);
+      }
+    } catch (err) {
+      alert('❌ Unexpected error:\n' + (err.message || err));
+    } finally {
+      pushBtn.disabled = false;
+      pushBtn.textContent = 'Push to Gitea';
+    }
+  });
+
+
   // Drag and Drop
   document.body.addEventListener('dragover', e => {
     e.preventDefault();
