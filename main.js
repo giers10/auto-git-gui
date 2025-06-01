@@ -1844,32 +1844,6 @@ function buildTrayMenu() {
     });
   });
 
-  ipcMain.handle('get-commit-model', () => store.get('commitModel') || 'qwen2.5-coder:7b');
-  ipcMain.handle('set-commit-model', (_e, val) => store.set('commitModel', val));
-
-  ipcMain.handle('get-readme-model', () => store.get('readmeModel') || 'qwen2.5-coder:32b');
-  ipcMain.handle('set-readme-model', (_e, val) => store.set('readmeModel', val));
-
-  ipcMain.handle('get-intelligent-commit-threshold', () => store.get('intelligentCommitThreshold'));
-  ipcMain.handle('set-intelligent-commit-threshold', (_e, value) => {
-    store.set('intelligentCommitThreshold', value);
-  });
-
-  ipcMain.handle('get-minutes-commit-threshold', () => store.get('minutesCommitThreshold'));
-  ipcMain.handle('set-minutes-commit-threshold', (_e, value) => {
-    store.set('minutesCommitThreshold', value);
-  });
-
-  ipcMain.handle('get-autostart', () => store.get('autostart'));
-  ipcMain.handle('set-autostart', (_e, enabled) => {
-    store.set('autostart', enabled);
-    app.setLoginItemSettings({
-      openAtLogin: !!enabled
-    });
-  });
-  ipcMain.handle('get-close-to-tray', () => store.get('closeToTray'));
-  ipcMain.handle('set-close-to-tray', (_e, val) => store.set('closeToTray', val));
-
 
   ipcMain.on('close-settings', () => {
     if (settingsWin) settingsWin.close();
