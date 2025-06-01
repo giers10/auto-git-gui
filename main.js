@@ -663,7 +663,7 @@ function ensureInGitignore(folderPath, name) {
 function startMonitoringWatcher(folderPath, win) {
   if (monitoringWatchers.has(folderPath)) return;
   const watcher = chokidar.watch(folderPath, {
-    ignored: /(^|[\/\\])\..|node_modules|\.git/,
+    ignored: /(^|[\/\\])\..|\.git/,
     ignoreInitial: false, // wichtig: ruft add-Events für vorhandene Dateien auf!
     persistent: true,
     depth: 99,
