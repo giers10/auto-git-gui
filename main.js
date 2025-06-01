@@ -666,6 +666,15 @@ function createRewriteScript(mapping) {
   return scriptPath;
 }
 
+function addMatchingFilesToGitignore(folderPath, pattern) {
+  const files = fs.readdirSync(folderPath);
+  const matches = micromatch(files, pattern);
+  for (const file of matches) {
+    ensureInGitignore(folderPath, pattern);
+    break; // Nur einmal pro Pattern eintragen
+  }
+}
+
 
 async function autoCommit(folderPath, message, win) {
   // ---- AUTOGENERATE .gitignore ----
