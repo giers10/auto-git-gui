@@ -472,6 +472,7 @@ async function startMonitoringWatcher(folderPath, win) {
 
       // Relativer Pfad zum Repo
       const rel = path.relative(folderPath, filePath);
+      if (!rel || rel === '' || rel === '.') return true;
       // 1) Wenn die Datei in der .gitignore steht → ignorieren
       if (igFilter.ignores(rel)) return true;
       // 2) Ansonsten wird die Änderung durch unseren Code ohnehin 
@@ -494,6 +495,7 @@ async function startMonitoringWatcher(folderPath, win) {
   //    sonst normal doAutoCommitWithIgnoreCheck() aufrufen.
   watcher.on('all', async (event, filePathAbsolute) => {
     const rel = path.relative(folderPath, filePathAbsolute);
+    if (!rel || rel === '' || rel === '.') return;
 
     // a) Prüfe, ob dieser Pfad durch die aktuell geladene .gitignore
     //    bereits ausgeschlossen ist (z.B. node_modules/foo.js):
