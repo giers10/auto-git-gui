@@ -2011,19 +2011,14 @@ ipcMain.on('show-tree-context-menu', (event, { absPath, relPath, root, type }) =
           if (f.startsWith('.')) continue;
           walk(full);
         } else if (isTextFile(full)) {
-          files.push({ f: full, rel });
+          const content = fs.readFileSync(full, 'utf8').slice(0, 3000); // reicht für scoring
+          files.push({ f: full, rel, s: fs.statSync(full).size, score: getFileRelevanceScore(full, rel, content) });
         }
       }
     }
     walk(dir);
-    // Score & sort
-    files = files.map(({f, rel}) => ({
-      f, rel, score: getFileRelevanceScore(f, rel),
-      s: fs.statSync(f).size
-    }))
-      .sort((a, b) => b.score - a.score || a.s - b.s);
-
-    // Limit by max size
+    files.sort((a, b) => b.score - a.score || a.s - b.s);
+    // Limit by maxSize
     let sum = 0, selected = [];
     for (let {f,s} of files) {
       if (sum + s > maxSize) break;
