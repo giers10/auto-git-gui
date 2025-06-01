@@ -11,11 +11,6 @@ const os = require('os');
 const Store = require('electron-store');
 const simpleGit = require('simple-git');
 const chokidar = require('chokidar');
-const ignore = require('ignore');
-
-process.on('unhandledRejection', (err) => {
-  console.error('Unhandled Rejection:', err);
-});
 
 const store = new Store({
   defaults: {
@@ -120,7 +115,7 @@ function openSettings(win) {
  settingsWin = new BrowserWindow({
    parent: win,
    modal: true,
-   width: 600,
+   width: 450,
    height: 450, 
    resizable: false,
     webPreferences: {
@@ -221,83 +216,6 @@ function watchRepo(folder, win) {
   repoWatchers.set(folder, watcher);
 }*/
 
-
-
-
-
-
-
-const IGNORED_NAMES = [
-  // Betriebssystem-spezifische Dateien
-  '.DS_Store', 'Thumbs.db', 'desktop.ini', '.AppleDouble', '.LSOverride', 'ehthumbs.db', 'Icon\r',
-  // Git- und Versionskontrolle
-  '.git', '.gitattributes',
-  // Node.js / JavaScript / TypeScript
-  'node_modules', 'npm-debug.log', 'npm-debug.log*', 'yarn-error.log', 'yarn-debug.log*', 'pnpm-debug.log*',
-  'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'tsconfig.tsbuildinfo', 'dist', 'build', '.cache', 'out',
-  '.next', '.turbo',
-  // Python
-  '.venv', 'venv', '__pycache__', '*.py[cod]', '*$py.class', '.mypy_cache', '.pytest_cache', '.tox', 'dist',
-  'build', '*.egg-info', 'eggs', 'parts', 'var', 'sdist', 'develop-eggs', 'lib', 'lib64', 'wheelhouse', '*.egg',
-  '*.egg-info', '.coverage', 'htmlcov', '.cache', '.env', '.env.*',
-  // Java (Maven/Gradle)
-  'target', '*.class', '*.jar', '*.war', '*.ear', '*.nar', '*.zip', '*.tar.gz', '*.rar', '*.log', '*.iml',
-  '.idea', '.project', '.classpath', '.settings', '*.launch', 'hs_err_pid*', '*.hprof',
-  // C / C++ / Objective-C
-  '*.o', '*.obj', '*.so', '*.dylib', '*.dll', '*.exe', '*.out', '*.app', '*.ilk', '*.pch', '*.pdb', '*.lib',
-  '*.a', '*.lo', '*.la', 'CMakeFiles', 'CMakeCache.txt', 'cmake_install.cmake', 'Makefile', '*.mk', 'Debug',
-  'Release', 'build', 'xcodebuild', '*.xcworkspace', '*.xcuserstate', '*.xcuserdatad',
-  // Go
-  'bin', 'pkg', 'vendor',
-  // Rust
-  'target', 'Cargo.lock',
-  // Ruby
-  '*.gem', '*.rbc', '.bundle', 'vendor/bundle', 'log', 'tmp', 'coverage', 'byebug_history',
-  // PHP / Composer
-  'vendor', 'composer.lock', '*.cache', '*.log', '*.session',
-  // .NET / Visual Studio
-  '*.user', '*.rsuser', '*.suo', '*.userosscache', '*.sln.docstates', '*.pdb', '*.ilk', '*.cache', '*.log',
-  'bin', 'obj', 'Debug', 'Release', 'TestResults', '.vs', '*.exe', '*.dll', '*.nupkg', '*.snk',
-  // IDEs allgemein
-  '.vscode', '.history', '*.code-workspace', '*.sublime-project', '*.sublime-workspace', '*.komodoproject',
-  '.ropeproject', '.jupyter',
-  // Vim / Emacs / Editor-Temp
-  '*.swp', '*.swo', '*.tmp', '*.bak', '*~', '.netrwhist', '.session', '.emacs.desktop', '.emacs.desktop.lock',
-  // Logs / Coverage / Reports
-  '*.log', 'logs', 'log', '*.trace', 'coverage', 'test-results', 'lcov-report',
-  // Datenbanken & SQLite
-  '*.sqlite3', '*.sqlite3-journal', '*.db', '*.db-journal',
-  // Docker / Container
-  'docker-compose.override.yml', '.docker', 'docker-compose.*.yml', 'docker-compose.*.env', '*.pid', '*.pid.lock',
-  // Terraform
-  '.terraform', '*.tfstate', '*.tfstate.backup', '.terraform.lock.hcl',
-  // Kubernetes / Helm
-  'helm-debug.log', '.helm', 'kustomization.yaml~',
-  // Ansible
-  'ansible.cfg~', 'inventory.ini',
-  // Allgemein temporäre/versteckte Dateien
-  '*.backup', '*.old', '*.orig', '*.rej', '#*#', '.*~', '*.kate-swp', '*.directory', '.Trash-*', '.fseventsd',
-  // Lock-Dateien allgemein
-  '*.lock',
-  // Komprimierte/Archivdateien
-  '*.zip', '*.tar.gz', '*.rar', '*.7z',
-  // Mobile/Plattform-spezifisch
-  '*.apk', '*.ap_', '*.aab', 'android/.gradle', 'android/gradle', 'android/local.properties',
-  '*.keystore', '.android', '.flutter-plugins', '.flutter-plugins-dependencies', '.packages',
-  'DerivedData', '*.hmap', '*.ipa', '*.dSYM.zip', '*.dSYM',
-  // Unity
-  'Library', 'Temp', 'Obj', 'Builds', 'Logs', 'MemoryCaptures', '*.csproj', '*.unityproj', '*.userprefs',
-  '*.pidb', '*.booproj', '*.svd', '*.opendb', '*.VC.db',
-  // Unreal Engine
-  'Binaries', 'DerivedDataCache', 'Intermediate', 'Saved', 'Build', '*.vcxproj', '*.sln',
-  // Maven Wrapper
-  'mvnw.cmd', 'mvnw', '.mvn/wrapper/maven-wrapper.jar'
-];
-
-
-
-
-
 /**
  * Initiiert ein Git-Repo in `folder`, falls noch nicht vorhanden,
  * und erzeugt einen Initial-Commit mit Timestamp.
@@ -329,198 +247,53 @@ function buildCommitMessageFromStatus(status, prefix = '[auto]') {
   return prefix + '\n' + changes.map(l => ` ${l}`).join('\n');
 }
 
-async function loadGitignoreFilter(folderPath) {
-  const gitignorePath = path.join(folderPath, '.gitignore');
-  let raw;
-  try {
-    raw = await fs.readFile(gitignorePath, 'utf8');
-  } catch (e) {
-    // Wenn keine .gitignore existiert, gibt's eine leere Instanz
-    raw = '';
-  }
-  // ignore() versteht Git-Ignore-Syntax (Kommentare, Leerzeilen, Glob-Pattern etc.)
-  const ig = ignore();
-  ig.add(raw.split(/\r?\n/)); 
-  return ig;
-}
-
-
-
-
-/**
- * Wie zuvor: Prüft, ob ein relativer Pfad (innerhalb folderPath) mit einem
- * Eintrag in IGNORED_NAMES übereinstimmt. (Wildcards, Ordnernamen, Dateiendungen etc.)
- */
-function isIgnoredByList(filePathRelative) {
-  const basename = path.basename(filePathRelative);
-  return IGNORED_NAMES.some(pattern => {
-    if (pattern.includes('*')) {
-      // Einfacher Wildcard-Abgleich: "*.log" -> /^.*\.log$/ 
-      const regex = new RegExp('^' + pattern.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$');
-      return regex.test(basename);
-    }
-    return basename === pattern || filePathRelative.split(path.sep).includes(pattern);
-  });
-}
-
-/**
- * Schreibt einen Eintrag in .gitignore, falls noch nicht vorhanden.
- */
-async function ensureIgnoredInGitignore(folderPath, entry) {
-  const gitignorePath = path.join(folderPath, '.gitignore');
-  let content = '';
-  try {
-    content = await fs.readFile(gitignorePath, 'utf8');
-  } catch (e) {
-    content = '';
-  }
-  const lines = content.split(/\r?\n/).map(l => l.trim());
-  if (!lines.includes(entry)) {
-    const newContent = content.trim().length > 0
-      ? content.trim() + '\n' + entry + '\n'
-      : entry + '\n';
-    await fs.promises.writeFile(gitignorePath, newContent, 'utf8');
-    debug(`[IGNORE] Eintrag "${entry}" zu .gitignore hinzugefügt in ${folderPath}`);
-    return true;
-  }
-  return false;
-}
-
-/**
- * Die kombinierte Funktion für initialen Commit + Watcher.
- */
-async function startMonitoringWatcher(folderPath, win) {
+function startMonitoringWatcher(folderPath, win) {
   if (monitoringWatchers.has(folderPath)) return;
-
-  const git = simpleGit(folderPath);
-
-  // 1. Lade oder lege eine .gitignore-Filterinstanz an
-  let igFilter = await loadGitignoreFilter(folderPath);
-
-  /**
-   * Führt Git-Status-Check aus, filtert Dateien heraus, 
-   * die in IGNORED_NAMES stehen, schreibt sie ggf. in .gitignore,
-   * und committet dann verbleibende Änderungen.
-   */
-  async function doAutoCommitWithIgnoreCheck() {
-    const status = await git.status();
-
-    // 2. Alle not_added/created-Dateien, die in unserer IGNORED_NAMES-Liste stehen:
-    const toIgnore = [ ...status.not_added, ...status.created ]
-      .filter(rel => isIgnoredByList(rel));
-
-    // 3. Der Rest geht in toCommit:
-    const toCommit = {
-      not_added: status.not_added.filter(p => !toIgnore.includes(p)),
-      created:   status.created.filter(p => !toIgnore.includes(p)),
-      modified:  status.modified.slice(),
-      deleted:   status.deleted.slice(),
-      renamed:   status.renamed.slice()
-    };
-
-    // 4. Zuerst .gitignore aktualisieren, falls nötig
-    let ignoreWritten = false;
-    for (const relPath of toIgnore) {
-      const parts = relPath.split(path.sep);
-      const entry = parts.length > 1 ? parts[0] + '/' : relPath; 
-      // "/" anhängen, damit Ordner wie "node_modules/" korrekt ignoriert werden
-      const didWrite = await ensureIgnoredInGitignore(folderPath, entry);
-      if (didWrite) ignoreWritten = true;
-    }
-    if (ignoreWritten) {
-      // .gitignore wurde angepasst → committen
-      await git.add('.gitignore');
-      await git.commit('auto-git: Aktualisiere .gitignore um ignorierte Dateien');
-      win.webContents.send('repo-updated', folderPath);
-
-      // Neue .gitignore einladen, damit unser Filter aktuell ist
-      igFilter = await loadGitignoreFilter(folderPath);
-      // Danach Status erneut prüfen (Rekursionsaufruf), weil sich nun ignore-Muster geändert haben
-      return doAutoCommitWithIgnoreCheck();
-    }
-
-    // 5. Wenn keine .gitignore-Anpassung nötig war, committen wir alle echten Änderungen:
-    const hasChanges =
-      toCommit.not_added.length > 0 ||
-      toCommit.created.length > 0 ||
-      toCommit.modified.length > 0 ||
-      toCommit.deleted.length > 0 ||
-      toCommit.renamed.length > 0;
-
-    if (hasChanges) {
-      const fakeStatus = {
-        not_added: toCommit.not_added,
-        created:   toCommit.created,
-        modified:  toCommit.modified,
-        deleted:   toCommit.deleted,
-        renamed:   toCommit.renamed
-      };
-      const msg = buildCommitMessageFromStatus(fakeStatus, 'auto-git: ');
-      await autoCommit(folderPath, msg, win);
-      win.webContents.send('repo-updated', folderPath);
-      debug(`[MONITOR] Auto-Commit durchgeführt:\n${msg}`);
-    }
-  }
-
-  // 6. Chokidar-Watcher startet – nutzt eine Funktion, die sowohl .gitignore-Muster
-  //    abfragt als auch das .git-Verzeichnis immer aussperrt.
   const watcher = chokidar.watch(folderPath, {
-    ignored: (filePath) => {
-      // Nur .git ignorieren!
-      return /(^|[\/\\])\.git(?:[\/\\]|$)/.test(filePath);
-    },
+    ignored: /(^|[\/\\])\..|node_modules|\.git/,
     ignoreInitial: true,
     persistent: true,
     depth: 99,
     awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 }
   });
 
-  // 7. Initialer Commit-Check
+  // Initialer Commit
   (async () => {
     debug(`[MONITOR] Starte initialen Commit-Check für ${folderPath}`);
-    await doAutoCommitWithIgnoreCheck();
+
+    const git = simpleGit(folderPath);
+    const status = await git.status();
+    if (
+      status.not_added.length > 0 ||
+      status.created.length > 0 ||
+      status.modified.length > 0 ||
+      status.deleted.length > 0 ||
+      status.renamed.length > 0
+    ) {
+      const msg = buildCommitMessageFromStatus(status, 'auto-git: ');
+      const did = await autoCommit(folderPath, msg, win);
+      if (did) {
+        win.webContents.send('repo-updated', folderPath);
+        debug(`[MONITOR] Initialer Auto-Commit für ${folderPath} durchgeführt:\n${msg}`);
+      }
+    }
   })();
 
-  // 8. Bei jedem Event: Prüfen, ob Pfad in .gitignore gehört, 
-  //    sonst normal doAutoCommitWithIgnoreCheck() aufrufen.
-  watcher.on('all', async (event, filePathAbsolute) => {
-    const rel = path.relative(folderPath, filePathAbsolute);
-    if (!rel || rel === '' || rel === '.') return;
-
-    // Ab hier wie gehabt:
-    // - Prüfe erst, ob bereits in .gitignore
-    if (igFilter.ignores(rel)) {
-      // Falls nicht schon in .gitignore, hinzufügen
-      const parts = rel.split(path.sep);
-      const entry = parts.length > 1 ? parts[0] + '/' : rel;
-      const didWrite = await ensureIgnoredInGitignore(folderPath, entry);
-      if (didWrite) {
-        igFilter = await loadGitignoreFilter(folderPath);
-        await git.add('.gitignore');
-        await git.commit('auto-git: Hinzufügen zu .gitignore');
-        win.webContents.send('repo-updated', folderPath);
-        debug(`[WATCHER] "${entry}" zu .gitignore hinzugefügt und committed`);
-      } 
-      return;
+  // Bei jedem Event → status neu holen, Message wie beim initialen Check bauen
+  watcher.on('all', async () => {
+    const git = simpleGit(folderPath);
+    const status = await git.status();
+    if (
+      status.not_added.length > 0 ||
+      status.created.length > 0 ||
+      status.modified.length > 0 ||
+      status.deleted.length > 0 ||
+      status.renamed.length > 0
+    ) {
+      const msg = buildCommitMessageFromStatus(status, 'auto-git: ');
+      await autoCommit(folderPath, msg, win);
+      win.webContents.send('repo-updated', folderPath);
     }
-
-    // Dann: Prüfe, ob nach IGNORED_NAMES ignorieren (→ zur .gitignore hinzufügen)
-    if (isIgnoredByList(rel)) {
-      const parts = rel.split(path.sep);
-      const entry = parts.length > 1 ? parts[0] + '/' : rel;
-      const didWrite = await ensureIgnoredInGitignore(folderPath, entry);
-      if (didWrite) {
-        igFilter = await loadGitignoreFilter(folderPath);
-        await git.add('.gitignore');
-        await git.commit('auto-git: Hinzufügen zu .gitignore');
-        win.webContents.send('repo-updated', folderPath);
-        debug(`[WATCHER] "${entry}" aus IGNORED_NAMES zu .gitignore hinzugefügt und committed`);
-      }
-      return;
-    }
-
-    // ... Normal weiter committen
-    await doAutoCommitWithIgnoreCheck();
   });
 
   monitoringWatchers.set(folderPath, watcher);
@@ -626,7 +399,7 @@ async function streamLLMCommitMessages(prompt, onDataChunk, win) {
   return fullOutput;
 }
 
-async function streamLLMREADME(prompt, onDataChunk, win) { //merge with streamLLMCommit please
+async function streamLLMREADME(prompt, onDataChunk, win) {
   await ensureOllamaRunning();
   const selectedModel = store.get('readmeModel') || 'qwen2.5-coder:32b';
   const response = await fetch('http://localhost:11434/api/generate', {
@@ -1418,11 +1191,11 @@ function buildTrayMenu() {
   ipcMain.handle('get-skip-git-prompt', ()    => store.get('skipGitPrompt'));
   ipcMain.handle('set-skip-git-prompt', (_e,val) => store.set('skipGitPrompt', val));
 
-
-
-
-
-
+  // Auto-Verzeichnisstruktur
+  const IGNORED_NAMES = [ 
+    '.DS_Store', 'node_modules', '.git', 'dist', 'build',
+    '.cache', 'out', '.venv', '.mypy_cache', '__pycache__', 'package-lock.json'
+  ];
 
   function isIgnored(name) {
     return IGNORED_NAMES.includes(name);
@@ -1452,17 +1225,6 @@ function buildTrayMenu() {
       return [];
     }
   });
-
-  
-
-
-
-
-
-
-
-
-/*
 
   ipcMain.handle('commit-current-folder', async (_e, folderObj, message) => {
     if (folderObj.needsRelocation || !fs.existsSync(folderObj.path)) {
@@ -1547,11 +1309,6 @@ function buildTrayMenu() {
       return { success: false, error: err.message };
     }
   });
-
-*/
-
-
-
 
   ipcMain.handle('set-monitoring', async (_e, folderPath, monitoring) => {
     let folders = store.get('folders') || [];
