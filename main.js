@@ -1957,17 +1957,28 @@ ipcMain.on('show-tree-context-menu', (event, { absPath, relPath, root, type }) =
   }
 
   // --- Dateien sammeln ---
-  function getRelevantFiles(dir, maxSize = MAX_TOTAL_SIZE) {
+  function getGitignoreFilter(folderPath) {
+    const gitignorePath = path.join(folderPath, '.gitignore');
+    if (!fs.existsSync(gitignorePath)) return null;
+    const content = fs.readFileSync(gitignorePath, 'utf8');
+    const ig = ignore().add(content);
+    return ig;
+  }
+  
+  function getRelevantFiles(dir, maxSize = MAX_TOTAL_SIZE, ig = null, base = null) {
+    base = base || dir;
+    if (!ig) ig = getGitignoreFilter(base);
     let files = [];
     function walk(current) {
       for (const f of fs.readdirSync(current)) {
         const full = path.join(current, f);
+        const rel  = path.relative(base, full);
+        if (ig && ig.ignores(rel)) continue;
         if (fs.statSync(full).isDirectory()) {
-          if (f.startsWith('.')) continue; // .git etc auslassen
+          if (f.startsWith('.')) continue;
           walk(full);
         } else if (isTextFile(full)) {
           files.push(full);
-          console.log("pushed " + full)
         }
       }
     }
