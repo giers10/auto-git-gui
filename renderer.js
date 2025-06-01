@@ -32,7 +32,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
 
     // Readme-Button
-  const readmeBtn = document.getElementById('readmeBtn');
     readmeBtn.addEventListener('click', async () => {
     const selected = await window.electronAPI.getSelected();
     if (!selected) return alert('No folder selected!');
