@@ -34,7 +34,7 @@ Auto-Git is a unique and interactive desktop application designed to help you ma
 ## Settings
 
 - **Sky Mode**: Toggle between light and dynamic themes (adjusts color to actual current sky color in your area).
-- **Autostart**: Enable or disable GitCat to start automatically on system boot.
-- **Close to Tray**: Minimize GitCat to the system tray instead of closing it completely.
+- **Autostart**: Enable or disable Auto-Git to start automatically on system boot.
+- **Close to Tray**: Minimize Auto-Git to the system tray instead of closing it completely.
 - **Intelligent Commit Thresholds**: Set file change or time-based thresholds for automatic committing.
 - **Set your AI model**: Default is qwen2.5-coder:7b for Commit Message inference and qwen2.5-coder:32b for README.md generation
