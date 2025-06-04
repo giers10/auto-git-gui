@@ -15,6 +15,11 @@ window.addEventListener('DOMContentLoaded', async () => {
   paginationEl.className = 'pagination flex justify-center items-center my-2 space-x-2';
   contentList.parentElement.insertBefore(paginationEl, contentList);
 
+
+process.on('uncaughtException', console.error);
+require('events').defaultMaxListeners = 50;
+
+
   let lastFolderPath = null;
   let lastPage = null;
 
