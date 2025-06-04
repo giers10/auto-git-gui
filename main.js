@@ -56,8 +56,7 @@ console.log("Startup-Folders:", store.get('folders'));
 
 let tray = null;
 
-process.on('uncaughtException', console.error);
-require('events').defaultMaxListeners = 50;
+
 
 function createTray(win) {
   const iconPath = path.join(__dirname, 'assets/icon/trayicon.png');

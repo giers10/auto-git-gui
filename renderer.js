@@ -16,10 +16,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   contentList.parentElement.insertBefore(paginationEl, contentList);
 
 
-process.on('uncaughtException', console.error);
-require('events').defaultMaxListeners = 50;
-
-
   let lastFolderPath = null;
   let lastPage = null;
 
