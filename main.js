@@ -1136,7 +1136,6 @@ function addMatchingFilesToGitignore(folderPath, pattern) {
 }
 
 
-
 async function autoCommit(folderPath, message, win) {
 
   const git = simpleGit(folderPath);
@@ -1151,9 +1150,6 @@ async function autoCommit(folderPath, message, win) {
     debug('Auto-Commit: Keine Änderungen zum committen.');
     return false;
   }
-
-
-
 
   let currentBranch = null;
   try {
