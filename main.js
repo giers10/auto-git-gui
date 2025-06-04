@@ -1136,21 +1136,26 @@ function addMatchingFilesToGitignore(folderPath, pattern) {
 }
 
 
-async function autoCommit(folderPath, message, win) {
 
+async function autoCommit(folderPath, message, win) {
   const git = simpleGit(folderPath);
   const status = await git.status();
-  if (
-    status.not_added.length === 0 &&
-    status.created.length   === 0 &&
-    status.deleted.length   === 0 &&
-    status.modified.length  === 0 &&
-    status.renamed.length   === 0
-  ) {
+
+  // Collect all files that need to be committed
+  let filesToAdd = [
+    ...status.not_added,
+    ...status.created,
+    ...status.modified,
+    ...status.deleted,
+    ...status.renamed.map(r => r.to)
+  ].filter(Boolean);
+
+  if (filesToAdd.length === 0) {
     debug('Auto-Commit: Keine Änderungen zum committen.');
     return false;
   }
 
+  // Make sure on correct branch
   let currentBranch = null;
   try {
     currentBranch = (await git.revparse(['--abbrev-ref', 'HEAD'])).trim();
@@ -1161,7 +1166,6 @@ async function autoCommit(folderPath, message, win) {
   }
 
   if (!currentBranch || currentBranch === 'HEAD') {
-    // === Erweiterte Logs ===
     const headCommit = (await git.revparse(['HEAD'])).trim();
     let masterCommit = null;
     let hasMaster = false;
@@ -1177,15 +1181,11 @@ async function autoCommit(folderPath, message, win) {
     debug(`[autoCommit] master: ${masterCommit}`);
 
     if (hasMaster && headCommit === masterCommit) {
-      // HEAD ist detached, zeigt aber exakt auf master-Tip → einfach auf master auschecken.
       await git.checkout('master');
       debug('[autoCommit] HEAD war detached, zeigte aber exakt auf master – jetzt zurück auf master.');
-      // Nach dem Checkout nochmal aktuellen Branch loggen:
       currentBranch = (await git.revparse(['--abbrev-ref', 'HEAD'])).trim();
       debug(`[autoCommit] Nach checkout: Aktueller Branch: ${currentBranch}`);
-      // Jetzt **NICHT** weiter zur Umbenenn-Logik!
     } else if (hasMaster) {
-      // HEAD ist detached, zeigt auf einen anderen Commit → backup master und neuen master-Branch
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const backupBranch = `backup-master-${timestamp}`;
       await git.branch(['-m', 'master', backupBranch]);
@@ -1194,75 +1194,94 @@ async function autoCommit(folderPath, message, win) {
       debug('[autoCommit] Neuer master-Branch erstellt und ausgecheckt.');
       currentBranch = 'master';
     } else {
-      // Kein master vorhanden (erstmalig)
       await git.checkout(['-b', 'master']);
       debug('[autoCommit] Kein master-Branch vorhanden, neuer master erstellt.');
       currentBranch = 'master';
     }
   }
 
-  // --- Zeilenzählung ---
-  let diffOutput = await git.diff(['--numstat']);
-  // Zeilensumme berechnen:
-  let changedLines = 0;
-  for (let line of diffOutput.split('\n')) {
-    const match = line.match(/^(\d+|\-)\s+(\d+|\-)\s+(.*)$/);
-    if (match) {
-      const added = match[1] === '-' ? 0 : parseInt(match[1], 10);
-      const deleted = match[2] === '-' ? 0 : parseInt(match[2], 10);
-      changedLines += added + deleted;
-    }
-  }
-
-  // Folders aus Store holen
+  // We will track linesChanged across all chunks
+  let totalChangedLines = 0;
   let folders = store.get('folders') || [];
   let idx = folders.findIndex(f => f.path === folderPath);
-  if (idx !== -1) {
-    folders[idx].linesChanged = (folders[idx].linesChanged || 0) + changedLines;
-    folders[idx].llmCandidates = folders[idx].llmCandidates || [];
+  let allNewHeads = [];
 
-    // ===> WICHTIG: Wir commiten ja jetzt, daher merken wir uns gleich die neue Commit-Hash
-    // Vor git.commit: Merke alten HEAD
+  // --- Chunked commit loop ---
+  let commitCount = 0;
+  for (let i = 0; i < filesToAdd.length; i += MAX_FILES_PER_COMMIT) {
+    const chunk = filesToAdd.slice(i, i + MAX_FILES_PER_COMMIT);
+    if (chunk.length === 0) continue;
+    await git.add(chunk);
+    debug(`[autoCommit] Dateien gestaged: ${chunk.length}`);
+
+    // Count lines for this chunk only
+    let diffOutput = await git.diff(['--numstat', '--staged']);
+    let changedLines = 0;
+    for (let line of diffOutput.split('\n')) {
+      const match = line.match(/^(\d+|\-)\s+(\d+|\-)\s+(.*)$/);
+      if (match) {
+        const added = match[1] === '-' ? 0 : parseInt(match[1], 10);
+        const deleted = match[2] === '-' ? 0 : parseInt(match[2], 10);
+        changedLines += added + deleted;
+      }
+    }
+    totalChangedLines += changedLines;
+
+    // Compose commit message with (part N) suffix if needed
+    commitCount++;
+    let commitMsg = message || '[auto]';
+    if (filesToAdd.length > MAX_FILES_PER_COMMIT) {
+      commitMsg += ` (part ${commitCount})`;
+    }
+
+    // Record old HEAD before commit
     const oldHead = (await git.revparse(['HEAD'])).trim();
-
-    // Stagen & Committen
-    await git.add(['-A']);
-    debug('[autoCommit] Alle Änderungen gestaged.');
-    await git.commit(message || '[auto]');
+    await git.commit(commitMsg);
     debug('[autoCommit] Commit erfolgreich erstellt.');
-    
-    // --- Gamification: Commit-Statistik speichern ---
-    const today = new Date().toISOString().slice(0, 10); // Format: 'YYYY-MM-DD'
+
+    // --- Gamification/statistics for each chunk ---
+    const today = new Date().toISOString().slice(0, 10);
     const stats = store.get('dailyCommitStats') || {};
     stats[today] = (stats[today] || 0) + 1;
     store.set('dailyCommitStats', stats);
 
-    // Nach Commit: neuen HEAD ermitteln und in llmCandidates speichern
+    // After commit: store new HEAD in llmCandidates for the chunk
     const newHead = (await git.revparse(['HEAD'])).trim();
-    folders[idx].llmCandidates = folders[idx].llmCandidates || [];
-    folders[idx].llmCandidates.push(newHead);
-    if(folders[idx].llmCandidates.length == 1){
-      folders[idx].firstCandidateBirthday = Date.now();
-      debug('[autoCommit] Erster Commit aufgenommen.');
+    allNewHeads.push(newHead);
+
+    // folders[idx] is already loaded above
+    if (idx !== -1) {
+      folders[idx].llmCandidates = folders[idx].llmCandidates || [];
+      folders[idx].llmCandidates.push(newHead);
+      folders[idx].lastHeadHash = newHead;
+      if (folders[idx].llmCandidates.length === 1) {
+        folders[idx].firstCandidateBirthday = Date.now();
+        debug('[autoCommit] Erster Commit aufgenommen.');
+      }
     }
-    folders[idx].lastHeadHash = newHead;
-    console.log(folders[idx].llmCandidates)
+  }
+
+  if (idx !== -1) {
+    // Update total linesChanged only once per full commit batch
+    folders[idx].linesChanged = (folders[idx].linesChanged || 0) + totalChangedLines;
+    console.log(folders[idx].llmCandidates);
 
     // Threshold holen
     const threshold = store.get('intelligentCommitThreshold') || 10;
     if (folders[idx].linesChanged >= threshold) {
       debug('Congratulations! You changed enough lines of code :)');
       await runLLMCommitRewrite(folders[idx], win);
-      //folders[idx].linesChanged = 0; // !!!!!!!!!!!!!!!!!!!!  needs logic to handle several llm runs called at the same time test
-      //folders[idx].llmCandidates = [];
-      //folders.[idx].firstCandidateBirthday = null
+      //folders[idx].linesChanged = 0;
     }
     store.set('folders', folders);
   } else {
-    // Folder not found! (Debug)
     debug(`[autoCommit] Warning: Folder ${folderPath} not found in store`);
   }
+  debug(`[autoCommit] Committed ${filesToAdd.length} files in ${commitCount} chunk(s), ${totalChangedLines} lines changed.`);
+  return true;
 }
+
+
 
 app.whenReady().then(main);
 async function main() {
