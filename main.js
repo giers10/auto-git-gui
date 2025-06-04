@@ -56,7 +56,7 @@ console.log("Startup-Folders:", store.get('folders'));
 
 let tray = null;
 
-
+const MAX_FILES_PER_COMMIT = 20; 
 
 function createTray(win) {
   const iconPath = path.join(__dirname, 'assets/icon/trayicon.png');
