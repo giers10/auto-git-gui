@@ -678,9 +678,32 @@ function ensureInGitignore(folderPath, name) {
 
 function startMonitoringWatcher(folderPath, win) {
   if (monitoringWatchers.has(folderPath)) return;
+
+  // 1. Load .gitignore (and add default rules for .git, node_modules, etc.)
+  const ig = ignore();
+  const gitignorePath = path.join(folderPath, '.gitignore');
+  if (fs.existsSync(gitignorePath)) {
+    ig.add(fs.readFileSync(gitignorePath, 'utf-8'));
+  }
+  // Always ignore .git and node_modules just in case (safety net)
+  ig.add(['.git', 'node_modules']);
+
+  // 2. Function for chokidar
+  function ignoredFunc(absPath) {
+    // Chokidar gives us absolute path; convert to relative to repo root
+    const rel = path.relative(folderPath, absPath);
+    // Always ignore the root .git folder
+    if (rel === '.git' || rel.startsWith('.git' + path.sep)) return true;
+    // Same for node_modules
+    if (rel === 'node_modules' || rel.startsWith('node_modules' + path.sep)) return true;
+    // .gitignore logic (note: '' means root, which is never ignored)
+    return rel && ig.ignores(rel);
+  }
+
+  // 3. Create the watcher, now with deep ignore support!
   const watcher = chokidar.watch(folderPath, {
-    ignored: /(^|[\/\\])\..|\.git/,
-    ignoreInitial: false, // wichtig: ruft add-Events für vorhandene Dateien auf!
+    ignored: ignoredFunc,
+    ignoreInitial: false,
     persistent: true,
     depth: 99,
     awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 }
