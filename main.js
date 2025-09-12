@@ -15,6 +15,19 @@ const micromatch = require('micromatch');
 const ignore = require('ignore');
 let isQuiting = false;
 
+// Resolve icon path for current platform (works in dev and packaged)
+function resolveAppIconPath() {
+  const base = app.isPackaged ? process.resourcesPath : __dirname;
+  switch (process.platform) {
+    case 'darwin':
+      return path.join(base, 'assets', 'icon', 'mac', 'icon.icns');
+    case 'win32':
+      return path.join(base, 'assets', 'icon', 'win', 'icon.ico');
+    default:
+      return path.join(base, 'assets', 'icon', 'linux', 'icon.png');
+  }
+}
+
 // Wenn wir gebündelt sind (= gepackte App), erweitern wir den PATH um die typischen Ollama-Verzeichnisse:
 if (app.isPackaged) {
   // Homebrew‐Pfad (M1/M2): /opt/homebrew/bin, bzw. /usr/local/bin
@@ -114,6 +127,8 @@ function createWindow() {
     minWidth: 800,
     minHeight: 500,
     title: 'Auto-Git',
+    // Set icon so Windows/Linux show proper taskbar icon in dev
+    icon: resolveAppIconPath(),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true
@@ -1289,6 +1304,23 @@ async function autoCommit(folderPath, message, win) {
 
 app.whenReady().then(main);
 async function main() {
+  // On macOS, set dock icon during dev as well
+  if (process.platform === 'darwin') {
+    const iconPath = resolveAppIconPath();
+    try {
+      const img = nativeImage.createFromPath(iconPath);
+      if (!img.isEmpty() && app.dock) {
+        app.dock.setIcon(img);
+      }
+    } catch (_) { /* ignore */ }
+  }
+
+  // On Windows, set AppUserModelID so taskbar uses our icon/group
+  if (process.platform === 'win32') {
+    try {
+      app.setAppUserModelId('com.victorgiers.auto-git');
+    } catch (_) { /* ignore */ }
+  }
 
   const win = createWindow();
 
