@@ -1,5 +1,8 @@
 const { app, BrowserWindow, ipcMain, dialog, Tray, Menu, shell, clipboard, nativeImage } = require('electron');
 app.name = 'Auto-Git';
+if (typeof app.setName === 'function') {
+  try { app.setName('Auto-Git'); } catch (_) {}
+}
 const { exec } = require('child_process');
 const { execSync } = require('child_process'); //just for hack
 const http = require('http'); //just for hack
@@ -26,6 +29,16 @@ function resolveAppIconPath() {
     default:
       return path.join(base, 'assets', 'icon', 'linux', 'icon.png');
   }
+}
+
+// Create a NativeImage for the dock, trying icns then png fallback
+function getDockIconImage() {
+  const icnsPath = path.join(app.isPackaged ? process.resourcesPath : __dirname, 'assets', 'icon', 'mac', 'icon.icns');
+  const pngFallback = path.join(app.isPackaged ? process.resourcesPath : __dirname, 'assets', 'icon', 'linux', 'icon.png');
+  let img = nativeImage.createFromPath(icnsPath);
+  if (img && !img.isEmpty()) return img;
+  img = nativeImage.createFromPath(pngFallback);
+  return img;
 }
 
 // Wenn wir gebündelt sind (= gepackte App), erweitern wir den PATH um die typischen Ollama-Verzeichnisse:
@@ -1306,12 +1319,9 @@ app.whenReady().then(main);
 async function main() {
   // On macOS, set dock icon during dev as well
   if (process.platform === 'darwin') {
-    const iconPath = resolveAppIconPath();
     try {
-      const img = nativeImage.createFromPath(iconPath);
-      if (!img.isEmpty() && app.dock) {
-        app.dock.setIcon(img);
-      }
+      const img = getDockIconImage();
+      if (app.dock && img && !img.isEmpty()) app.dock.setIcon(img);
     } catch (_) { /* ignore */ }
   }
 
@@ -1323,6 +1333,16 @@ async function main() {
   }
 
   const win = createWindow();
+
+  // Ensure dock icon stays correct when app is activated (macOS)
+  if (process.platform === 'darwin') {
+    app.on('activate', () => {
+      try {
+        const img = getDockIconImage();
+        if (app.dock && img && !img.isEmpty()) app.dock.setIcon(img);
+      } catch (_) { /* ignore */ }
+    });
+  }
 
   async function updateFoldersListener(win) {
   let folders = store.get('folders') || [];
