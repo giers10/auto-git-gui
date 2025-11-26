@@ -24,6 +24,7 @@ window.AnimeCat = class AnimeCat {
     this._blinkTimeout   = null;
     this._talkIntervalId = null;
     this._speechTimeout  = null;
+    this._bubbleHideTimeout = null;
     this._mouthOpen      = false;
     this._pettingActive  = false;
 
@@ -34,6 +35,9 @@ window.AnimeCat = class AnimeCat {
   }
 
   _createElements() {
+    // Der Slot selbst soll nichts blockieren – nur die Katze bleibt klickbar
+    this.container.style.pointerEvents = 'none';
+
     // Outer Wrapper für Flex-Layout
     this.wrapper = document.createElement('div');
     Object.assign(this.wrapper.style, {
@@ -43,7 +47,8 @@ window.AnimeCat = class AnimeCat {
       alignItems:    'flex-end',
       minHeight:     '80px',
       minWidth:      '180px',
-      zIndex:        1
+      zIndex:        1,
+      pointerEvents: 'none'
     });
 
     // Innerer Container für Glow + Katze (Stack!)
@@ -54,7 +59,8 @@ window.AnimeCat = class AnimeCat {
       height:        '70px',
       minWidth:      '90px',
       minHeight:     '70px',
-      zIndex:        2
+      zIndex:        2,
+      pointerEvents: 'auto'
     });
 
     // Glow (hinter der Katze)
@@ -111,6 +117,8 @@ window.AnimeCat = class AnimeCat {
       opacity:       '0',
       transition:    'opacity 0.3s',
       maxWidth:      '240px',
+      maxHeight:     'min(320px, calc(100vh - 120px))',
+      overflowY:     'auto',
       wordBreak:     'break-word',
       fontFamily:    'sans-serif',
       fontSize:      '15px',
@@ -119,8 +127,9 @@ window.AnimeCat = class AnimeCat {
       minHeight:     '30px',
       zIndex:        10,
       overflowWrap:  'anywhere',
-      display:       'flex',
-      alignItems:    'center'
+      display:       'none',
+      alignItems:    'center',
+      boxSizing:     'border-box'
     });
 
     // Bubble Tail
@@ -528,12 +537,17 @@ _runJoyAnimation(onFinish) {
   beginSpeech() {
     clearTimeout(this._speechTimeout);
     clearInterval(this._talkIntervalId);
+    clearTimeout(this._bubbleHideTimeout);
 
     this._isSpeaking  = true;
     this._mouthOpen   = false;
     this.img.src      = this.images.default;
-    this.bubble.style.opacity = '1';
+    this.bubble.style.display = 'flex';
+    this.bubble.style.opacity = '0';
     this.bubble.style.visibility = 'visible';
+    // Reflow erzwingen, damit das Fade-In nach display:none sauber läuft
+    void this.bubble.offsetWidth;
+    this.bubble.style.opacity = '1';
     Array.from(this.bubble.childNodes).forEach(node => {
       if (node !== this.bubblePointer) node.remove();
     });
@@ -561,6 +575,11 @@ _runJoyAnimation(onFinish) {
     this._speechTimeout = setTimeout(() => {
       this.bubble.style.opacity = '0';
       this._isSpeaking = false;
+      this._bubbleHideTimeout = setTimeout(() => {
+        if (this._isSpeaking) return;
+        this.bubble.style.display = 'none';
+        this.bubble.style.visibility = 'hidden';
+      }, 320);
     }, 6000);
   }
 
@@ -568,6 +587,7 @@ _runJoyAnimation(onFinish) {
     clearTimeout(this._blinkTimeout);
     clearInterval(this._talkIntervalId);
     clearTimeout(this._speechTimeout);
+    clearTimeout(this._bubbleHideTimeout);
     this.wrapper.remove();
     this.heartEmitter.remove();
   }
