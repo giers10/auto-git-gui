@@ -746,6 +746,11 @@ function exceedsFileLimit(folderPath, igInstance, limit = 20000) {
 function startMonitoringWatcher(folderPath, win) {
   if (monitoringWatchers.has(folderPath)) return;
 
+  if (!fs.existsSync(path.join(folderPath, '.git'))) {
+    debug(`[MONITOR] Überspringe Watcher für ${folderPath}: kein Git-Repo`);
+    return;
+  }
+
   // 1. Load .gitignore (and add default rules for .git, node_modules, etc.)
   const ig = ignore();
   ig.add(MONITOR_DEFAULT_IGNORES);
