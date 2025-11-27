@@ -495,6 +495,21 @@ window.addEventListener('DOMContentLoaded', async () => {
     titleEl.textContent = folder;
     setTextColor(document.body.classList.contains('sky-mode') ? 'sky' : 'default');
 
+    const isGit = await window.electronAPI.isGitRepo(folder);
+    initRepoBtn.classList.toggle('hidden', isGit);
+    initRepoBtn.disabled = isGit;
+    readmeBtn.disabled = !isGit;
+    pushBtn.disabled = !isGit;
+    if (!isGit) {
+      contentList.innerHTML = '<div class="p-6 text-gray-500">Not a Git repository. Click “Init Repo” to initialize.</div>';
+      paginationEl.innerHTML = '';
+      lastFolderPath = folder;
+      lastPage = null;
+      return;
+    } else {
+      initRepoBtn.classList.add('hidden');
+    }
+
     // Jetzt erst den Readme-Button-Text aktualisieren:
     const hasReadme = await window.electronAPI.hasReadme(folder);
     readmeBtn.textContent = hasReadme ? 'Update README' : 'Generate README';
