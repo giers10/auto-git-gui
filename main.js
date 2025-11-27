@@ -77,6 +77,13 @@ folders = folders.map(f => ({
   ...f,
   needsRelocation: !fs.existsSync(f.path)
 }));
+folders = folders.map(f => {
+  const hasGit = fs.existsSync(path.join(f.path, '.git'));
+  return {
+    ...f,
+    monitoring: (f.monitoring && hasGit && !f.needsRelocation)
+  };
+});
 store.set('folders', folders);
 console.log("Startup-Folders:", store.get('folders'));
 
