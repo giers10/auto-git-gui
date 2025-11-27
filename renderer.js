@@ -510,6 +510,11 @@ window.addEventListener('DOMContentLoaded', async () => {
       initRepoBtn.classList.add('hidden');
     }
 
+    const commitCount = await window.electronAPI.getCommitCount(folderObj);
+    const hasCommits = commitCount > 0;
+    pushBtn.classList.toggle('hidden', !hasCommits);
+    pushBtn.disabled = !hasCommits;
+
     // Jetzt erst den Readme-Button-Text aktualisieren:
     const hasReadme = await window.electronAPI.hasReadme(folder);
     readmeBtn.textContent = hasReadme ? 'Update README' : 'Generate README';
