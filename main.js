@@ -271,13 +271,14 @@ function watchRepo(folder, win) {
 
 /**
  * Initiiert ein Git-Repo in `folder`, falls noch nicht vorhanden,
- * ohne Dateien oder Commits anzulegen.
+ * erzeugt bei Bedarf einen leeren Initial-Commit.
  */
 async function initGitRepo(folder) {
   const git = simpleGit(folder);
   const gitDir = path.join(folder, '.git');
   if (!fs.existsSync(gitDir)) {
     await git.init();
+    await git.commit('initial commit', undefined, { '--allow-empty': null });
   }
 }
 
