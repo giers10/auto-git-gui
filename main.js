@@ -658,6 +658,11 @@ const monitoringActive = new Map(); // Map: folderPath -> Boolean (ob Task aktiv
 const MONITOR_DEFAULT_IGNORES = [
   '.git',
   'node_modules',
+  '.venv',
+  'venv',
+  '__pycache__',
+  '.mypy_cache',
+  '.pytest_cache',
   'dist',
   'build',
   'out',
@@ -666,10 +671,14 @@ const MONITOR_DEFAULT_IGNORES = [
   '.turbo',
   '.parcel-cache',
   '.cache',
+  'target',
+  'src-tauri/target',
   'coverage',
   'logs',
   'tmp',
   'temp',
+  'output',
+  'tmp*',
   '*.log',
   '*.tmp',
   '*.swp'
@@ -713,6 +722,32 @@ function ensureInGitignore(folderPath, name, igInstance) {
   return true;
 }
 
+function exceedsFileLimit(folderPath, igInstance, limit = 20000) {
+  let count = 0;
+  const stack = [folderPath];
+  while (stack.length) {
+    const current = stack.pop();
+    let entries = [];
+    try {
+      entries = fs.readdirSync(current, { withFileTypes: true });
+    } catch (_) {
+      continue;
+    }
+    for (const dirent of entries) {
+      const full = path.join(current, dirent.name);
+      const rel = path.relative(folderPath, full);
+      if (rel && igInstance.ignores(rel)) continue;
+      if (dirent.isDirectory()) {
+        stack.push(full);
+      } else {
+        count++;
+        if (count > limit) return true;
+      }
+    }
+  }
+  return false;
+}
+
 function startMonitoringWatcher(folderPath, win) {
   if (monitoringWatchers.has(folderPath)) return;
 
@@ -739,6 +774,17 @@ function startMonitoringWatcher(folderPath, win) {
   }
 
   // 3. Create the watcher, now with deep ignore support!
+  if (exceedsFileLimit(folderPath, ig)) {
+    debug(`[MONITOR] Skipping watcher for ${folderPath}: too many files (limit reached)`);
+    let folders = store.get('folders') || [];
+    folders = folders.map(f =>
+      f.path === folderPath ? { ...f, monitoring: false } : f
+    );
+    store.set('folders', folders);
+    win.webContents.send('monitoring-error', { path: folderPath, code: 'TOO_MANY_FILES' });
+    return;
+  }
+
   const watcher = chokidar.watch(folderPath, {
     ignored: ignoredFunc,
     ignoreInitial: true,
