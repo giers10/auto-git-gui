@@ -500,6 +500,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     initRepoBtn.disabled = isGit;
     readmeBtn.disabled = !isGit;
     pushBtn.disabled = !isGit;
+    pushBtn.classList.toggle('hidden', !isGit);
     if (!isGit) {
       contentList.innerHTML = '<div class="p-6 text-gray-500">Not a Git repository. Click "Init Repo" to initialize.</div>';
       paginationEl.innerHTML = '';

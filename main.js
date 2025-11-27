@@ -269,15 +269,39 @@ function watchRepo(folder, win) {
   repoWatchers.set(folder, watcher);
 }*/
 
+function ensureGitignoreDefaults(folderPath) {
+  const gitignorePath = path.join(folderPath, '.gitignore');
+  const existing = new Set();
+  if (fs.existsSync(gitignorePath)) {
+    fs.readFileSync(gitignorePath, 'utf-8')
+      .split(/\r?\n/)
+      .map(l => l.trim())
+      .filter(Boolean)
+      .forEach(l => existing.add(l));
+  }
+  let changed = false;
+  for (const entry of MONITOR_DEFAULT_IGNORES) {
+    if (!existing.has(entry)) {
+      existing.add(entry);
+      changed = true;
+    }
+  }
+  if (changed || !fs.existsSync(gitignorePath)) {
+    fs.writeFileSync(gitignorePath, Array.from(existing).join('\n') + '\n', 'utf-8');
+  }
+}
+
 /**
  * Initiiert ein Git-Repo in `folder`, falls noch nicht vorhanden,
- * erzeugt bei Bedarf einen leeren Initial-Commit.
+ * legt ein .gitignore mit Standard-Einträgen an und erstellt einen Initial-Commit.
  */
 async function initGitRepo(folder) {
   const git = simpleGit(folder);
   const gitDir = path.join(folder, '.git');
   if (!fs.existsSync(gitDir)) {
     await git.init();
+    ensureGitignoreDefaults(folder);
+    await git.add(['.gitignore']);
     await git.commit('initial commit', undefined, { '--allow-empty': null });
   }
 }
@@ -751,8 +775,9 @@ function exceedsFileLimit(folderPath, igInstance, limit = 20000) {
   return false;
 }
 
-function startMonitoringWatcher(folderPath, win) {
+function startMonitoringWatcher(folderPath, win, opts = {}) {
   if (monitoringWatchers.has(folderPath)) return;
+  const skipInitialCheck = !!opts.skipInitialCheck;
 
   if (!fs.existsSync(path.join(folderPath, '.git'))) {
     debug(`[MONITOR] Überspringe Watcher für ${folderPath}: kein Git-Repo`);
@@ -883,25 +908,29 @@ function startMonitoringWatcher(folderPath, win) {
   });
 
   // Initialer Commit (direkt in Queue, wie ein Event)
-  enqueueTask(folderPath, async () => {
-    debug(`[MONITOR] Starte initialen Commit-Check für ${folderPath}`);
-    const git = simpleGit(folderPath);
-    const status = await git.status();
-    if (
-      status.not_added.length > 0 ||
-      status.created.length > 0 ||
-      status.modified.length > 0 ||
-      status.deleted.length > 0 ||
-      status.renamed.length > 0
-    ) {
-      const msg = buildCommitMessageFromStatus(status, 'auto-git: ');
-      const did = await autoCommit(folderPath, msg, win);
-      if (did) {
-        win.webContents.send('repo-updated', folderPath);
-        debug(`[MONITOR] Initialer Auto-Commit für ${folderPath} durchgeführt:\n${msg}`);
+  if (!skipInitialCheck) {
+    enqueueTask(folderPath, async () => {
+      debug(`[MONITOR] Starte initialen Commit-Check für ${folderPath}`);
+      const git = simpleGit(folderPath);
+      const status = await git.status();
+      if (
+        status.not_added.length > 0 ||
+        status.created.length > 0 ||
+        status.modified.length > 0 ||
+        status.deleted.length > 0 ||
+        status.renamed.length > 0
+      ) {
+        const msg = buildCommitMessageFromStatus(status, 'auto-git: ');
+        const did = await autoCommit(folderPath, msg, win);
+        if (did) {
+          win.webContents.send('repo-updated', folderPath);
+          debug(`[MONITOR] Initialer Auto-Commit für ${folderPath} durchgeführt:\n${msg}`);
+        }
       }
-    }
-  });
+    });
+  } else {
+    debug(`[MONITOR] Überspringe initialen Commit-Check für ${folderPath}`);
+  }
 
   monitoringWatchers.set(folderPath, watcher);
   debug(`[MONITOR] Watcher aktiv für ${folderPath}`);
@@ -2201,7 +2230,7 @@ function buildTrayMenu() {
           : f
       );
       store.set('folders', folders);
-      startMonitoringWatcher(folderPath, win);
+      startMonitoringWatcher(folderPath, win, { skipInitialCheck: true });
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message || String(err) };
