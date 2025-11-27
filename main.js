@@ -2079,6 +2079,10 @@ function buildTrayMenu() {
       // Monitoring-Start für fehlenden Ordner: Ignorieren!
       return false;
     }
+    if (monitoring && !fs.existsSync(path.join(folderPath, '.git'))) {
+      debug(`[STORE] Monitoring für ${folderPath} nicht möglich: kein Git-Repo`);
+      monitoring = false;
+    }
     folders = folders.map(f =>
       f.path === folderPath ? { ...f, monitoring } : f
     );
