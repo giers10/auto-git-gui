@@ -74,6 +74,31 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  initRepoBtn.addEventListener('click', async () => {
+    const selected = await window.electronAPI.getSelected();
+    if (!selected || !selected.path) {
+      return alert('No folder selected!');
+    }
+    initRepoBtn.disabled = true;
+    initRepoBtn.textContent = 'Initializing…';
+    try {
+      const result = await window.electronAPI.initRepo(selected.path);
+      if (!result?.success) {
+        throw new Error(result?.error || 'Init failed');
+      }
+      await renderSidebar();
+      const refreshed = await window.electronAPI.getSelected();
+      if (refreshed) {
+        await renderContent(refreshed);
+      }
+    } catch (err) {
+      alert('Init failed:\n' + (err.message || err));
+    } finally {
+      initRepoBtn.disabled = false;
+      initRepoBtn.textContent = 'Init Repo';
+    }
+  });
+
 
   // Drag and Drop
   document.body.addEventListener('dragover', e => {
