@@ -65,6 +65,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   hasReadme: (folderPath) => ipcRenderer.invoke('has-readme', folderPath),
   generateReadme: (folderPath) => ipcRenderer.invoke('generate-readme', folderPath),
   pushToGitea: (folderPath) => ipcRenderer.invoke('push-to-gitea', folderPath),
+  initRepo: (folderPath) => ipcRenderer.invoke('init-repo', folderPath),
 });
 
 ipcRenderer.on('repo-updated', (_e, folder) => {

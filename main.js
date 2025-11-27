@@ -2174,6 +2174,28 @@ function buildTrayMenu() {
     return fs.existsSync(gitFolder);
   });
 
+  ipcMain.handle('init-repo', async (_e, folderPath) => {
+    try {
+      await initGitRepo(folderPath);
+      let lastHeadHash = null;
+      try {
+        const git = simpleGit(folderPath);
+        lastHeadHash = (await git.revparse(['HEAD'])).trim();
+      } catch {}
+      let folders = store.get('folders') || [];
+      folders = folders.map(f =>
+        f.path === folderPath
+          ? { ...f, monitoring: true, needsRelocation: false, lastHeadHash }
+          : f
+      );
+      store.set('folders', folders);
+      startMonitoringWatcher(folderPath, win);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message || String(err) };
+    }
+  });
+
   // Setzt für ein Folder-Objekt den neuen Pfad, needsRelocation => false
   ipcMain.handle('relocate-folder', async (_e, oldPath, newPath) => {
     let folders = store.get('folders') || [];
