@@ -1864,6 +1864,9 @@ function buildTrayMenu() {
     if (folderObj.needsRelocation || !fs.existsSync(folderObj.path)) {
       return false;
     }
+    if (!fs.existsSync(path.join(folderObj.path, '.git'))) {
+      return false;
+    }
     const git = simpleGit(folderObj.path);
     const status = await git.status();
     return status.files.length > 0;
