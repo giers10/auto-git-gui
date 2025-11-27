@@ -501,7 +501,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     readmeBtn.disabled = !isGit;
     pushBtn.disabled = !isGit;
     if (!isGit) {
-      contentList.innerHTML = '<div class="p-6 text-gray-500">Not a Git repository. Click “Init Repo” to initialize.</div>';
+      contentList.innerHTML = '<div class="p-6 text-gray-500">Not a Git repository. Click "Init Repo" to initialize.</div>';
       paginationEl.innerHTML = '';
       lastFolderPath = folder;
       lastPage = null;
