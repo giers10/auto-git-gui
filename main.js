@@ -1739,28 +1739,38 @@ function buildTrayMenu() {
 
   // (1) Die Kernfunktion
   async function addFolderByPath(newFolder) {
-    await initGitRepo(newFolder);
+    let isRepo = false;
+    try {
+      isRepo = await simpleGit(newFolder).checkIsRepo();
+    } catch (_) {
+      isRepo = false;
+    }
 
     // HEAD-Hash holen
     let lastHeadHash = null;
-    try {
-      const git = simpleGit(newFolder);
-      lastHeadHash = (await git.revparse(['HEAD'])).trim();
-    } catch {}
+    if (isRepo) {
+      try {
+        const git = simpleGit(newFolder);
+        lastHeadHash = (await git.revparse(['HEAD'])).trim();
+      } catch {}
+    }
 
     let folders = store.get('folders') || [];
     let folderObj = folders.find(f => f.path === newFolder);
     if (!folderObj) {
-      folderObj = { path: newFolder, monitoring: true, linesChanged: 0, llmCandidates: [], firstCandidateBirthday: null, lastHeadHash };
+      folderObj = { path: newFolder, monitoring: isRepo, linesChanged: 0, llmCandidates: [], firstCandidateBirthday: null, lastHeadHash };
       folders.push(folderObj);
       store.set('folders', folders);
     } else {
       folderObj.lastHeadHash = lastHeadHash;
+      folderObj.monitoring = folderObj.monitoring && isRepo;
       store.set('folders', folders);
     }
     store.set('selected', newFolder);
     //watchRepo(newFolder, win);
-    startMonitoringWatcher(newFolder, win);
+    if (folderObj.monitoring) {
+      startMonitoringWatcher(newFolder, win);
+    }
     return store.get('folders');
   }
 
