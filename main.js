@@ -293,20 +293,6 @@ function buildCommitMessageFromStatus(status, prefix = '[auto]') {
   return prefix + '\n' + changes.map(l => ` ${l}`).join('\n');
 }
 
-
-
-function ensureInGitignore(folderPath, name) {
-  const gitignorePath = path.join(folderPath, '.gitignore');
-  let lines = [];
-  if (fs.existsSync(gitignorePath)) {
-    lines = fs.readFileSync(gitignorePath, 'utf-8').split(/\r?\n/);
-  }
-  // Schon drin?
-  if (lines.some(line => line.trim() === name)) return;
-  // Anfügen
-  fs.appendFileSync(gitignorePath, '\n' + name + '\n');
-}
-
 const IGNORED_NAMES = [
   // Betriebssystem-spezifische Dateien
   '.DS_Store',         // macOS
@@ -669,6 +655,26 @@ const IGNORED_NAMES = [
 const monitoringQueues = new Map(); // Map: folderPath -> Array<Function>
 const monitoringActive = new Map(); // Map: folderPath -> Boolean (ob Task aktiv)
 
+const MONITOR_DEFAULT_IGNORES = [
+  '.git',
+  'node_modules',
+  'dist',
+  'build',
+  'out',
+  '.next',
+  '.nuxt',
+  '.turbo',
+  '.parcel-cache',
+  '.cache',
+  'coverage',
+  'logs',
+  'tmp',
+  'temp',
+  '*.log',
+  '*.tmp',
+  '*.swp'
+];
+
 function enqueueTask(folderPath, fn) {
   if (!monitoringQueues.has(folderPath)) monitoringQueues.set(folderPath, []);
   monitoringQueues.get(folderPath).push(fn);
@@ -693,7 +699,7 @@ async function processQueue(folderPath) {
 
 
 
-function ensureInGitignore(folderPath, name) {
+function ensureInGitignore(folderPath, name, igInstance) {
   const gitignorePath = path.join(folderPath, '.gitignore');
   let lines = [];
   if (fs.existsSync(gitignorePath)) {
@@ -701,6 +707,9 @@ function ensureInGitignore(folderPath, name) {
   }
   if (lines.some(line => line.trim() === name)) return false;
   fs.appendFileSync(gitignorePath, name + '\n');
+  if (igInstance) {
+    igInstance.add(name);
+  }
   return true;
 }
 
@@ -709,6 +718,7 @@ function startMonitoringWatcher(folderPath, win) {
 
   // 1. Load .gitignore (and add default rules for .git, node_modules, etc.)
   const ig = ignore();
+  ig.add(MONITOR_DEFAULT_IGNORES);
   const gitignorePath = path.join(folderPath, '.gitignore');
   if (fs.existsSync(gitignorePath)) {
     ig.add(fs.readFileSync(gitignorePath, 'utf-8'));
@@ -731,7 +741,7 @@ function startMonitoringWatcher(folderPath, win) {
   // 3. Create the watcher, now with deep ignore support!
   const watcher = chokidar.watch(folderPath, {
     ignored: ignoredFunc,
-    ignoreInitial: false,
+    ignoreInitial: true,
     persistent: true,
     depth: 99,
     awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 }
@@ -739,11 +749,14 @@ function startMonitoringWatcher(folderPath, win) {
 
   let debounceTimer = null;
   let pendingNames = new Set();
+  let pendingPaths = new Set();
 
   function handleDebounced() {
     enqueueTask(folderPath, async () => {
       const namesArr = Array.from(pendingNames);
+      const pathsArr = Array.from(pendingPaths);
       pendingNames.clear();
+      pendingPaths.clear();
 
       // .gitignore sofort synchron aktualisieren (im Event-Handler)
       let gitignoreChanged = false;
@@ -751,13 +764,27 @@ function startMonitoringWatcher(folderPath, win) {
         for (const name of IGNORED_NAMES) {
           if (name.includes('*')) {
             if (micromatch.isMatch(fileOrDirName, name)) {
-              gitignoreChanged = ensureInGitignore(folderPath, name) || gitignoreChanged;
+              gitignoreChanged = ensureInGitignore(folderPath, name, ig) || gitignoreChanged;
             }
           } else {
             if (fileOrDirName === name.replace(/\/$/, '')) {
-              gitignoreChanged = ensureInGitignore(folderPath, name) || gitignoreChanged;
+              gitignoreChanged = ensureInGitignore(folderPath, name, ig) || gitignoreChanged;
             }
           }
+        }
+      }
+
+      if (gitignoreChanged) {
+        const toUnwatch = [];
+        for (const p of pathsArr) {
+          const rel = path.relative(folderPath, p);
+          if (ig.ignores(rel)) {
+            toUnwatch.push(p);
+          }
+        }
+        if (toUnwatch.length) {
+          watcher.unwatch(toUnwatch);
+          debug(`[MONITOR] Unwatched ${toUnwatch.length} path(s) after adding ignores for ${folderPath}`);
         }
       }
 
@@ -782,9 +809,23 @@ function startMonitoringWatcher(folderPath, win) {
     watcher.on(ev, filePath => {
       const fileOrDirName = path.basename(filePath);
       pendingNames.add(fileOrDirName);
+      pendingPaths.add(filePath);
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(handleDebounced, 500);
     });
+  });
+
+  watcher.on('error', err => {
+    debug(`[MONITOR] Watcher error for ${folderPath}: ${err.message || err}`);
+    if (err && err.code === 'EMFILE') {
+      let folders = store.get('folders') || [];
+      folders = folders.map(f =>
+        f.path === folderPath ? { ...f, monitoring: false } : f
+      );
+      store.set('folders', folders);
+      stopMonitoringWatcher(folderPath);
+      win.webContents.send('monitoring-error', { path: folderPath, code: 'EMFILE' });
+    }
   });
 
   // Initialer Commit (direkt in Queue, wie ein Event)
