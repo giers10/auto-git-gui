@@ -1862,12 +1862,15 @@ function buildTrayMenu() {
     let folders = store.get('folders') || [];
     let folderObj = folders.find(f => f.path === newFolder);
     if (!folderObj) {
-      folderObj = { path: newFolder, monitoring: isRepo, linesChanged: 0, llmCandidates: [], firstCandidateBirthday: null, lastHeadHash };
+      folderObj = { path: newFolder, monitoring: isRepo, linesChanged: 0, llmCandidates: [], llmBuffer: [], firstCandidateBirthday: null, lastHeadHash, rewriteInProgress: false };
       folders.push(folderObj);
       store.set('folders', folders);
     } else {
       folderObj.lastHeadHash = lastHeadHash;
       folderObj.monitoring = folderObj.monitoring && isRepo;
+      folderObj.llmBuffer = folderObj.llmBuffer || [];
+      folderObj.llmCandidates = folderObj.llmCandidates || [];
+      folderObj.rewriteInProgress = folderObj.rewriteInProgress || false;
       store.set('folders', folders);
     }
     store.set('selected', newFolder);
