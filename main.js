@@ -1364,7 +1364,16 @@ async function autoCommit(folderPath, message, win) {
 
   const git = simpleGit(folderPath);
 
-  // If a previous rebase (likely from commit rewrite) is still open, abort it so auto-commit can proceed.
+  // Skip auto-commit if a rewrite/rebase is in progress for this folder
+  const foldersState = store.get('folders') || [];
+  const idxState = foldersState.findIndex(f => f.path === folderPath);
+  const rewriteActive = idxState !== -1 ? !!foldersState[idxState].rewriteInProgress : false;
+  if (rewriteActive) {
+    debug(`[autoCommit] Rewrite in progress for ${folderPath}, skipping auto-commit.`);
+    return false;
+  }
+
+  // If a previous rebase (not from our rewrite) is still open, abort it so auto-commit can proceed.
   if (isRebaseInProgress(folderPath)) {
     try {
       debug(`[autoCommit] Rebase detected in ${folderPath}, aborting to unblock auto-commit.`);
