@@ -1421,6 +1421,8 @@ async function autoCommit(folderPath, message, win) {
   if (idx !== -1) {
     folders[idx].linesChanged = (folders[idx].linesChanged || 0) + changedLines;
     folders[idx].llmCandidates = folders[idx].llmCandidates || [];
+    folders[idx].llmBuffer = folders[idx].llmBuffer || [];
+    folders[idx].rewriteInProgress = folders[idx].rewriteInProgress || false;
 
     // ===> WICHTIG: Wir commiten ja jetzt, daher merken wir uns gleich die neue Commit-Hash
     // Vor git.commit: Merke alten HEAD
@@ -1440,18 +1442,22 @@ async function autoCommit(folderPath, message, win) {
 
     // Nach Commit: neuen HEAD ermitteln und in llmCandidates speichern
     const newHead = (await git.revparse(['HEAD'])).trim();
-    folders[idx].llmCandidates = folders[idx].llmCandidates || [];
-    folders[idx].llmCandidates.push(newHead);
-    if(folders[idx].llmCandidates.length == 1){
-      folders[idx].firstCandidateBirthday = Date.now();
-      debug('[autoCommit] Erster Commit aufgenommen.');
+    if (folders[idx].rewriteInProgress) {
+      // Buffer commits while a rewrite is running to avoid losing them to rebase hash changes.
+      folders[idx].llmBuffer.push(newHead);
+    } else {
+      folders[idx].llmCandidates.push(newHead);
+      if(folders[idx].llmCandidates.length == 1){
+        folders[idx].firstCandidateBirthday = Date.now();
+        debug('[autoCommit] Erster Commit aufgenommen.');
+      }
     }
     folders[idx].lastHeadHash = newHead;
     console.log(folders[idx].llmCandidates)
 
     // Threshold holen
     const threshold = store.get('intelligentCommitThreshold') || 10;
-    if (folders[idx].linesChanged >= threshold) {
+    if (!folders[idx].rewriteInProgress && folders[idx].linesChanged >= threshold) {
       debug('Congratulations! You changed enough lines of code :)');
       await runLLMCommitRewrite(folders[idx], win);
       //folders[idx].linesChanged = 0; // !!!!!!!!!!!!!!!!!!!!  needs logic to handle several llm runs called at the same time test
