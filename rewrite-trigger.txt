@@ -1,1 +1,2 @@
 LLM rewrite trigger test
+Second line to trigger another change
