@@ -25,3 +25,11 @@ Third change to trigger watcher
 Fourth change to test
 Second line to trigger another change
 Third change to trigger watcher
+ird change to trigger watcher
+Fourth change to test
+Second line to trigger another change
+Third change to trigger watcher
+ird change to trigger watcher
+Fourth change to test
+Second line to trigger another change
+Third change to trigger watcher
