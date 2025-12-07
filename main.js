@@ -1311,9 +1311,29 @@ function addMatchingFilesToGitignore(folderPath, pattern) {
 }
 
 
+function isRebaseInProgress(repoPath) {
+  const gitDir = path.join(repoPath, '.git');
+  return (
+    fs.existsSync(path.join(gitDir, 'rebase-merge')) ||
+    fs.existsSync(path.join(gitDir, 'rebase-apply'))
+  );
+}
+
 async function autoCommit(folderPath, message, win) {
 
   const git = simpleGit(folderPath);
+
+  // If a previous rebase (likely from commit rewrite) is still open, abort it so auto-commit can proceed.
+  if (isRebaseInProgress(folderPath)) {
+    try {
+      debug(`[autoCommit] Rebase detected in ${folderPath}, aborting to unblock auto-commit.`);
+      await git.raw(['rebase', '--abort']);
+    } catch (err) {
+      debug(`[autoCommit] Rebase abort failed: ${err.message}`);
+      return false;
+    }
+  }
+
   const status = await git.status();
   if (
     status.not_added.length === 0 &&
@@ -2029,6 +2049,15 @@ function buildTrayMenu() {
     try {
       debug(`Commit-Vorgang für ${folder} gestartet…`);
       const git = simpleGit(folder);
+
+      if (isRebaseInProgress(folder)) {
+        try {
+          debug('[commit-current-folder] Rebase detected, aborting before commit.');
+          await git.raw(['rebase', '--abort']);
+        } catch (err) {
+          return { success: false, error: `Rebase in progress: ${err.message}` };
+        }
+      }
 
       // Prüfe: Gibt es was zu committen?
       const status = await git.status();
