@@ -1277,6 +1277,24 @@ async function runLLMCommitRewrite(folderObj, win) {
   }
 
   if (error) throw error;
+
+  // After rewrite completes successfully, commit any pending working tree changes that were skipped during the rebase.
+  try {
+    const git = simpleGit(folderPath);
+    const status = await git.status();
+    if (
+      status.not_added.length > 0 ||
+      status.created.length > 0 ||
+      status.modified.length > 0 ||
+      status.deleted.length > 0 ||
+      status.renamed.length > 0
+    ) {
+      const msg = buildCommitMessageFromStatus(status, 'auto-git: ');
+      await autoCommit(folderPath, msg, win);
+    }
+  } catch (e) {
+    debug(`[runLLMCommitRewrite] Post-rewrite auto-commit skipped due to error: ${e.message}`);
+  }
 }
 
 
