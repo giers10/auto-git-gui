@@ -1221,27 +1221,62 @@ module.exports = { rewordCommitsSequentially };
 
 //---- 6. Workflow ----
 async function runLLMCommitRewrite(folderObj, win) {
-  if(!folderObj.needsRelocation){
-    const hashes = folderObj.llmCandidates;
-    const birthday = folderObj.firstCandidateBirthday;
-    const folderPath = folderObj.path;
-    folderObj.llmCandidates = [];
-    folderObj.firstCandidateBirthday = null;
-    folderObj.linesChanged = 0;
-    const folders = store.get('folders') || [];
-    const idx = folders.findIndex(f => f.path === folderObj.path);
-    if (idx !== -1) {
-      folders[idx] = folderObj;
-      store.set('folders', folders);
-    }
+  if(folderObj.needsRelocation) return;
+
+  // Refresh the latest folder state from store to avoid stale references.
+  let folders = store.get('folders') || [];
+  let idx = folders.findIndex(f => f.path === folderObj.path);
+  if (idx === -1) return;
+  const folderPath = folders[idx].path;
+
+  const hashes = (folders[idx].llmCandidates || []).slice();
+  if (!hashes.length) return;
+  if (folders[idx].rewriteInProgress) {
+    debug(`[runLLMCommitRewrite] Rewrite already in progress for ${folderPath}, skipping.`);
+    return;
+  }
+
+  const originalBirthday = folders[idx].firstCandidateBirthday;
+
+  // Lock: mark rewrite in progress
+  folders[idx].rewriteInProgress = true;
+  store.set('folders', folders);
+
+  let error;
+  try {
     const prompt = await generateLLMCommitMessages(folderPath, hashes);
     const llmRaw = await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk), win);
     const commitList = parseLLMCommitMessages(llmRaw);
     const messageMap = {};
     for (const entry of commitList) messageMap[entry.commit] = entry.newMessage;
     await rewordCommitsSequentially(folderPath, messageMap, hashes);
-    win.webContents.send('repo-updated', folderObj.path);
+    win.webContents.send('repo-updated', folderPath);
+  } catch (err) {
+    error = err;
+    console.error('[runLLMCommitRewrite] Rewrite failed:', err);
+  } finally {
+    // Refresh state in case it changed during the rewrite
+    folders = store.get('folders') || [];
+    idx = folders.findIndex(f => f.path === folderPath);
+    if (idx !== -1) {
+      const buffer = folders[idx].llmBuffer || [];
+      if (error) {
+        // Requeue original candidates plus anything that arrived during rewrite
+        folders[idx].llmCandidates = hashes.concat(buffer);
+        folders[idx].firstCandidateBirthday = originalBirthday || (folders[idx].llmCandidates.length ? Date.now() : null);
+      } else {
+        // Promote buffered commits to become the next batch
+        folders[idx].llmCandidates = buffer;
+        folders[idx].firstCandidateBirthday = buffer.length ? Date.now() : null;
+        folders[idx].linesChanged = 0;
+      }
+      folders[idx].llmBuffer = [];
+      folders[idx].rewriteInProgress = false;
+      store.set('folders', folders);
+    }
   }
+
+  if (error) throw error;
 }
 
 
