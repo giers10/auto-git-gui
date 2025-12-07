@@ -1,6 +1,2 @@
 LLM rewrite trigger test
-Second line to trigger another change
-Third change to trigger watcher
-Fourth change to trigger watcher
-Fifth change to trigger watcher
-Sixth change
+Second line t
