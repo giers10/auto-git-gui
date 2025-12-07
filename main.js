@@ -1509,7 +1509,7 @@ async function main() {
   const now = Date.now();
 
   folders.forEach(folderObj => {
-    if (folderObj.firstCandidateBirthday != null) {
+    if (folderObj.firstCandidateBirthday != null && !folderObj.rewriteInProgress) {
       const elapsedMin = (now - folderObj.firstCandidateBirthday) / 1000 / 60;
       if (elapsedMin >= minutesThreshold) {
         runLLMCommitRewrite(folderObj, win);
