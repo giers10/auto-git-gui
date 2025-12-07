@@ -68,7 +68,9 @@ const store = new Store({
     closeToTray: true,
     needsRelocation: false,
     dailyCommitStats: {},
-    giteaToken: ''
+    giteaToken: '',
+    rewriteInProgress: false,
+    llmBuffer: []
   }
 });
 
@@ -81,7 +83,9 @@ folders = folders.map(f => {
   const hasGit = fs.existsSync(path.join(f.path, '.git'));
   return {
     ...f,
-    monitoring: (f.monitoring && hasGit && !f.needsRelocation)
+    monitoring: (f.monitoring && hasGit && !f.needsRelocation),
+    rewriteInProgress: f.rewriteInProgress || false,
+    llmBuffer: f.llmBuffer || []
   };
 });
 store.set('folders', folders);
@@ -123,6 +127,8 @@ function createTray(win) {
 if (Array.isArray(folders)) {
   folders = folders.map(f => ({
     ...f,
+    rewriteInProgress: f.rewriteInProgress || false,
+    llmBuffer: f.llmBuffer || [],
     //linesChanged: 0,      // zurück auf 0 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     //llmCandidates: []     // leeres Array
   }));
