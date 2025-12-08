@@ -1571,6 +1571,23 @@ async function main() {
   const now = Date.now();
 
   folders.forEach(folderObj => {
+    // Recover from a stuck rewrite flag (e.g., app closed mid-run) if no rebase is active.
+    if (folderObj.rewriteInProgress) {
+      const inRebase = isRebaseInProgress(folderObj.path);
+      if (!inRebase) {
+        const merged = (folderObj.llmCandidates || []).concat(folderObj.llmBuffer || []);
+        const newBirthday = merged.length ? Date.now() : null;
+        folderObj.rewriteInProgress = false;
+        folderObj.llmBuffer = [];
+        folderObj.llmCandidates = merged;
+        folderObj.firstCandidateBirthday = newBirthday;
+        anyChanged = true;
+        updatedFolders.push(folderObj);
+        store.set('folders', folders);
+        debug(`[recovery] Cleared stuck rewrite flag for ${folderObj.path}, candidates=${merged.length}`);
+      }
+    }
+
     if (folderObj.firstCandidateBirthday != null && !folderObj.rewriteInProgress) {
       const elapsedMin = (now - folderObj.firstCandidateBirthday) / 1000 / 60;
       if (elapsedMin >= minutesThreshold) {
