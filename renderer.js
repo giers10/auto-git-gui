@@ -593,7 +593,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                       alt="In Rewrite Queue"
                       title="In Rewrite Queue"
                       class="paw-queued"
-                      style="pointer-events: none; z-index:10;">`
+                      style="pointer-events: auto; cursor: pointer; z-index:10;">`
               : ''
           }
         </li>`;
@@ -685,6 +685,19 @@ window.addEventListener('DOMContentLoaded', async () => {
         await window.electronAPI.checkoutCommit(folderObj, hash);
         const page = await getCommitPageForHash(folderObj, hash, PAGE_SIZE);
         await renderContent(folderObj, page);
+      });
+    });
+
+    // Paw click: manually trigger rewrite for this folder
+    contentList.querySelectorAll('.paw-queued').forEach(img => {
+      img.addEventListener('click', async () => {
+        try {
+          await window.electronAPI.triggerRewriteNow(folderObj.path);
+        } catch (e) {
+          console.error('Manual rewrite trigger error:', e);
+        } finally {
+          await renderContent(folderObj, currentPage);
+        }
       });
     });
 

@@ -2442,6 +2442,27 @@ function buildTrayMenu() {
     }
   });
 
+  ipcMain.handle('trigger-rewrite-now', async (_e, folderPath) => {
+    let folders = store.get('folders') || [];
+    const idx = folders.findIndex(f => f.path === folderPath);
+    if (idx === -1) return { success: false, error: 'folder not found' };
+    const folderObj = folders[idx];
+    if (folderObj.needsRelocation) return { success: false, error: 'needs relocation' };
+    if (folderObj.rewriteInProgress) return { success: false, error: 'rewrite in progress' };
+    if (!folderObj.llmCandidates || !folderObj.llmCandidates.length) return { success: false, error: 'no candidates' };
+
+    // Reset counters/timers
+    folderObj.linesChanged = 0;
+    folderObj.firstCandidateBirthday = Date.now();
+    store.set('folders', folders);
+
+    // Fire and forget
+    runLLMCommitRewrite(folderObj, win).catch(err => {
+      debug(`[trigger-rewrite-now] Error for ${folderPath}: ${err.message || err}`);
+    });
+    return { success: true };
+  });
+
 
 
 
