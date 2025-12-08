@@ -1243,6 +1243,7 @@ async function runLLMCommitRewrite(folderObj, win) {
 
   // Lock: mark rewrite in progress
   folders[idx].rewriteInProgress = true;
+  folders[idx].rewriteStartedAt = Date.now();
   store.set('folders', folders);
 
   let error;
@@ -1275,6 +1276,7 @@ async function runLLMCommitRewrite(folderObj, win) {
       }
       folders[idx].llmBuffer = [];
       folders[idx].rewriteInProgress = false;
+      folders[idx].rewriteStartedAt = null;
       store.set('folders', folders);
     }
   }
