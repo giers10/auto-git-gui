@@ -1574,24 +1574,26 @@ async function main() {
   /* ─── NEXT BLOCK: MONITOR “BIRTHDAY” FOR AUTOCOMMIT ─── */
   const minutesThreshold = store.get('minutesCommitThreshold');
   const now = Date.now();
+  const recoveryThresholdMs = 2 * 60 * 1000; // wait before clearing a potentially stuck rewrite
 
   let updatedFolders = [];
   let anyChanged = false;
 
-  folders.forEach(folderObj => {
-    // Recover from a stuck rewrite flag (e.g., app closed mid-run) if no rebase is active.
+  for (const folderObj of folders) {
+    // Recover from a stuck rewrite flag (e.g., app closed mid-run) if no rebase is active and it's been long enough.
     if (folderObj.rewriteInProgress) {
       const inRebase = isRebaseInProgress(folderObj.path);
-      if (!inRebase) {
+      const startedAt = folderObj.rewriteStartedAt || 0;
+      if (!inRebase && (now - startedAt) > recoveryThresholdMs) {
         const merged = (folderObj.llmCandidates || []).concat(folderObj.llmBuffer || []);
         const newBirthday = merged.length ? Date.now() : null;
         folderObj.rewriteInProgress = false;
+        folderObj.rewriteStartedAt = null;
         folderObj.llmBuffer = [];
         folderObj.llmCandidates = merged;
         folderObj.firstCandidateBirthday = newBirthday;
         anyChanged = true;
         updatedFolders.push(folderObj);
-        store.set('folders', folders);
         debug(`[recovery] Cleared stuck rewrite flag for ${folderObj.path}, candidates=${merged.length}`);
       }
     }
@@ -1599,10 +1601,10 @@ async function main() {
     if (folderObj.firstCandidateBirthday != null && !folderObj.rewriteInProgress) {
       const elapsedMin = (now - folderObj.firstCandidateBirthday) / 1000 / 60;
       if (elapsedMin >= minutesThreshold) {
-        runLLMCommitRewrite(folderObj, win);
+        await runLLMCommitRewrite(folderObj, win);
       }
     }
-  });
+  }
 
   win.on('close', (e) => {
     // Wenn closeToTray aktiv ist und wir NICHT wirklich beenden wollen,
