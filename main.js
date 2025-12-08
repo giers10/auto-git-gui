@@ -70,6 +70,7 @@ const store = new Store({
     dailyCommitStats: {},
     giteaToken: '',
     rewriteInProgress: false,
+    rewriteStartedAt: null,
     llmBuffer: []
   }
 });
@@ -85,6 +86,7 @@ folders = folders.map(f => {
     ...f,
     monitoring: (f.monitoring && hasGit && !f.needsRelocation),
     rewriteInProgress: f.rewriteInProgress || false,
+    rewriteStartedAt: f.rewriteStartedAt || null,
     llmBuffer: f.llmBuffer || []
   };
 });
@@ -128,6 +130,7 @@ if (Array.isArray(folders)) {
   folders = folders.map(f => ({
     ...f,
     rewriteInProgress: f.rewriteInProgress || false,
+    rewriteStartedAt: f.rewriteStartedAt || null,
     llmBuffer: f.llmBuffer || [],
     //linesChanged: 0,      // zurück auf 0 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     //llmCandidates: []     // leeres Array
