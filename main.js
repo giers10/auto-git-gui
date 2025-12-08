@@ -1298,16 +1298,10 @@ async function runLLMCommitRewrite(folderObj, win) {
       const buffer = folders[idx].llmBuffer || [];
       if (error) {
         const errMsg = String(error.message || error);
-        if (errMsg.includes('LLM prompt too large') || errMsg.includes('aborted')) {
-          // Skip this batch: drop candidates to unblock pipeline
-          debug(`[runLLMCommitRewrite] Dropping candidates for ${folderPath} due to error: ${errMsg}`);
-          folders[idx].llmCandidates = buffer; // keep only buffered, newer commits
-          folders[idx].firstCandidateBirthday = buffer.length ? Date.now() : null;
-        } else {
-          // Requeue original candidates plus anything that arrived during rewrite
-          folders[idx].llmCandidates = hashes.concat(buffer);
-          folders[idx].firstCandidateBirthday = originalBirthday || (folders[idx].llmCandidates.length ? Date.now() : null);
-        }
+        // Requeue original candidates plus anything that arrived during rewrite;
+        // fallback already tried, so keep the queue intact for another attempt.
+        folders[idx].llmCandidates = hashes.concat(buffer);
+        folders[idx].firstCandidateBirthday = originalBirthday || (folders[idx].llmCandidates.length ? Date.now() : null);
       } else {
         // Promote buffered commits to become the next batch
         folders[idx].llmCandidates = buffer;
