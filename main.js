@@ -991,9 +991,11 @@ ${JSON.stringify(commits, null, 2)}
 }
 
 // ---- 3. LLM Streaming Call ----
-async function streamLLMCommitMessages(prompt, onDataChunk, win) {
+async function streamLLMCommitMessages(prompt, onDataChunk, win, timeoutMs = 120000) {
   await ensureOllamaRunning();
   const selectedModel = store.get('commitModel') || 'qwen2.5-coder:7b';
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const response = await fetch('http://127.0.0.1:11434/api/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1002,8 +1004,9 @@ async function streamLLMCommitMessages(prompt, onDataChunk, win) {
       prompt: prompt,
       stream: true,
       options: { temperature: 0.3 }
-    })
-  });
+    }),
+    signal: controller.signal
+  }).finally(() => clearTimeout(timeout));
 
   if (!response.body) throw new Error('No stream returned');
   const reader = response.body.getReader();
@@ -1044,9 +1047,11 @@ async function streamLLMCommitMessages(prompt, onDataChunk, win) {
   return fullOutput;
 }
 
-async function streamLLMREADME(prompt, onDataChunk, win) {
+async function streamLLMREADME(prompt, onDataChunk, win, timeoutMs = 120000) {
   await ensureOllamaRunning();
   const selectedModel = store.get('readmeModel') || 'qwen2.5-coder:32b';
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const response = await fetch('http://127.0.0.1:11434/api/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1055,8 +1060,9 @@ async function streamLLMREADME(prompt, onDataChunk, win) {
       prompt: prompt,
       stream: true,
       options: { temperature: 0.4 }
-    })
-  });
+    }),
+    signal: controller.signal
+  }).finally(() => clearTimeout(timeout));
 
   if (!response.body) throw new Error('No stream returned');
   const reader = response.body.getReader();
