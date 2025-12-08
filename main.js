@@ -1238,6 +1238,7 @@ async function runLLMCommitRewrite(folderObj, win) {
     debug(`[runLLMCommitRewrite] Rewrite already in progress for ${folderPath}, skipping.`);
     return;
   }
+  debug(`[runLLMCommitRewrite] Starting rewrite for ${folderPath}, ${hashes.length} commits.`);
 
   const originalBirthday = folders[idx].firstCandidateBirthday;
 
@@ -1248,12 +1249,17 @@ async function runLLMCommitRewrite(folderObj, win) {
 
   let error;
   try {
+    debug(`[runLLMCommitRewrite] Building prompt for ${folderPath}`);
     const prompt = await generateLLMCommitMessages(folderPath, hashes);
+    debug(`[runLLMCommitRewrite] Streaming LLM for ${folderPath}`);
     const llmRaw = await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk), win);
+    debug(`[runLLMCommitRewrite] Parsing LLM output for ${folderPath}`);
     const commitList = parseLLMCommitMessages(llmRaw);
+    debug(`[runLLMCommitRewrite] Rewording ${commitList.length} commits for ${folderPath}`);
     const messageMap = {};
     for (const entry of commitList) messageMap[entry.commit] = entry.newMessage;
     await rewordCommitsSequentially(folderPath, messageMap, hashes);
+    debug(`[runLLMCommitRewrite] Reword finished for ${folderPath}`);
     win.webContents.send('repo-updated', folderPath);
   } catch (err) {
     error = err;
@@ -1524,6 +1530,9 @@ async function autoCommit(folderPath, message, win) {
 
     // Threshold holen
     const threshold = store.get('intelligentCommitThreshold') || 10;
+    // Persist state before triggering rewrite so runLLMCommitRewrite sees fresh candidates.
+    store.set('folders', folders);
+
     if (!folders[idx].rewriteInProgress && folders[idx].linesChanged >= threshold) {
       debug('Congratulations! You changed enough lines of code :)');
       await runLLMCommitRewrite(folders[idx], win);
@@ -1531,7 +1540,7 @@ async function autoCommit(folderPath, message, win) {
       //folders[idx].llmCandidates = [];
       //folders.[idx].firstCandidateBirthday = null
     }
-    store.set('folders', folders);
+    // Already stored above
   } else {
     // Folder not found! (Debug)
     debug(`[autoCommit] Warning: Folder ${folderPath} not found in store`);
@@ -1601,7 +1610,10 @@ async function main() {
     if (folderObj.firstCandidateBirthday != null && !folderObj.rewriteInProgress) {
       const elapsedMin = (now - folderObj.firstCandidateBirthday) / 1000 / 60;
       if (elapsedMin >= minutesThreshold) {
-        await runLLMCommitRewrite(folderObj, win);
+        // Do not block the rest of initialization; run rewrite in background.
+        runLLMCommitRewrite(folderObj, win).catch(err => {
+          debug(`[runLLMCommitRewrite] Error for ${folderObj.path}: ${err.message || err}`);
+        });
       }
     }
   }
