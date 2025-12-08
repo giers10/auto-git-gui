@@ -1570,6 +1570,9 @@ async function main() {
   const minutesThreshold = store.get('minutesCommitThreshold');
   const now = Date.now();
 
+  let updatedFolders = [];
+  let anyChanged = false;
+
   folders.forEach(folderObj => {
     // Recover from a stuck rewrite flag (e.g., app closed mid-run) if no rebase is active.
     if (folderObj.rewriteInProgress) {
@@ -1608,8 +1611,7 @@ async function main() {
   /* ──────────────────────────────────────────────────── */
 
   /* NEXT BLOCK: MONITOR FOLDER MISSING / RELOCATED */
-  let updatedFolders = [];
-  let anyChanged = false;
+  // updatedFolders/anyChanged already initialized above
 
   // Wir müssen auf asynchrone Checks warten (wegen simple-git)
   folders = await Promise.all(folders.map(async f => {
