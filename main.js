@@ -1259,21 +1259,37 @@ async function runLLMCommitRewrite(folderObj, win) {
 
   let error;
   try {
-    // TEMP: Skip LLM and reuse existing commit messages to unblock rewrites
-    debug(`[runLLMCommitRewrite] Skipping LLM; using existing messages for ${folderPath}`);
-    const git = simpleGit(folderPath);
+    debug(`[runLLMCommitRewrite] Building prompt for ${folderPath}`);
+    const prompt = await generateLLMCommitMessages(folderPath, hashes);
+    debug(`[runLLMCommitRewrite] Streaming LLM for ${folderPath}`);
+    const llmRaw = await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk), win);
+    debug(`[runLLMCommitRewrite] Parsing LLM output for ${folderPath}`);
+    const commitList = parseLLMCommitMessages(llmRaw);
+    debug(`[runLLMCommitRewrite] Rewording ${commitList.length} commits for ${folderPath}`);
     const messageMap = {};
-    for (const h of hashes) {
-      const msg = (await git.show(['-s', '--format=%B', h])).trim();
-      messageMap[h] = msg || 'auto-git';
-    }
-    debug(`[runLLMCommitRewrite] Rewording ${Object.keys(messageMap).length} commits for ${folderPath}`);
+    for (const entry of commitList) messageMap[entry.commit] = entry.newMessage;
     await rewordCommitsSequentially(folderPath, messageMap, hashes);
     debug(`[runLLMCommitRewrite] Reword finished for ${folderPath}`);
     win.webContents.send('repo-updated', folderPath);
   } catch (err) {
     error = err;
     console.error('[runLLMCommitRewrite] Rewrite failed:', err);
+    // Fallback: use existing commit messages so queue clears and flow continues
+    try {
+      const git = simpleGit(folderPath);
+      const messageMap = {};
+      for (const h of hashes) {
+        const msg = (await git.show(['-s', '--format=%B', h])).trim();
+        messageMap[h] = msg || 'auto-git';
+      }
+      await rewordCommitsSequentially(folderPath, messageMap, hashes);
+      debug(`[runLLMCommitRewrite] Fallback reword using existing messages for ${folderPath}`);
+      error = null; // handled
+      win.webContents.send('repo-updated', folderPath);
+    } catch (fallbackErr) {
+      error = fallbackErr;
+      console.error('[runLLMCommitRewrite] Fallback rewrite failed:', fallbackErr);
+    }
   } finally {
     // Refresh state in case it changed during the rewrite
     folders = store.get('folders') || [];
