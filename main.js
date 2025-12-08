@@ -995,7 +995,7 @@ ${JSON.stringify(commits, null, 2)}
 }
 
 // ---- 3. LLM Streaming Call ----
-async function streamLLMCommitMessages(prompt, onDataChunk, win, timeoutMs = 30000) {
+async function streamLLMCommitMessages(prompt, onDataChunk, win, timeoutMs = 120000) {
   await ensureOllamaRunning();
   const selectedModel = store.get('commitModel') || 'qwen2.5-coder:7b';
   const controller = new AbortController();
@@ -1051,7 +1051,7 @@ async function streamLLMCommitMessages(prompt, onDataChunk, win, timeoutMs = 300
   return fullOutput;
 }
 
-async function streamLLMREADME(prompt, onDataChunk, win, timeoutMs = 30000) {
+async function streamLLMREADME(prompt, onDataChunk, win, timeoutMs = 120000) {
   await ensureOllamaRunning();
   const selectedModel = store.get('readmeModel') || 'qwen2.5-coder:32b';
   const controller = new AbortController();
@@ -1281,9 +1281,10 @@ async function runLLMCommitRewrite(folderObj, win) {
     if (idx !== -1) {
       const buffer = folders[idx].llmBuffer || [];
       if (error) {
-        if (String(error.message || error).includes('LLM prompt too large')) {
+        const errMsg = String(error.message || error);
+        if (errMsg.includes('LLM prompt too large') || errMsg.includes('aborted')) {
           // Skip this batch: drop candidates to unblock pipeline
-          debug(`[runLLMCommitRewrite] Dropping candidates for ${folderPath} because prompt was too large.`);
+          debug(`[runLLMCommitRewrite] Dropping candidates for ${folderPath} due to error: ${errMsg}`);
           folders[idx].llmCandidates = buffer; // keep only buffered, newer commits
           folders[idx].firstCandidateBirthday = buffer.length ? Date.now() : null;
         } else {
