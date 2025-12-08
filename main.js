@@ -1259,37 +1259,21 @@ async function runLLMCommitRewrite(folderObj, win) {
 
   let error;
   try {
-    debug(`[runLLMCommitRewrite] Building prompt for ${folderPath}`);
-    const prompt = await generateLLMCommitMessages(folderPath, hashes);
-    debug(`[runLLMCommitRewrite] Streaming LLM for ${folderPath}`);
-    const llmRaw = await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk), win);
-    debug(`[runLLMCommitRewrite] Parsing LLM output for ${folderPath}`);
-    const commitList = parseLLMCommitMessages(llmRaw);
-    debug(`[runLLMCommitRewrite] Rewording ${commitList.length} commits for ${folderPath}`);
+    // TEMP: Skip LLM and reuse existing commit messages to unblock rewrites
+    debug(`[runLLMCommitRewrite] Skipping LLM; using existing messages for ${folderPath}`);
+    const git = simpleGit(folderPath);
     const messageMap = {};
-    for (const entry of commitList) messageMap[entry.commit] = entry.newMessage;
+    for (const h of hashes) {
+      const msg = (await git.show(['-s', '--format=%B', h])).trim();
+      messageMap[h] = msg || 'auto-git';
+    }
+    debug(`[runLLMCommitRewrite] Rewording ${Object.keys(messageMap).length} commits for ${folderPath}`);
     await rewordCommitsSequentially(folderPath, messageMap, hashes);
     debug(`[runLLMCommitRewrite] Reword finished for ${folderPath}`);
     win.webContents.send('repo-updated', folderPath);
   } catch (err) {
     error = err;
     console.error('[runLLMCommitRewrite] Rewrite failed:', err);
-    // Fallback: use existing commit messages so queue clears and flow continues
-    try {
-      const git = simpleGit(folderPath);
-      const messageMap = {};
-      for (const h of hashes) {
-        const msg = (await git.show(['-s', '--format=%B', h])).trim();
-        messageMap[h] = msg || 'auto-git';
-      }
-      await rewordCommitsSequentially(folderPath, messageMap, hashes);
-      debug(`[runLLMCommitRewrite] Fallback reword using existing messages for ${folderPath}`);
-      error = null; // treat as handled
-      win.webContents.send('repo-updated', folderPath);
-    } catch (fallbackErr) {
-      error = fallbackErr;
-      console.error('[runLLMCommitRewrite] Fallback rewrite failed:', fallbackErr);
-    }
   } finally {
     // Refresh state in case it changed during the rewrite
     folders = store.get('folders') || [];
@@ -1298,10 +1282,16 @@ async function runLLMCommitRewrite(folderObj, win) {
       const buffer = folders[idx].llmBuffer || [];
       if (error) {
         const errMsg = String(error.message || error);
-        // Drop this batch on any error to avoid getting stuck; keep buffered new commits
-        debug(`[runLLMCommitRewrite] Dropping candidates for ${folderPath} due to error: ${errMsg}`);
-        folders[idx].llmCandidates = buffer;
-        folders[idx].firstCandidateBirthday = buffer.length ? Date.now() : null;
+        if (errMsg.includes('LLM prompt too large') || errMsg.includes('aborted')) {
+          // Skip this batch: drop candidates to unblock pipeline
+          debug(`[runLLMCommitRewrite] Dropping candidates for ${folderPath} due to error: ${errMsg}`);
+          folders[idx].llmCandidates = buffer; // keep only buffered, newer commits
+          folders[idx].firstCandidateBirthday = buffer.length ? Date.now() : null;
+        } else {
+          // Requeue original candidates plus anything that arrived during rewrite
+          folders[idx].llmCandidates = hashes.concat(buffer);
+          folders[idx].firstCandidateBirthday = originalBirthday || (folders[idx].llmCandidates.length ? Date.now() : null);
+        }
       } else {
         // Promote buffered commits to become the next batch
         folders[idx].llmCandidates = buffer;
