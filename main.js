@@ -972,6 +972,7 @@ async function getCommitsForLLM(folderPath, hashes) {
 // ---- 2. Prompt für LLM bauen ----
 async function generateLLMCommitMessages(folderPath, hashes) {
   const commits = await getCommitsForLLM(folderPath, hashes);
+  const MAX_PROMPT_CHARS = 200000; // guard against enormous diffs (e.g., deleted venvs)
   const prompt = `
 Analyze the following git commits. For each commit, generate a concise commit message summarizing the actual change.
 - ONLY output a JSON object mapping each commit hash to its new message.
@@ -987,11 +988,14 @@ COMMITS (as JSON):
 
 ${JSON.stringify(commits, null, 2)}
   `;
+  if (prompt.length > MAX_PROMPT_CHARS) {
+    throw new Error(`LLM prompt too large (${prompt.length} chars) for ${folderPath}`);
+  }
   return prompt;
 }
 
 // ---- 3. LLM Streaming Call ----
-async function streamLLMCommitMessages(prompt, onDataChunk, win, timeoutMs = 120000) {
+async function streamLLMCommitMessages(prompt, onDataChunk, win, timeoutMs = 30000) {
   await ensureOllamaRunning();
   const selectedModel = store.get('commitModel') || 'qwen2.5-coder:7b';
   const controller = new AbortController();
@@ -1047,7 +1051,7 @@ async function streamLLMCommitMessages(prompt, onDataChunk, win, timeoutMs = 120
   return fullOutput;
 }
 
-async function streamLLMREADME(prompt, onDataChunk, win, timeoutMs = 120000) {
+async function streamLLMREADME(prompt, onDataChunk, win, timeoutMs = 30000) {
   await ensureOllamaRunning();
   const selectedModel = store.get('readmeModel') || 'qwen2.5-coder:32b';
   const controller = new AbortController();
@@ -1277,9 +1281,16 @@ async function runLLMCommitRewrite(folderObj, win) {
     if (idx !== -1) {
       const buffer = folders[idx].llmBuffer || [];
       if (error) {
-        // Requeue original candidates plus anything that arrived during rewrite
-        folders[idx].llmCandidates = hashes.concat(buffer);
-        folders[idx].firstCandidateBirthday = originalBirthday || (folders[idx].llmCandidates.length ? Date.now() : null);
+        if (String(error.message || error).includes('LLM prompt too large')) {
+          // Skip this batch: drop candidates to unblock pipeline
+          debug(`[runLLMCommitRewrite] Dropping candidates for ${folderPath} because prompt was too large.`);
+          folders[idx].llmCandidates = buffer; // keep only buffered, newer commits
+          folders[idx].firstCandidateBirthday = buffer.length ? Date.now() : null;
+        } else {
+          // Requeue original candidates plus anything that arrived during rewrite
+          folders[idx].llmCandidates = hashes.concat(buffer);
+          folders[idx].firstCandidateBirthday = originalBirthday || (folders[idx].llmCandidates.length ? Date.now() : null);
+        }
       } else {
         // Promote buffered commits to become the next batch
         folders[idx].llmCandidates = buffer;
