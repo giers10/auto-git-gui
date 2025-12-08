@@ -1915,7 +1915,7 @@ function buildTrayMenu() {
     let folders = store.get('folders') || [];
     let folderObj = folders.find(f => f.path === newFolder);
     if (!folderObj) {
-      folderObj = { path: newFolder, monitoring: isRepo, linesChanged: 0, llmCandidates: [], llmBuffer: [], firstCandidateBirthday: null, lastHeadHash, rewriteInProgress: false };
+      folderObj = { path: newFolder, monitoring: isRepo, linesChanged: 0, llmCandidates: [], llmBuffer: [], firstCandidateBirthday: null, lastHeadHash, rewriteInProgress: false, rewriteStartedAt: null };
       folders.push(folderObj);
       store.set('folders', folders);
     } else {
@@ -1924,6 +1924,7 @@ function buildTrayMenu() {
       folderObj.llmBuffer = folderObj.llmBuffer || [];
       folderObj.llmCandidates = folderObj.llmCandidates || [];
       folderObj.rewriteInProgress = folderObj.rewriteInProgress || false;
+      folderObj.rewriteStartedAt = folderObj.rewriteStartedAt || null;
       store.set('folders', folders);
     }
     store.set('selected', newFolder);
