@@ -1274,6 +1274,22 @@ async function runLLMCommitRewrite(folderObj, win) {
   } catch (err) {
     error = err;
     console.error('[runLLMCommitRewrite] Rewrite failed:', err);
+    // Fallback: use existing commit messages so queue clears and flow continues
+    try {
+      const git = simpleGit(folderPath);
+      const messageMap = {};
+      for (const h of hashes) {
+        const msg = (await git.show(['-s', '--format=%B', h])).trim();
+        messageMap[h] = msg || 'auto-git';
+      }
+      await rewordCommitsSequentially(folderPath, messageMap, hashes);
+      debug(`[runLLMCommitRewrite] Fallback reword using existing messages for ${folderPath}`);
+      error = null; // treat as handled
+      win.webContents.send('repo-updated', folderPath);
+    } catch (fallbackErr) {
+      error = fallbackErr;
+      console.error('[runLLMCommitRewrite] Fallback rewrite failed:', fallbackErr);
+    }
   } finally {
     // Refresh state in case it changed during the rewrite
     folders = store.get('folders') || [];
