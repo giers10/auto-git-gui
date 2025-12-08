@@ -996,7 +996,9 @@ ${JSON.stringify(commits, null, 2)}
 
 // ---- 3. LLM Streaming Call ----
 async function streamLLMCommitMessages(prompt, onDataChunk, win, timeoutMs = 120000) {
+  debug('[streamLLMCommitMessages] Ensuring Ollama is running…');
   await ensureOllamaRunning();
+  debug('[streamLLMCommitMessages] Ollama ready, sending request.');
   const selectedModel = store.get('commitModel') || 'qwen2.5-coder:7b';
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -1154,6 +1156,24 @@ function parseLLMCommitMessages(rawOutput) {
 async function rewordCommitsSequentially(repoPath, commitMessageMap, hashes) {
   const git = simpleGit(repoPath);
 
+  // Ensure clean working tree (stash if needed)
+  let stashed = false;
+  try {
+    const status = await git.status();
+    const hasChanges =
+      status.not_added.length ||
+      status.created.length ||
+      status.deleted.length ||
+      status.modified.length ||
+      status.renamed.length;
+    if (hasChanges) {
+      await git.stash(['push', '--include-untracked', '--keep-index']);
+      stashed = true;
+    }
+  } catch (e) {
+    console.warn('[AutoGit] Could not stash before reword:', e.message || e);
+  }
+
   // --- Schritt 1: Alle Commits holen und die übergebenen Hashes chronologisch sortieren ---
   const allCommits = (await git.log()).all;
   const hashesOrdered = hashes
@@ -1228,12 +1248,22 @@ async function rewordCommitsSequentially(repoPath, commitMessageMap, hashes) {
   }
 
   console.log('[AutoGit] Alle Commit-Nachrichten wurden aktualisiert.');
+
+  // Restore stashed changes
+  if (stashed) {
+    try {
+      await git.stash(['pop']);
+    } catch (e) {
+      console.warn('[AutoGit] Could not pop stash after reword:', e.message || e);
+    }
+  }
 }
 
 module.exports = { rewordCommitsSequentially };
 
 //---- 6. Workflow ----
-async function runLLMCommitRewrite(folderObj, win) {
+async function runLLMCommitRewrite(folderObj, win, opts = {}) {
+  const force = opts.force || false;
   if(folderObj.needsRelocation) return;
 
   // Refresh the latest folder state from store to avoid stale references.
@@ -1244,9 +1274,14 @@ async function runLLMCommitRewrite(folderObj, win) {
 
   const hashes = (folders[idx].llmCandidates || []).slice();
   if (!hashes.length) return;
-  if (folders[idx].rewriteInProgress) {
+  if (folders[idx].rewriteInProgress && !force) {
     debug(`[runLLMCommitRewrite] Rewrite already in progress for ${folderPath}, skipping.`);
     return;
+  } else if (folders[idx].rewriteInProgress && force) {
+    debug(`[runLLMCommitRewrite] Forcing rewrite despite in-progress flag for ${folderPath}.`);
+    folders[idx].rewriteInProgress = false;
+    folders[idx].rewriteStartedAt = null;
+    store.set('folders', folders);
   }
   debug(`[runLLMCommitRewrite] Starting rewrite for ${folderPath}, ${hashes.length} commits.`);
 
@@ -1263,6 +1298,7 @@ async function runLLMCommitRewrite(folderObj, win) {
     const prompt = await generateLLMCommitMessages(folderPath, hashes);
     debug(`[runLLMCommitRewrite] Streaming LLM for ${folderPath}`);
     const llmRaw = await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk), win);
+    debug(`[runLLMCommitRewrite] LLM raw length=${llmRaw.length} for ${folderPath}`);
     debug(`[runLLMCommitRewrite] Parsing LLM output for ${folderPath}`);
     const commitList = parseLLMCommitMessages(llmRaw);
     debug(`[runLLMCommitRewrite] Rewording ${commitList.length} commits for ${folderPath}`);
@@ -1632,6 +1668,12 @@ async function main() {
         anyChanged = true;
         updatedFolders.push(folderObj);
         debug(`[recovery] Cleared stuck rewrite flag for ${folderObj.path}, candidates=${merged.length}`);
+        if (merged.length) {
+          // Kick off rewrite immediately after recovery
+          runLLMCommitRewrite(folderObj, win, { force: true }).catch(err => {
+            debug(`[recovery] Rewrite after recovery failed for ${folderObj.path}: ${err.message || err}`);
+          });
+        }
       }
     }
 
@@ -2470,8 +2512,13 @@ function buildTrayMenu() {
     if (idx === -1) return { success: false, error: 'folder not found' };
     const folderObj = folders[idx];
     if (folderObj.needsRelocation) return { success: false, error: 'needs relocation' };
-    if (folderObj.rewriteInProgress) return { success: false, error: 'rewrite in progress' };
     if (!folderObj.llmCandidates || !folderObj.llmCandidates.length) return { success: false, error: 'no candidates' };
+
+    // If locked, clear the lock
+    if (folderObj.rewriteInProgress) {
+      folderObj.rewriteInProgress = false;
+      folderObj.rewriteStartedAt = null;
+    }
 
     // Reset counters/timers
     folderObj.linesChanged = 0;
@@ -2479,7 +2526,7 @@ function buildTrayMenu() {
     store.set('folders', folders);
 
     // Fire and forget
-    runLLMCommitRewrite(folderObj, win).catch(err => {
+    runLLMCommitRewrite(folderObj, win, { force: true }).catch(err => {
       debug(`[trigger-rewrite-now] Error for ${folderPath}: ${err.message || err}`);
     });
     return { success: true };
