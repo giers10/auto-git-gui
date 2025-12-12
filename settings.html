@@ -168,6 +168,7 @@
       if (theme === 'sky') document.body.classList.add('theme-sky');
       if (theme === 'grey') document.body.classList.add('theme-grey');
     };
+    const VALID_THEMES = ['sky', 'default', 'grey'];
 
     // Elemente holen
     const themeSelect        = document.getElementById('themeSelect');
@@ -195,7 +196,7 @@
       window.electronAPI.getMinutesCommitThreshold()
     ]);
 
-    const fallbackTheme = initialTheme || 'sky';
+    const fallbackTheme = VALID_THEMES.includes(initialTheme) ? initialTheme : 'sky';
     themeSelect.value   = fallbackTheme;
     applyThemeClass(fallbackTheme);
     // Inputs setzen
