@@ -188,23 +188,26 @@
     cbCloseToTray.checked = initialCloseToTray;
 
     // Initialwerte parallel laden
-    const [initialSky, initialSkip, initialThreshold, initialMinutes] = await Promise.all([
-      window.settingsAPI.getSkyMode(),
+    const [initialTheme, initialSkip, initialThreshold, initialMinutes] = await Promise.all([
+      window.settingsAPI.getTheme(),
       window.settingsAPI.getSkipPrompt(),
       window.electronAPI.getIntelligentCommitThreshold(),
       window.electronAPI.getMinutesCommitThreshold()
     ]);
 
+    const fallbackTheme = initialTheme || 'sky';
+    themeSelect.value   = fallbackTheme;
+    applyThemeClass(fallbackTheme);
     // Inputs setzen
-    cbSky.checked        = initialSky;
     cbSkip.checked       = initialSkip;
     thresholdInput.value = initialThreshold;
     minutesInput.value   = initialMinutes;
 
-    // **Vorschau**: Sky-Mode sofort übernehmen
-    cbSky.addEventListener('change', async () => {
-      await window.settingsAPI.setSkyMode(cbSky.checked);
-      document.body.classList.toggle('sky-mode', cbSky.checked);
+    // **Vorschau**: Theme sofort übernehmen
+    themeSelect.addEventListener('change', async () => {
+      const val = themeSelect.value || 'default';
+      await window.settingsAPI.setTheme(val);
+      applyThemeClass(val);
     });
 
 
