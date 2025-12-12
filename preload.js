@@ -1,8 +1,11 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('settingsAPI', {
-  getSkyMode:  ()    => ipcRenderer.invoke('get-skymode'),
-  setSkyMode:  val   => ipcRenderer.invoke('set-skymode', val),
+  getTheme:    ()    => ipcRenderer.invoke('get-theme'),
+  setTheme:    val   => ipcRenderer.invoke('set-theme', val),
+  // Legacy helpers: keep compatibility with old sky mode calls
+  getSkyMode:  ()    => ipcRenderer.invoke('get-theme').then(t => t === 'sky'),
+  setSkyMode:  val   => ipcRenderer.invoke('set-theme', val ? 'sky' : 'default'),
   getSkipPrompt: ()    => ipcRenderer.invoke('get-skip-git-prompt'),
   setSkipPrompt: val   => ipcRenderer.invoke('set-skip-git-prompt', val),
   getIntelligentCommitThreshold: () => ipcRenderer.invoke('get-intelligent-commit-threshold'),
@@ -73,6 +76,7 @@ ipcRenderer.on('repo-updated', (_e, folder) => {
   window.dispatchEvent(new CustomEvent('repo-updated', { detail: folder }));
 });
 
-ipcRenderer.on('skymode-changed', (_e, val) => {
-  window.dispatchEvent(new CustomEvent('skymode-changed', { detail: val }));
+ipcRenderer.on('theme-changed', (_e, theme) => {
+  window.dispatchEvent(new CustomEvent('theme-changed', { detail: theme }));
+  window.dispatchEvent(new CustomEvent('skymode-changed', { detail: theme === 'sky' }));
 });
