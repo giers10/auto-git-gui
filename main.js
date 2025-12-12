@@ -2191,13 +2191,26 @@ function buildTrayMenu() {
     });
   });
 
-   // IPC für skymode
-  ipcMain.handle('get-skymode', () => store.get('skymode'));
-  ipcMain.handle('set-skymode', (_e, val) => {
-    store.set('skymode', val);
-    // sende an alle Fenster
+  // IPC für Theme
+  ipcMain.handle('get-theme', () => store.get('theme'));
+  ipcMain.handle('set-theme', (_e, val) => {
+    const theme = VALID_THEMES.has(val) ? val : 'default';
+    store.set('theme', theme);
+    store.set('skymode', theme === 'sky');
     BrowserWindow.getAllWindows().forEach(win => {
-      win.webContents.send('skymode-changed', val);
+      win.webContents.send('theme-changed', theme);
+      win.webContents.send('skymode-changed', theme === 'sky');
+    });
+  });
+  // Legacy SkyMode handlers
+  ipcMain.handle('get-skymode', () => store.get('theme') === 'sky');
+  ipcMain.handle('set-skymode', (_e, val) => {
+    const theme = val ? 'sky' : 'default';
+    store.set('theme', theme);
+    store.set('skymode', !!val);
+    BrowserWindow.getAllWindows().forEach(win => {
+      win.webContents.send('theme-changed', theme);
+      win.webContents.send('skymode-changed', !!val);
     });
   });
   ipcMain.handle('get-skip-git-prompt', ()    => store.get('skipGitPrompt'));
