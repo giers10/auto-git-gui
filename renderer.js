@@ -119,9 +119,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Sky-Mode Setup
+  // Theme Setup (Sky = dynamic, Default/Grey = static)
   const DAY_COLOR   = [173, 216, 230];
   const NIGHT_COLOR = [0,   0,   50];
+  const VALID_THEMES = ['default', 'sky', 'grey'];
+  let currentTheme = 'default';
   function lerpColor(c1, c2, t) {
     return c1.map((v, i) => Math.round(v + t * (c2[i] - v)));
   }
@@ -140,28 +142,36 @@ window.addEventListener('DOMContentLoaded', async () => {
     panel.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
   }
   let skyIntervalId, titleIntervalId;
-  function applySkyMode(enabled) {
-    document.body.classList.toggle('sky-mode', enabled);
+  function applyTheme(theme) {
+    const normalized = VALID_THEMES.includes(theme) ? theme : 'default';
+    currentTheme = normalized;
+
+    document.body.classList.remove('theme-sky', 'theme-grey');
+    if (normalized === 'sky') document.body.classList.add('theme-sky');
+    if (normalized === 'grey') document.body.classList.add('theme-grey');
+
     clearInterval(skyIntervalId);
     clearInterval(titleIntervalId);
-    if (enabled) {
+    if (normalized === 'sky') {
       updateBackground();
       skyIntervalId = setInterval(updateBackground, 60_000);
-      function updateAllTextColors() { setTextColor('sky'); }
+      const updateAllTextColors = () => setTextColor('sky');
       updateAllTextColors();
       titleIntervalId = setInterval(updateAllTextColors, 60_000);
     } else {
       panel.style.backgroundColor = '';
-      setTextColor('default');
+      setTextColor(normalized);
     }
   }
-  const initialSky = await window.settingsAPI.getSkyMode();
-  applySkyMode(initialSky);
-  window.addEventListener('skymode-changed', e => applySkyMode(e.detail));
+  const initialTheme = await window.settingsAPI.getTheme();
+  applyTheme(initialTheme);
+  window.addEventListener('theme-changed', e => applyTheme(e.detail));
 
   function setTextColor(mode) {
     let textColor = '#111';
-    if (mode === 'sky') {
+    if (mode === 'grey') {
+      textColor = '#1f2937';
+    } else if (mode === 'sky') {
       const hour = new Date().getHours();
       textColor = (hour >= 18 || hour < 6) ? '#fff' : '#111';
     }
