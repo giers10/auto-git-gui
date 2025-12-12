@@ -80,3 +80,8 @@ ipcRenderer.on('theme-changed', (_e, theme) => {
   window.dispatchEvent(new CustomEvent('theme-changed', { detail: theme }));
   window.dispatchEvent(new CustomEvent('skymode-changed', { detail: theme === 'sky' }));
 });
+ipcRenderer.on('skymode-changed', (_e, val) => {
+  const theme = val ? 'sky' : 'default';
+  window.dispatchEvent(new CustomEvent('theme-changed', { detail: theme }));
+  window.dispatchEvent(new CustomEvent('skymode-changed', { detail: val }));
+});
