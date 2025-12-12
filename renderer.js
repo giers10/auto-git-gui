@@ -452,7 +452,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     const tree = await window.electronAPI.getFolderTree(selected.path);
     folderHierarchyDropdown.innerHTML = renderFolderTreeAscii(tree, '.', '');
-    setTextColor(document.body.classList.contains('sky-mode') ? 'sky' : 'default');
+    setTextColor(currentTheme);
   });
 
   folderHierarchyDropdown.addEventListener('contextmenu', function(e) {
@@ -503,7 +503,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     const folder = folderObj.path;
     await updateInteractionBar(folderObj);
     titleEl.textContent = folder;
-    setTextColor(document.body.classList.contains('sky-mode') ? 'sky' : 'default');
+    setTextColor(currentTheme);
 
     const isGit = await window.electronAPI.isGitRepo(folder);
     initRepoBtn.classList.toggle('hidden', isGit);
