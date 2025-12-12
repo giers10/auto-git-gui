@@ -2199,7 +2199,6 @@ function buildTrayMenu() {
     store.set('skymode', theme === 'sky');
     BrowserWindow.getAllWindows().forEach(win => {
       win.webContents.send('theme-changed', theme);
-      win.webContents.send('skymode-changed', theme === 'sky');
     });
   });
   // Legacy SkyMode handlers
@@ -2209,7 +2208,6 @@ function buildTrayMenu() {
     store.set('theme', theme);
     store.set('skymode', !!val);
     BrowserWindow.getAllWindows().forEach(win => {
-      win.webContents.send('theme-changed', theme);
       win.webContents.send('skymode-changed', !!val);
     });
   });
