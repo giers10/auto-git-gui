@@ -221,7 +221,7 @@
       await window.settingsAPI.setSkipPrompt(cbSkip.checked);
       await window.settingsAPI.setAutostart(cbAutostart.checked);
       await window.settingsAPI.setCloseToTray(cbCloseToTray.checked);
-      // SkyMode haben wir ja schon beim Change gesetzt
+      await window.settingsAPI.setTheme(themeSelect.value || fallbackTheme);
 
       // Threshold speichern (immer Wert aus Feld nehmen!)
       let threshold = parseInt(thresholdInput.value, 10);
@@ -247,9 +247,10 @@
 
       window.settingsAPI.close();
     });
-    // Cancel / Close: SkyMode zurücksetzen, dann schließen
+    // Cancel / Close: Theme zurücksetzen, dann schließen
     const rollback = async () => {
-      await window.settingsAPI.setSkyMode(initialSky);
+      await window.settingsAPI.setTheme(fallbackTheme);
+      applyThemeClass(fallbackTheme);
       window.settingsAPI.close();
     };
     cancel.addEventListener('click', rollback);
