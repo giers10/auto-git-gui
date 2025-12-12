@@ -163,20 +163,22 @@
   </style>
   <script>
   window.addEventListener('DOMContentLoaded', async () => {
-    const isSky = await window.settingsAPI.getSkyMode();
-    document.body.classList.toggle('sky-mode', isSky);
+    const applyThemeClass = (theme) => {
+      document.body.classList.remove('theme-sky', 'theme-grey');
+      if (theme === 'sky') document.body.classList.add('theme-sky');
+      if (theme === 'grey') document.body.classList.add('theme-grey');
+    };
 
     // Elemente holen
-    const themeSelect       = document.getElementById('themeSelect');
-    const cbSky       = document.getElementById('skymode');
-    const cbSkip      = document.getElementById('skipPrompt');
-    const thresholdInput = document.getElementById('intelligentCommitThresholdInput');
-    const minutesInput  = document.getElementById('intelligentCommitMinutesInput');
-    const ok          = document.getElementById('okBtn');
-    const cancel      = document.getElementById('cancelBtn');
-    const cbAutostart  = document.getElementById('autostart');
-    const cbCloseToTray= document.getElementById('closeToTray');
-    const giteaTokenInput = document.getElementById('giteaTokenInput');
+    const themeSelect        = document.getElementById('themeSelect');
+    const cbSkip             = document.getElementById('skipPrompt');
+    const thresholdInput     = document.getElementById('intelligentCommitThresholdInput');
+    const minutesInput       = document.getElementById('intelligentCommitMinutesInput');
+    const ok                 = document.getElementById('okBtn');
+    const cancel             = document.getElementById('cancelBtn');
+    const cbAutostart        = document.getElementById('autostart');
+    const cbCloseToTray      = document.getElementById('closeToTray');
+    const giteaTokenInput    = document.getElementById('giteaTokenInput');
 
     const [initialAutostart, initialCloseToTray] = await Promise.all([
       window.settingsAPI.getAutostart(),
