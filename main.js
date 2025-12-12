@@ -60,6 +60,7 @@ const store = new Store({
   defaults: {
     folders: [],
     selected: null,
+    theme: 'sky',
     skymode: true,
     skipGitPrompt: true,
     intelligentCommitThreshold: 20,
