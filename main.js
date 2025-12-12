@@ -76,6 +76,16 @@ const store = new Store({
   }
 });
 
+const VALID_THEMES = new Set(['sky', 'default', 'grey']);
+let storedTheme = store.get('theme');
+if (!VALID_THEMES.has(storedTheme)) {
+  const legacySky = store.get('skymode');
+  storedTheme = legacySky ? 'sky' : 'default';
+  store.set('theme', storedTheme);
+}
+// Keep legacy flag in sync for older versions
+store.set('skymode', storedTheme === 'sky');
+
 let folders = store.get('folders') || [];
 folders = folders.map(f => ({
   ...f,
