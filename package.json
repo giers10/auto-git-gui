@@ -4,52 +4,15 @@
   "version": "1.0.0",
   "description": "Auto-Git: Git-Überwachung mit automatischer LLM-Commit-Message und README-Erstellung",
   "author": "Victor Giers",
-  "main": "main.js",
   "scripts": {
-    "start": "electron .",
-    "dist": "electron-builder --publish never"
+    "prepare:tauri-frontend": "node scripts/prepare-tauri-frontend.mjs",
+    "start": "npm run prepare:tauri-frontend && tauri dev",
+    "tauri:dev": "npm run prepare:tauri-frontend && tauri dev",
+    "dist": "npm run prepare:tauri-frontend && tauri build"
   },
-  "dependencies": {
-    "chokidar": "^4.0.3",
-    "electron-store": "^8.2.0",
-    "ignore": "^7.0.4",
-    "micromatch": "^4.0.8",
-    "node-fetch": "^3.3.2",
-    "simple-git": "^3.20.0",
-    "suncalc": "^1.9.0"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "autoprefixer": "^10.4.21",
-    "electron": "^25.0.0",
-    "electron-builder": "^26.0.12",
-    "postcss": "^8.5.3",
-    "tailwindcss": "^4.1.7"
-  },
-  "build": {
-    "appId": "com.victorgiers.auto-git",
-    "productName": "Auto-Git",
-    "files": [
-      "main.js",
-      "preload.js",
-      "renderer.js",
-      "index.html",
-      "settings.html",
-      "animeCat.js",
-      "rewrite-commit-msg.js.template",
-      "assets/**/*",
-      "node_modules/**/*"
-    ],
-    "directories": {
-      "buildResources": "assets/icon"
-    },
-    "mac": {
-      "icon": "mac/icon.icns"
-    },
-    "win": {
-      "icon": "win/icon.ico"
-    },
-    "linux": {
-      "icon": "linux/icon.png"
-    }
+    "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/cli": "^2.11.0"
   }
 }

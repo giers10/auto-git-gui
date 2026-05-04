@@ -1,0 +1,37 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Auto-Git",
+  "version": "1.0.0",
+  "identifier": "com.victorgiers.auto-git",
+  "build": {
+    "frontendDist": "../dist-tauri"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Auto-Git",
+        "width": 900,
+        "height": 600,
+        "minWidth": 800,
+        "minHeight": 500
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "../assets/icon/linux/icon.png",
+      "../assets/icon/mac/icon.icns",
+      "../assets/icon/win/icon.ico"
+    ],
+    "resources": [
+      "../assets/**/*"
+    ]
+  }
+}

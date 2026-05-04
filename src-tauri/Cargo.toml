@@ -1,0 +1,31 @@
+[package]
+name = "auto-git"
+version = "1.0.0"
+description = "Auto-Git: Git monitoring with automatic LLM commit messages and README generation"
+authors = ["Victor Giers"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2.6.0", features = [] }
+
+[dependencies]
+arboard = "3.6.1"
+base64 = "0.22.1"
+dirs = "6.0.0"
+globset = "0.4.18"
+ignore = "0.4.25"
+notify = "8.2.0"
+open = "5.3.3"
+rfd = "0.15.4"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+tempfile = "3.23.0"
+tauri = { version = "2.11.0", features = ["tray-icon", "image-png", "image-ico"] }
+thiserror = "2.0.17"
+reqwest = { version = "0.12.24", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+auto-launch = "0.5.0"
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+auto-launch = "0.5.0"

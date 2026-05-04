@@ -99,35 +99,20 @@ Download the latest release for your platform:
 If you want to build Auto-Git yourself, follow these steps:
 
 1. Clone or download the repository to your local machine.  
-2. Install Node.js (version 16+ recommended) and npm.  
+2. Install Node.js, npm, Rust, and the Tauri prerequisites for your operating system.  
 3. Open a terminal, navigate into the project folder, and run:  
    ```bash
    npm install
    ```  
-4. Optional: If you need to adjust architectures or targets, modify `package.json` under the `"build"` section.  
-   - Example for Windows x64 only:  
-      ```json
-      "build": {
-        "win": {
-          "icon": "win/icon.ico",
-          "target": [
-            {
-              "target": "nsis",
-              "arch": ["x64"]
-            }
-          ]
-        }
-      }
-      ```  
-5. Build the distributables:  
+4. Run the app in development mode:  
+   ```bash
+   npm start
+   ```  
+5. Build the Tauri distributables:  
    ```bash
    npm run dist
    ```  
-   - On an ARM64 machine, to produce an x64 Windows installer, first ensure `"arch": ["x64"]` is under `"win.target"`, then:  
-      ```bash
-      npm run dist
-      ```  
-6. The output installers/packages will be located in the `dist/` directory.  
+6. The output installers/packages will be located under `src-tauri/target/release/bundle/`.  
 
 ---
 

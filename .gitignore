@@ -1,5 +1,8 @@
 node_modules
 package-lock.json
+dist-tauri
+src-tauri/target
+src-tauri/gen
 dist.DS_Store
 .git
 .gitignore
@@ -7,6 +10,7 @@ dist.DS_Store
 *.iml
 yarn.lock
 *.lock
+!src-tauri/Cargo.lock
 Makefile
 *.exe
 tsconfig.tsbuildinfo

@@ -148,6 +148,17 @@ window.addEventListener('DOMContentLoaded', async () => {
       }
     }
   });
+  window.addEventListener('tauri-folder-drop', async e => {
+    const paths = Array.isArray(e.detail) ? e.detail : [];
+    for (const folderPath of paths) {
+      await window.electronAPI.addFolderByPath(folderPath);
+    }
+    if (paths.length) {
+      await renderSidebar();
+      const sel = await window.electronAPI.getSelected();
+      if (sel) await renderContent(sel);
+    }
+  });
 
   // Theme Setup (Sky = dynamic, Default/Grey = static)
   const DAY_COLOR   = [173, 216, 230];
@@ -530,6 +541,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   async function renderContent(folderObj, page) {
     closeDropdown();
+    window.currentSelectedFolderObj = folderObj;
     const folder = folderObj.path;
     await updateInteractionBar(folderObj);
     titleEl.textContent = folder;
