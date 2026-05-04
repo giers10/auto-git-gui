@@ -24,7 +24,9 @@ use std::{
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
     tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
+    utils::config::Color,
+    AppHandle, Emitter, Manager, TitleBarStyle, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+    WindowEvent,
 };
 use tempfile::TempDir;
 
@@ -38,6 +40,8 @@ const MAX_SQUASH_PROMPT_MESSAGE_CHARS: usize = 400;
 const MAX_SQUASH_NAME_STATUS_CHARS: usize = 6_000;
 const MAX_SQUASH_DIFFSTAT_CHARS: usize = 4_000;
 const MAX_SQUASH_COMMIT_MESSAGE_CHARS: usize = 160;
+const OLLAMA_BASE_URL: &str = "http://127.0.0.1:11434";
+const ROSE_TITLEBAR_COLOR: Color = Color(255, 241, 242, 255);
 
 const TAURI_BUILD_IGNORES: &[&str] = &["dist-tauri", "src-tauri/target", "src-tauri/gen"];
 
@@ -680,7 +684,7 @@ fn ensure_ollama_running() -> CommandResult<()> {
         .timeout(Duration::from_millis(700))
         .build()
         .map_err(|e| e.to_string())?;
-    if client.get("http://127.0.0.1:11434/").send().is_ok() {
+    if client.get(OLLAMA_BASE_URL).send().is_ok() {
         return Ok(());
     }
 
@@ -709,7 +713,7 @@ fn ensure_ollama_running() -> CommandResult<()> {
 
     for _ in 0..10 {
         thread::sleep(Duration::from_millis(500));
-        if client.get("http://127.0.0.1:11434/").send().is_ok() {
+        if client.get(OLLAMA_BASE_URL).send().is_ok() {
             return Ok(());
         }
     }
@@ -730,7 +734,7 @@ fn stream_ollama(
         .build()
         .map_err(|e| e.to_string())?;
     let mut response = client
-        .post("http://127.0.0.1:11434/api/generate")
+        .post(format!("{OLLAMA_BASE_URL}/api/generate"))
         .json(&json!({
             "model": model,
             "prompt": prompt,
@@ -1800,12 +1804,17 @@ fn open_settings_window(app: &AppHandle) -> CommandResult<()> {
         win.set_focus().map_err(|e| e.to_string())?;
         return Ok(());
     }
-    WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("settings.html".into()))
-        .title("Einstellungen")
-        .inner_size(600.0, 500.0)
-        .resizable(false)
-        .build()
-        .map_err(|e| e.to_string())?;
+    let builder =
+        WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("settings.html".into()))
+            .title("Einstellungen")
+            .inner_size(600.0, 500.0)
+            .resizable(false)
+            .background_color(ROSE_TITLEBAR_COLOR);
+    #[cfg(target_os = "macos")]
+    let builder = builder
+        .title_bar_style(TitleBarStyle::Transparent)
+        .hidden_title(true);
+    builder.build().map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -2263,6 +2272,10 @@ fn set_monitoring(
 
 #[tauri::command]
 fn ollama_list() -> CommandResult<Value> {
+    if let Ok(models) = ollama_list_from_api() {
+        return Ok(json!({ "status": "ok", "models": models }));
+    }
+
     let output = run_process(
         "ollama",
         &["list".into(), "--json".into()],
@@ -2285,6 +2298,27 @@ fn ollama_list() -> CommandResult<Value> {
         }
         Err(_) => parse_ollama_list_plain(),
     }
+}
+
+fn ollama_list_from_api() -> CommandResult<Vec<Value>> {
+    let client = Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let response = client
+        .get(format!("{OLLAMA_BASE_URL}/api/tags"))
+        .send()
+        .map_err(|e| e.to_string())?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(format!("Ollama tags request failed: {status}"));
+    }
+    let payload: Value = response.json().map_err(|e| e.to_string())?;
+    Ok(payload
+        .get("models")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default())
 }
 
 fn parse_ollama_list_plain() -> CommandResult<Value> {
@@ -2310,10 +2344,35 @@ fn parse_ollama_list_plain() -> CommandResult<Value> {
 
 #[tauri::command]
 fn ollama_pull(model: String) -> CommandResult<Value> {
+    if let Ok(value) = ollama_pull_from_api(&model) {
+        return Ok(value);
+    }
+
     match run_process("ollama", &["pull".into(), model], None, None, None) {
         Ok(out) => Ok(json!({ "status": "ok", "msg": out.stdout })),
         Err(err) => Ok(json!({ "status": "error", "msg": err })),
     }
+}
+
+fn ollama_pull_from_api(model: &str) -> CommandResult<Value> {
+    let client = Client::builder()
+        .timeout(Duration::from_secs(30 * 60))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let response = client
+        .post(format!("{OLLAMA_BASE_URL}/api/pull"))
+        .json(&json!({ "name": model, "stream": false }))
+        .send()
+        .map_err(|e| e.to_string())?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(format!("Ollama pull request failed: {status}"));
+    }
+    let payload: Value = response.json().unwrap_or_else(|_| json!({}));
+    Ok(json!({
+        "status": "ok",
+        "msg": payload.get("status").and_then(Value::as_str).unwrap_or("model pulled")
+    }))
 }
 
 #[tauri::command]
