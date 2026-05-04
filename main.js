@@ -107,6 +107,13 @@ console.log("Startup-Folders:", store.get('folders'));
 let tray = null;
 
 const MAX_FILES_PER_COMMIT = 20; 
+const EMPTY_TREE_HASH = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
+const SQUASH_CHUNK_WINDOW_MS = 2 * 60 * 1000;
+const MAX_SQUASH_PROMPT_CHARS = 25000;
+const MAX_SQUASH_PROMPT_MESSAGE_CHARS = 400;
+const MAX_SQUASH_NAME_STATUS_CHARS = 6000;
+const MAX_SQUASH_DIFFSTAT_CHARS = 4000;
+const MAX_SQUASH_COMMIT_MESSAGE_CHARS = 160;
 
 function createTray(win) {
   const iconPath = path.join(__dirname, 'assets/icon/trayicon.png');
@@ -338,6 +345,422 @@ function buildCommitMessageFromStatus(status, prefix = '[auto]') {
   status.deleted.forEach(f   => changes.push(`[unlink] ${f}`));
   status.renamed.forEach(r   => changes.push(`[rename] ${r.from} → ${r.to}`));
   return prefix + '\n' + changes.map(l => ` ${l}`).join('\n');
+}
+
+function truncateText(text, maxChars) {
+  const normalized = String(text || '').trim();
+  if (normalized.length <= maxChars) return normalized;
+  return normalized.slice(0, Math.max(0, maxChars - 1)).trimEnd() + '…';
+}
+
+function normalizeSingleLine(text) {
+  return String(text || '')
+    .replace(/^```(?:\w+)?|```$/gmi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function truncatePromptBlock(text, maxChars) {
+  const normalized = String(text || '').trim();
+  if (!normalized) return '';
+  if (normalized.length <= maxChars) return normalized;
+  return normalized.slice(0, maxChars).trimEnd() + '\n…';
+}
+
+function buildSquashFallbackMessage(commits) {
+  const shortHashes = commits.map(commit => commit.hash.substring(0, 7));
+  return truncateText(`auto-git: [squash] ${shortHashes.join(', ')}`, MAX_SQUASH_COMMIT_MESSAGE_CHARS);
+}
+
+function sanitizeSquashCommitMessage(rawOutput, commits) {
+  let cleaned = normalizeSingleLine(rawOutput)
+    .replace(/^["'`]+|["'`]+$/g, '')
+    .replace(/^commit message\s*[:\-]\s*/i, '')
+    .trim();
+
+  if (!cleaned) {
+    cleaned = buildSquashFallbackMessage(commits);
+  }
+
+  return truncateText(cleaned, MAX_SQUASH_COMMIT_MESSAGE_CHARS);
+}
+
+async function runGitCommand(repoPath, args, options = {}) {
+  const { env = {}, input = '' } = options;
+
+  return new Promise((resolve, reject) => {
+    const proc = spawn('git', args, {
+      cwd: repoPath,
+      env: { ...process.env, ...env },
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    proc.stdout.on('data', chunk => { stdout += chunk.toString(); });
+    proc.stderr.on('data', chunk => { stderr += chunk.toString(); });
+    proc.on('error', reject);
+
+    if (input) {
+      proc.stdin.write(input);
+    }
+    proc.stdin.end();
+
+    proc.on('close', code => {
+      if (code === 0) {
+        resolve({ stdout, stderr });
+        return;
+      }
+      reject(new Error((stderr || stdout || `git ${args.join(' ')} failed`).trim()));
+    });
+  });
+}
+
+async function getCommitHistoryForSquash(repoPath) {
+  const git = simpleGit(repoPath);
+  const mergeCommits = (await git.raw(['rev-list', '--min-parents=2', 'HEAD'])).trim();
+  if (mergeCommits) {
+    throw new Error('Smart squash currently only supports linear commit history.');
+  }
+
+  const raw = await git.raw([
+    'log',
+    '--reverse',
+    '--format=%H%x1f%T%x1f%P%x1f%ct%x1f%an%x1f%ae%x1f%aI%x1f%cn%x1f%ce%x1f%cI%x1f%B%x1e',
+    'HEAD'
+  ]);
+
+  return raw
+    .split('\x1e')
+    .map(entry => entry.trim())
+    .filter(Boolean)
+    .map(entry => {
+      const parts = entry.split('\x1f');
+      if (parts.length < 11) return null;
+
+      const [
+        hash,
+        tree,
+        parentsRaw,
+        timestampRaw,
+        authorName,
+        authorEmail,
+        authorDate,
+        committerName,
+        committerEmail,
+        committerDate,
+        ...messageParts
+      ] = parts;
+
+      return {
+        hash,
+        tree,
+        parents: parentsRaw ? parentsRaw.split(' ').filter(Boolean) : [],
+        timestampMs: Number(timestampRaw) * 1000,
+        authorName,
+        authorEmail,
+        authorDate,
+        committerName,
+        committerEmail,
+        committerDate,
+        message: messageParts.join('\x1f').replace(/\s+$/, '')
+      };
+    })
+    .filter(Boolean);
+}
+
+function detectSquashChunks(commits) {
+  if (!commits.length) return [];
+
+  const chunks = [[commits[0]]];
+  for (let i = 1; i < commits.length; i++) {
+    const previous = commits[i - 1];
+    const current = commits[i];
+    const sameChunk = Math.abs(current.timestampMs - previous.timestampMs) <= SQUASH_CHUNK_WINDOW_MS;
+
+    if (sameChunk) {
+      chunks[chunks.length - 1].push(current);
+    } else {
+      chunks.push([current]);
+    }
+  }
+
+  return chunks;
+}
+
+async function generateSquashCommitMessagePrompt(repoPath, commits) {
+  const git = simpleGit(repoPath);
+  const oldestCommit = commits[0];
+  const newestCommit = commits[commits.length - 1];
+  const diffBase = oldestCommit.parents[0] || EMPTY_TREE_HASH;
+
+  const [nameStatusRaw, diffStatRaw] = await Promise.all([
+    git.diff(['--name-status', diffBase, newestCommit.hash]),
+    git.diff(['--stat', '--compact-summary', diffBase, newestCommit.hash])
+  ]);
+
+  let omittedMessages = 0;
+  const commitsForPrompt = commits.map(commit => {
+    const item = { hash: commit.hash.substring(0, 7) };
+    const normalizedMessage = normalizeSingleLine(commit.message);
+
+    if (normalizedMessage && normalizedMessage.length <= MAX_SQUASH_PROMPT_MESSAGE_CHARS) {
+      item.message = normalizedMessage;
+    } else if (normalizedMessage) {
+      omittedMessages += 1;
+    }
+
+    return item;
+  });
+
+  const omissionNote = omittedMessages
+    ? `Some original commit messages were omitted because they were too long (${omittedMessages}).`
+    : '';
+
+  const prompt = `
+Analyze the following git commits that will be squashed into one commit.
+Generate one concise commit message summarizing the combined actual change.
+- Output ONLY the literal commit message text.
+- Do NOT add markdown, quotes, bullet points, or explanations.
+- Keep it under 140 characters.
+
+COMMITS:
+${JSON.stringify(commitsForPrompt, null, 2)}
+
+${omissionNote}
+
+CHANGED FILES:
+${truncatePromptBlock(nameStatusRaw, MAX_SQUASH_NAME_STATUS_CHARS) || '(none)'}
+
+DIFF STAT:
+${truncatePromptBlock(diffStatRaw, MAX_SQUASH_DIFFSTAT_CHARS) || '(none)'}
+  `.trim();
+
+  if (prompt.length > MAX_SQUASH_PROMPT_CHARS) {
+    throw new Error(`Squash prompt too large (${prompt.length} chars) for ${repoPath}`);
+  }
+
+  return prompt;
+}
+
+async function generateSquashCommitMessage(repoPath, commits, win) {
+  const prompt = await generateSquashCommitMessagePrompt(repoPath, commits);
+  const llmRaw = await streamLLMCommitMessages(prompt, chunk => process.stdout.write(chunk), win);
+  return sanitizeSquashCommitMessage(llmRaw, commits);
+}
+
+async function buildSquashPlan(repoPath, chunks, win) {
+  const plan = [];
+
+  for (const chunk of chunks) {
+    if (chunk.length === 1) {
+      plan.push({
+        commits: chunk,
+        message: chunk[0].message || 'auto-git'
+      });
+      continue;
+    }
+
+    let message;
+    try {
+      debug(`[smartSquash] Generating message for chunk of ${chunk.length} commits in ${repoPath}`);
+      message = await generateSquashCommitMessage(repoPath, chunk, win);
+    } catch (err) {
+      debug(`[smartSquash] Falling back for chunk in ${repoPath}: ${err.message || err}`);
+      message = buildSquashFallbackMessage(chunk);
+    }
+
+    plan.push({ commits: chunk, message });
+  }
+
+  return plan;
+}
+
+async function smartSquashCommits(folderPath, win) {
+  if (!folderPath || !fs.existsSync(folderPath)) {
+    throw new Error('Folder not found.');
+  }
+
+  let folders = store.get('folders') || [];
+  let idx = folders.findIndex(f => f.path === folderPath);
+  if (idx === -1) {
+    throw new Error('Folder is not tracked by auto-git.');
+  }
+
+  const folderObj = folders[idx];
+  if (folderObj.needsRelocation) {
+    throw new Error('This folder needs to be relocated before squashing commits.');
+  }
+  if (folderObj.rewriteInProgress) {
+    throw new Error('Another rewrite is already running for this repository.');
+  }
+  if (isRebaseInProgress(folderPath)) {
+    throw new Error('A git rebase is already in progress for this repository.');
+  }
+
+  const git = simpleGit(folderPath);
+  const currentBranch = (await git.revparse(['--abbrev-ref', 'HEAD'])).trim();
+  if (!currentBranch || currentBranch === 'HEAD') {
+    throw new Error('Cannot squash commits while HEAD is detached.');
+  }
+
+  const commits = await getCommitHistoryForSquash(folderPath);
+  if (commits.length < 2) {
+    return {
+      success: true,
+      squashedChunks: 0,
+      removedCommits: 0,
+      message: 'Not enough commits to squash.'
+    };
+  }
+
+  const chunks = detectSquashChunks(commits);
+  const squashableChunks = chunks.filter(chunk => chunk.length > 1);
+  if (!squashableChunks.length) {
+    return {
+      success: true,
+      squashedChunks: 0,
+      removedCommits: 0,
+      message: 'No quick-succession commit chunks found.'
+    };
+  }
+
+  const originalState = {
+    llmCandidates: Array.isArray(folderObj.llmCandidates) ? folderObj.llmCandidates.slice() : [],
+    llmBuffer: Array.isArray(folderObj.llmBuffer) ? folderObj.llmBuffer.slice() : [],
+    linesChanged: folderObj.linesChanged || 0,
+    firstCandidateBirthday: folderObj.firstCandidateBirthday || null,
+    lastHeadHash: folderObj.lastHeadHash || null
+  };
+
+  folders[idx] = {
+    ...folderObj,
+    rewriteInProgress: true,
+    rewriteStartedAt: Date.now()
+  };
+  store.set('folders', folders);
+
+  let originalHead = null;
+  let stashed = false;
+  let stashWarning = null;
+
+  try {
+    originalHead = (await git.revparse(['HEAD'])).trim();
+
+    const status = await git.status();
+    const hasChanges =
+      status.not_added.length > 0 ||
+      status.created.length > 0 ||
+      status.deleted.length > 0 ||
+      status.modified.length > 0 ||
+      status.renamed.length > 0;
+
+    if (hasChanges) {
+      debug(`[smartSquash] Stashing working tree for ${folderPath}`);
+      await git.stash(['push', '--include-untracked']);
+      stashed = true;
+    }
+
+    const plan = await buildSquashPlan(folderPath, chunks, win);
+    let newHead = null;
+
+    for (const entry of plan) {
+      const lastCommit = entry.commits[entry.commits.length - 1];
+      const env = {
+        GIT_AUTHOR_NAME: lastCommit.authorName || '',
+        GIT_AUTHOR_EMAIL: lastCommit.authorEmail || '',
+        GIT_AUTHOR_DATE: lastCommit.authorDate || '',
+        GIT_COMMITTER_NAME: lastCommit.committerName || lastCommit.authorName || '',
+        GIT_COMMITTER_EMAIL: lastCommit.committerEmail || lastCommit.authorEmail || '',
+        GIT_COMMITTER_DATE: lastCommit.committerDate || lastCommit.authorDate || ''
+      };
+
+      const args = ['commit-tree', lastCommit.tree];
+      if (newHead) {
+        args.push('-p', newHead);
+      }
+
+      const { stdout } = await runGitCommand(folderPath, args, {
+        env,
+        input: `${entry.message || 'auto-git'}\n`
+      });
+
+      newHead = stdout.trim();
+      if (!newHead) {
+        throw new Error('git commit-tree did not return a commit hash.');
+      }
+    }
+
+    await git.reset(['--hard', newHead]);
+
+    if (stashed) {
+      try {
+        await git.stash(['pop']);
+      } catch (err) {
+        stashWarning = err.message || String(err);
+      }
+    }
+
+    folders = store.get('folders') || [];
+    idx = folders.findIndex(f => f.path === folderPath);
+    if (idx !== -1) {
+      folders[idx] = {
+        ...folders[idx],
+        rewriteInProgress: false,
+        rewriteStartedAt: null,
+        llmCandidates: [],
+        llmBuffer: [],
+        linesChanged: 0,
+        firstCandidateBirthday: null,
+        lastHeadHash: newHead
+      };
+      store.set('folders', folders);
+    }
+
+    win.webContents.send('repo-updated', folderPath);
+
+    return {
+      success: true,
+      squashedChunks: squashableChunks.length,
+      removedCommits: squashableChunks.reduce((sum, chunk) => sum + (chunk.length - 1), 0),
+      warning: stashWarning
+    };
+  } catch (err) {
+    if (originalHead) {
+      try {
+        await git.reset(['--hard', originalHead]);
+      } catch (_) {
+        // ignore rollback errors, original error is more useful
+      }
+    }
+
+    if (stashed) {
+      try {
+        await git.stash(['pop']);
+      } catch (_) {
+        // keep the original error
+      }
+    }
+
+    folders = store.get('folders') || [];
+    idx = folders.findIndex(f => f.path === folderPath);
+    if (idx !== -1) {
+      folders[idx] = {
+        ...folders[idx],
+        rewriteInProgress: false,
+        rewriteStartedAt: null,
+        llmCandidates: originalState.llmCandidates,
+        llmBuffer: originalState.llmBuffer,
+        linesChanged: originalState.linesChanged,
+        firstCandidateBirthday: originalState.firstCandidateBirthday,
+        lastHeadHash: originalState.lastHeadHash
+      };
+      store.set('folders', folders);
+    }
+
+    throw err;
+  }
 }
 
 const IGNORED_NAMES = [
@@ -2797,9 +3220,16 @@ Source Code:
     return final;
   });
 
-
-
-
+ipcMain.handle('squash-commits', async (evt, folderPath) => {
+  try {
+    return await smartSquashCommits(folderPath, BrowserWindow.fromWebContents(evt.sender));
+  } catch (err) {
+    return {
+      success: false,
+      error: err.message || String(err)
+    };
+  }
+});
 
 ipcMain.handle('push-to-gitea', async (_evt, folderPath) => {
   try {
