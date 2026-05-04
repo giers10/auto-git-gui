@@ -7,7 +7,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   const titleArrow  = document.getElementById('folderTitleArrow');
   const contentList = document.getElementById('contentList');
   const readmeBtn   = document.getElementById('readmeBtn');
-  const squashBtn   = document.getElementById('squashBtn');
   const initRepoBtn = document.getElementById('initRepoBtn');
   const pushBtn = document.getElementById('pushBtn');
   const panel       = document.querySelector('.flex-1.p-4.overflow-y-auto');
@@ -50,35 +49,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     readmeBtn.textContent = hasReadme ? 'Update README' : 'Generate README';
   });
 
-  squashBtn.addEventListener('click', async () => {
-    const selected = await window.electronAPI.getSelected();
-    if (!selected || !selected.path) {
-      return alert('No folder selected to squash!');
-    }
-
-    squashBtn.disabled = true;
-    squashBtn.textContent = 'Squashing…';
-
-    try {
-      const result = await window.electronAPI.squashCommits(selected.path);
-      if (!result?.success) {
-        throw new Error(result?.error || 'Squash failed');
-      }
-
-      const summary = result.squashedChunks
-        ? `Squashed ${result.removedCommits} commit(s) across ${result.squashedChunks} chunk(s).`
-        : (result.message || 'No quick-succession commit chunks found.');
-
-      const warning = result.warning ? `\n\nWarning:\n${result.warning}` : '';
-      alert(summary + warning);
-    } catch (err) {
-      alert('Squash failed:\n' + (err.message || err));
-    } finally {
-      squashBtn.disabled = false;
-      squashBtn.textContent = 'Squash';
-    }
-  });
-
   pushBtn.addEventListener('click', async () => {
     const selected = await window.electronAPI.getSelected();
     if (!selected || !selected.path) {
@@ -100,7 +70,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       alert('❌ Unexpected error:\n' + (err.message || err));
     } finally {
       pushBtn.disabled = false;
-      pushBtn.textContent = 'Push to Gitea';
+      pushBtn.textContent = 'Push';
     }
   });
 
@@ -551,9 +521,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     initRepoBtn.classList.toggle('hidden', isGit);
     initRepoBtn.disabled = isGit;
     readmeBtn.disabled = !isGit;
-    squashBtn.disabled = !isGit;
     pushBtn.disabled = !isGit;
-    squashBtn.classList.toggle('hidden', !isGit);
     pushBtn.classList.toggle('hidden', !isGit);
     if (!isGit) {
       contentList.innerHTML = '<div class="p-6 text-gray-500">Not a Git repository. Click "Init Repo" to initialize.</div>';
