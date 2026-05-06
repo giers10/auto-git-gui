@@ -3567,3 +3567,27 @@ fn main() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reword_hashes_are_processed_newest_first() {
+        let all_commits = vec![
+            "ccccccc333333333333333333333333333333333".to_string(),
+            "bbbbbbb222222222222222222222222222222222".to_string(),
+            "aaaaaaa111111111111111111111111111111111".to_string(),
+        ];
+        let hashes = vec![
+            "aaaaaaa".to_string(),
+            "ccccccc".to_string(),
+            "bbbbbbb".to_string(),
+        ];
+
+        assert_eq!(
+            resolve_reword_hashes_newest_first(&all_commits, &hashes),
+            all_commits
+        );
+    }
+}
