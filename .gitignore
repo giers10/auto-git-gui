@@ -22,3 +22,4 @@ tsconfig.tsbuildinfo
 *.o
 build
 out
+*.tmp
