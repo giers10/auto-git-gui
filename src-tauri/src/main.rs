@@ -877,17 +877,7 @@ fn reword_commits_sequentially(
 
     let all_raw = run_git(repo_path, &["log", "--format=%H"])?;
     let all_commits: Vec<String> = all_raw.lines().map(|s| s.to_string()).collect();
-    let mut full_hashes: Vec<String> = hashes
-        .iter()
-        .filter_map(|h| all_commits.iter().find(|full| full.starts_with(h)).cloned())
-        .collect();
-    full_hashes.sort_by_key(|h| {
-        all_commits
-            .iter()
-            .position(|full| full == h)
-            .unwrap_or(usize::MAX)
-    });
-    full_hashes.reverse();
+    let full_hashes = resolve_reword_hashes_newest_first(&all_commits, hashes);
 
     let temp_dir = TempDir::new().map_err(|e| e.to_string())?;
     let sequence_path = temp_dir.path().join(if cfg!(windows) {
@@ -968,6 +958,20 @@ fn reword_commits_sequentially(
         let _ = run_git(repo_path, &["stash", "pop"]);
     }
     Ok(())
+}
+
+fn resolve_reword_hashes_newest_first(all_commits: &[String], hashes: &[String]) -> Vec<String> {
+    let mut full_hashes: Vec<String> = hashes
+        .iter()
+        .filter_map(|h| all_commits.iter().find(|full| full.starts_with(h)).cloned())
+        .collect();
+    full_hashes.sort_by_key(|h| {
+        all_commits
+            .iter()
+            .position(|full| full == h)
+            .unwrap_or(usize::MAX)
+    });
+    full_hashes
 }
 
 #[cfg(unix)]
