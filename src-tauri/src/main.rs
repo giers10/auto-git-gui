@@ -1044,12 +1044,17 @@ fn reword_commits_sequentially(
             "GIT_EDITOR".to_string(),
             message_path.to_string_lossy().to_string(),
         );
-        run_git_owned(
+        let rebase_args = if run_git(
             repo_path,
-            &["rebase".into(), "-i".into(), format!("{full_hash}^")],
-            Some(&env),
-            None,
-        )?;
+            &["rev-parse", "--verify", &format!("{full_hash}^")],
+        )
+        .is_ok()
+        {
+            vec!["rebase".into(), "-i".into(), format!("{full_hash}^")]
+        } else {
+            vec!["rebase".into(), "-i".into(), "--root".into()]
+        };
+        run_git_owned(repo_path, &rebase_args, Some(&env), None)?;
     }
 
     if stashed {
