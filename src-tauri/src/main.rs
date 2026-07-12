@@ -2936,48 +2936,69 @@ fn run_manual_rewrite_job(
         .filter_map(|hash| resolve_commit_hash(&folder_path, hash))
         .filter_map(|hash| identities_before.get(&hash).cloned())
         .collect();
-    let queued_without_identity: Vec<String> = queued_before
+    let queued_outside_current_history: Vec<String> = queued_before
         .iter()
-        .filter(|hash| {
-            resolve_commit_hash(&folder_path, hash)
-                .and_then(|resolved| identities_before.get(&resolved))
-                .is_none()
+        .filter_map(|hash| {
+            let resolved = resolve_commit_hash(&folder_path, hash)?;
+            if identities_before.contains_key(&resolved) {
+                None
+            } else {
+                Some(resolved)
+            }
         })
-        .cloned()
         .collect();
 
     let mut successful_messages = HashMap::new();
     let mut llm_failures: Vec<(String, String)> = Vec::new();
-    for (index, hash) in hashes.iter().enumerate() {
-        emit_rewrite_progress(
-            &app,
-            &folder_path,
-            scope,
-            "running",
-            index,
-            total,
-            Some(hash),
-            None,
-        );
-        match generate_llm_message_for_commit(&app, &folder_path, hash, &model) {
-            Ok(message) => {
-                successful_messages.insert(hash.clone(), message);
-            }
-            Err(err) => {
-                eprintln!("[manualRewrite] {} failed: {err}", short_hash(hash));
-                llm_failures.push((hash.clone(), err));
+    match ensure_ollama_running() {
+        Ok(()) => {
+            for (index, hash) in hashes.iter().enumerate() {
+                emit_rewrite_progress(
+                    &app,
+                    &folder_path,
+                    scope,
+                    "running",
+                    index,
+                    total,
+                    Some(hash),
+                    None,
+                );
+                match generate_llm_message_for_commit(&app, &folder_path, hash, &model) {
+                    Ok(message) => {
+                        successful_messages.insert(hash.clone(), message);
+                    }
+                    Err(err) => {
+                        eprintln!("[manualRewrite] {} failed: {err}", short_hash(hash));
+                        llm_failures.push((hash.clone(), err));
+                    }
+                }
+                emit_rewrite_progress(
+                    &app,
+                    &folder_path,
+                    scope,
+                    "running",
+                    index + 1,
+                    total,
+                    Some(hash),
+                    None,
+                );
             }
         }
-        emit_rewrite_progress(
-            &app,
-            &folder_path,
-            scope,
-            "running",
-            index + 1,
-            total,
-            Some(hash),
-            None,
-        );
+        Err(err) => {
+            for hash in &hashes {
+                llm_failures.push((hash.clone(), err.clone()));
+            }
+            emit_rewrite_progress(
+                &app,
+                &folder_path,
+                scope,
+                "running",
+                total,
+                total,
+                None,
+                None,
+            );
+        }
     }
 
     let successful_hashes: Vec<String> = hashes
@@ -3019,9 +3040,10 @@ fn run_manual_rewrite_job(
         .iter()
         .filter_map(|identity| identities_after.get(identity).cloned())
         .collect();
-    candidates.extend(queued_without_identity);
+    candidates.extend(queued_outside_current_history.clone());
     if scope == "pending" || history_error.is_some() {
         candidates = pending_rewrite_hashes(&folder_path, &candidates);
+        candidates.extend(queued_outside_current_history);
     }
     candidates.sort();
     candidates.dedup();
