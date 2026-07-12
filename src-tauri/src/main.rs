@@ -637,6 +637,43 @@ fn short_hash(hash: &str) -> String {
     hash.chars().take(7).collect()
 }
 
+fn is_auto_git_message(message: &str) -> bool {
+    message.trim_start().starts_with("auto-git")
+}
+
+fn resolve_commit_hash(repo_path: &str, hash: &str) -> Option<String> {
+    run_git(
+        repo_path,
+        &["rev-parse", "--verify", &format!("{hash}^{{commit}}")],
+    )
+    .ok()
+    .map(|raw| raw.trim().to_string())
+    .filter(|resolved| !resolved.is_empty())
+}
+
+fn is_commit_on_current_history(repo_path: &str, hash: &str) -> bool {
+    run_git(repo_path, &["merge-base", "--is-ancestor", hash, "HEAD"]).is_ok()
+}
+
+fn pending_rewrite_hashes(repo_path: &str, queued_hashes: &[String]) -> Vec<String> {
+    let queued: HashSet<String> = queued_hashes
+        .iter()
+        .filter_map(|hash| resolve_commit_hash(repo_path, hash))
+        .filter(|hash| is_commit_on_current_history(repo_path, hash))
+        .collect();
+    let raw = run_git(repo_path, &["log", "--format=%H%x1f%s"]).unwrap_or_default();
+    raw.lines()
+        .filter_map(|line| {
+            let (hash, message) = line.split_once('\x1f')?;
+            if is_auto_git_message(message) || queued.contains(hash) {
+                Some(hash.to_string())
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
 fn truncate_text(text: impl AsRef<str>, max_chars: usize) -> String {
     let normalized = text.as_ref().trim();
     if normalized.chars().count() <= max_chars {
