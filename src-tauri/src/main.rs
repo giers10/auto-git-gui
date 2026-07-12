@@ -4146,6 +4146,8 @@ fn main() {
             get_daily_commit_stats,
             get_all_commit_hashes,
             trigger_rewrite_now,
+            rewrite_commit,
+            rewrite_pending_commits,
             show_folder_context_menu,
             show_tree_context_menu,
             has_readme,

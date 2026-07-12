@@ -26,6 +26,10 @@
     window.dispatchEvent(new CustomEvent('repo-updated', { detail: event.payload }));
   });
 
+  listen('rewrite-progress', event => {
+    window.dispatchEvent(new CustomEvent('rewrite-progress', { detail: event.payload }));
+  });
+
   listen('theme-changed', event => {
     const theme = event.payload;
     window.dispatchEvent(new CustomEvent('theme-changed', { detail: theme }));
@@ -117,7 +121,9 @@
     squashCommits: folderPath => invoke('squash_commits', { folderPath }),
     pushToGitea: (folderPath, allowDirty = false) => invoke('push_to_gitea', { folderPath, allowDirty }),
     initRepo: folderPath => invoke('init_repo', { folderPath }),
-    triggerRewriteNow: folderPath => invoke('trigger_rewrite_now', { folderPath })
+    triggerRewriteNow: folderPath => invoke('trigger_rewrite_now', { folderPath }),
+    rewriteCommit: (folderPath, hash) => invoke('rewrite_commit', { folderPath, hash }),
+    rewritePendingCommits: folderPath => invoke('rewrite_pending_commits', { folderPath })
   };
 
   window.addEventListener('beforeunload', () => {
