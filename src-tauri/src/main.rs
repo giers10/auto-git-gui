@@ -1122,7 +1122,8 @@ fn run_llm_commit_rewrite(app: AppHandle, folder_path: String, force: bool) -> C
                 .unwrap_or_else(|| "qwen2.5-coder:7b".to_string())
         };
         let llm_raw = stream_ollama(&prompt, &model, 0.3, &app)?;
-        let message_map = parse_llm_commit_messages(&llm_raw)?;
+        let message_map =
+            validate_llm_commit_messages(parse_llm_commit_messages(&llm_raw)?, &hashes)?;
         reword_commits_sequentially(&folder_path, &message_map, &hashes)?;
         emit(&app, "repo-updated", folder_path.clone());
         Ok(())
@@ -1141,18 +1142,34 @@ fn run_llm_commit_rewrite(app: AppHandle, folder_path: String, force: bool) -> C
             emit(&app, "repo-updated", folder_path.clone());
             Ok(())
         })();
-        if fallback.is_ok() {
-            error = None;
+        if let Err(fallback_err) = fallback {
+            eprintln!("[runLLMCommitRewrite] Recovery failed: {fallback_err}");
         }
     }
+
+    let retry_candidates = if error.is_some() {
+        let mut candidates = hashes.clone();
+        let buffer = {
+            let store = state.store.lock().map_err(|e| e.to_string())?;
+            store
+                .folders
+                .iter()
+                .find(|f| f.path == folder_path)
+                .map(|f| f.llm_buffer.clone())
+                .unwrap_or_default()
+        };
+        candidates.extend(buffer);
+        pending_rewrite_hashes(&folder_path, &candidates)
+    } else {
+        Vec::new()
+    };
 
     {
         let mut store = state.store.lock().map_err(|e| e.to_string())?;
         if let Some(folder) = store.folders.iter_mut().find(|f| f.path == folder_path) {
             let buffer = folder.llm_buffer.clone();
             if error.is_some() {
-                folder.llm_candidates = hashes.clone();
-                folder.llm_candidates.extend(buffer);
+                folder.llm_candidates = retry_candidates;
                 folder.first_candidate_birthday = original_birthday.or_else(|| {
                     if folder.llm_candidates.is_empty() {
                         None
