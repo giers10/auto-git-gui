@@ -860,6 +860,61 @@ fn parse_llm_commit_messages(raw_output: &str) -> CommandResult<HashMap<String, 
     Err(format!("Could not parse LLM output:\n{raw_output}"))
 }
 
+fn validate_llm_commit_messages(
+    parsed: HashMap<String, String>,
+    hashes: &[String],
+) -> CommandResult<HashMap<String, String>> {
+    if parsed.len() != hashes.len() {
+        return Err(format!(
+            "LLM returned {} commit messages; expected {}.",
+            parsed.len(),
+            hashes.len()
+        ));
+    }
+
+    let mut validated = HashMap::new();
+    for hash in hashes {
+        let short = short_hash(hash);
+        let message = parsed
+            .get(hash)
+            .or_else(|| parsed.get(&short))
+            .ok_or_else(|| format!("LLM response did not contain commit {short}."))?
+            .trim();
+        if message.is_empty() {
+            return Err(format!("LLM returned an empty message for commit {short}."));
+        }
+        if message.lines().count() != 1 {
+            return Err(format!(
+                "LLM returned a multi-line message for commit {short}."
+            ));
+        }
+        if is_auto_git_message(message) {
+            return Err(format!(
+                "LLM did not replace the generic message for commit {short}."
+            ));
+        }
+        validated.insert(hash.clone(), message.to_string());
+    }
+    Ok(validated)
+}
+
+fn generate_llm_message_for_commit(
+    app: &AppHandle,
+    folder_path: &str,
+    hash: &str,
+    model: &str,
+) -> CommandResult<String> {
+    let hashes = vec![hash.to_string()];
+    let prompt = generate_llm_commit_prompt(folder_path, &hashes)?;
+    let llm_raw = stream_ollama(&prompt, model, 0.3, app)?;
+    let parsed = parse_llm_commit_messages(&llm_raw)?;
+    let validated = validate_llm_commit_messages(parsed, &hashes)?;
+    validated
+        .get(hash)
+        .cloned()
+        .ok_or_else(|| format!("No validated message was returned for {}.", short_hash(hash)))
+}
+
 fn get_commits_for_llm(folder_path: &str, hashes: &[String]) -> CommandResult<Vec<Value>> {
     let mut commits = Vec::new();
     for hash in hashes {
