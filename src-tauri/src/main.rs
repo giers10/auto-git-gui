@@ -1070,6 +1070,84 @@ fn resolve_reword_hashes_newest_first(all_commits: &[String], hashes: &[String])
     full_hashes
 }
 
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct CommitIdentity {
+    tree: String,
+    author_time: String,
+    author_name: String,
+    author_email: String,
+    subject: String,
+}
+
+fn parse_commit_identity_line(line: &str) -> Option<(String, CommitIdentity)> {
+    let mut parts = line.splitn(6, '\x1f');
+    let hash = parts.next()?.to_string();
+    Some((
+        hash,
+        CommitIdentity {
+            tree: parts.next()?.to_string(),
+            author_time: parts.next()?.to_string(),
+            author_name: parts.next()?.to_string(),
+            author_email: parts.next()?.to_string(),
+            subject: parts.next().unwrap_or_default().to_string(),
+        },
+    ))
+}
+
+fn current_commit_identities(repo_path: &str) -> HashMap<CommitIdentity, String> {
+    let raw = run_git(
+        repo_path,
+        &["log", "--format=%H%x1f%T%x1f%at%x1f%an%x1f%ae%x1f%s"],
+    )
+    .unwrap_or_default();
+    raw.lines()
+        .filter_map(parse_commit_identity_line)
+        .map(|(hash, identity)| (identity, hash))
+        .collect()
+}
+
+fn identities_for_hashes(repo_path: &str, hashes: &[String]) -> HashMap<String, CommitIdentity> {
+    let wanted: HashSet<String> = hashes
+        .iter()
+        .filter_map(|hash| resolve_commit_hash(repo_path, hash))
+        .collect();
+    current_commit_identities(repo_path)
+        .into_iter()
+        .filter_map(|(identity, hash)| {
+            if wanted.contains(&hash) {
+                Some((hash, identity))
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+fn emit_rewrite_progress(
+    app: &AppHandle,
+    folder_path: &str,
+    scope: &str,
+    status: &str,
+    current: usize,
+    total: usize,
+    hash: Option<&str>,
+    error: Option<&str>,
+) {
+    emit(
+        app,
+        "rewrite-progress",
+        json!({
+            "folderPath": folder_path,
+            "scope": scope,
+            "status": status,
+            "current": current,
+            "total": total,
+            "hash": hash.map(short_hash),
+            "error": error,
+        }),
+    );
+}
+
 #[cfg(unix)]
 fn set_executable(path: &Path) -> CommandResult<()> {
     use std::os::unix::fs::PermissionsExt;
