@@ -2880,6 +2880,275 @@ fn trigger_rewrite_now(
     Ok(json!({ "success": true }))
 }
 
+fn run_manual_rewrite_job(
+    app: AppHandle,
+    folder_path: String,
+    hashes: Vec<String>,
+    scope: &'static str,
+) {
+    let state = app.state::<AppState>();
+    let total = hashes.len();
+    let (model, queued_before, original_birthday) = match state.store.lock() {
+        Ok(store) => {
+            let Some(folder) = store.folders.iter().find(|folder| folder.path == folder_path) else {
+                return;
+            };
+            (
+                store
+                    .commit_model
+                    .clone()
+                    .unwrap_or_else(|| "qwen2.5-coder:7b".to_string()),
+                folder.llm_candidates.clone(),
+                folder.first_candidate_birthday,
+            )
+        }
+        Err(err) => {
+            eprintln!("[manualRewrite] Could not lock store: {err}");
+            return;
+        }
+    };
+
+    let mut identity_hashes = queued_before.clone();
+    identity_hashes.extend(hashes.clone());
+    let identities_before = identities_for_hashes(&folder_path, &identity_hashes);
+    let attempted_identities: HashMap<String, CommitIdentity> = hashes
+        .iter()
+        .filter_map(|hash| {
+            identities_before
+                .get(hash)
+                .cloned()
+                .map(|identity| (hash.clone(), identity))
+        })
+        .collect();
+    let queued_identities: HashSet<CommitIdentity> = queued_before
+        .iter()
+        .filter_map(|hash| resolve_commit_hash(&folder_path, hash))
+        .filter_map(|hash| identities_before.get(&hash).cloned())
+        .collect();
+
+    let mut successful_messages = HashMap::new();
+    let mut llm_failures: Vec<(String, String)> = Vec::new();
+    for (index, hash) in hashes.iter().enumerate() {
+        emit_rewrite_progress(
+            &app,
+            &folder_path,
+            scope,
+            "running",
+            index,
+            total,
+            Some(hash),
+            None,
+        );
+        match generate_llm_message_for_commit(&app, &folder_path, hash, &model) {
+            Ok(message) => {
+                successful_messages.insert(hash.clone(), message);
+            }
+            Err(err) => {
+                eprintln!("[manualRewrite] {} failed: {err}", short_hash(hash));
+                llm_failures.push((hash.clone(), err));
+            }
+        }
+        emit_rewrite_progress(
+            &app,
+            &folder_path,
+            scope,
+            "running",
+            index + 1,
+            total,
+            Some(hash),
+            None,
+        );
+    }
+
+    let successful_hashes: Vec<String> = hashes
+        .iter()
+        .filter(|hash| successful_messages.contains_key(*hash))
+        .cloned()
+        .collect();
+    let history_error = if successful_hashes.is_empty() {
+        None
+    } else {
+        match reword_commits_sequentially(&folder_path, &successful_messages, &successful_hashes) {
+            Ok(()) => None,
+            Err(err) => {
+                eprintln!("[manualRewrite] Git rewrite failed: {err}");
+                let _ = run_git(&folder_path, &["rebase", "--abort"]);
+                Some(err)
+            }
+        }
+    };
+
+    let mut desired_identities = queued_identities;
+    if history_error.is_none() {
+        for hash in &successful_hashes {
+            if let Some(identity) = attempted_identities.get(hash) {
+                desired_identities.remove(identity);
+            }
+        }
+        for (hash, _) in &llm_failures {
+            if let Some(identity) = attempted_identities.get(hash) {
+                desired_identities.insert(identity.clone());
+            }
+        }
+    } else {
+        desired_identities.extend(attempted_identities.values().cloned());
+    }
+
+    let identities_after = current_commit_identities(&folder_path);
+    let mut candidates: Vec<String> = desired_identities
+        .iter()
+        .filter_map(|identity| identities_after.get(identity).cloned())
+        .collect();
+    for queued in &queued_before {
+        if resolve_commit_hash(&folder_path, queued).is_none() {
+            candidates.push(queued.clone());
+        }
+    }
+    if scope == "pending" || history_error.is_some() {
+        candidates = pending_rewrite_hashes(&folder_path, &candidates);
+    }
+    candidates.sort();
+    candidates.dedup();
+
+    if let Ok(mut store) = state.store.lock() {
+        if let Some(folder) = store
+            .folders
+            .iter_mut()
+            .find(|folder| folder.path == folder_path)
+        {
+            candidates.extend(folder.llm_buffer.clone());
+            candidates.sort();
+            candidates.dedup();
+            folder.llm_candidates = candidates;
+            folder.llm_buffer.clear();
+            folder.rewrite_in_progress = false;
+            folder.rewrite_started_at = None;
+            folder.first_candidate_birthday = if folder.llm_candidates.is_empty() {
+                None
+            } else {
+                original_birthday.or_else(|| Some(now_ms()))
+            };
+        }
+    }
+    if let Err(err) = save_store(&state) {
+        eprintln!("[manualRewrite] Could not save rewrite state: {err}");
+    }
+    emit(&app, "repo-updated", folder_path.clone());
+
+    let errors: Vec<String> = llm_failures
+        .iter()
+        .map(|(hash, err)| format!("{}: {err}", short_hash(hash)))
+        .chain(history_error.iter().map(|err| format!("Git: {err}")))
+        .collect();
+    let status = if history_error.is_some() || successful_hashes.is_empty() {
+        "failed"
+    } else if llm_failures.is_empty() {
+        "succeeded"
+    } else {
+        "partial"
+    };
+    let error_text = if errors.is_empty() {
+        None
+    } else {
+        Some(errors.join("\n"))
+    };
+    emit_rewrite_progress(
+        &app,
+        &folder_path,
+        scope,
+        status,
+        total,
+        total,
+        None,
+        error_text.as_deref(),
+    );
+}
+
+#[tauri::command]
+fn rewrite_commit(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    folder_path: String,
+    hash: String,
+) -> CommandResult<Value> {
+    let full_hash = resolve_commit_hash(&folder_path, &hash)
+        .ok_or_else(|| format!("Commit {hash} was not found."))?;
+    if !is_commit_on_current_history(&folder_path, &full_hash) {
+        return Ok(json!({
+            "success": false,
+            "error": "This commit is not in the current HEAD history. Jump to its branch/history first."
+        }));
+    }
+    if is_rebase_in_progress(&folder_path) {
+        return Ok(json!({ "success": false, "error": "A Git rebase is already in progress." }));
+    }
+    {
+        let mut store = state.store.lock().map_err(|e| e.to_string())?;
+        let Some(folder) = store
+            .folders
+            .iter_mut()
+            .find(|folder| folder.path == folder_path)
+        else {
+            return Ok(json!({ "success": false, "error": "folder not found" }));
+        };
+        if folder.needs_relocation {
+            return Ok(json!({ "success": false, "error": "needs relocation" }));
+        }
+        if folder.rewrite_in_progress {
+            return Ok(json!({
+                "success": false,
+                "error": "Another rewrite is already running for this repository."
+            }));
+        }
+        folder.rewrite_in_progress = true;
+        folder.rewrite_started_at = Some(now_ms());
+    }
+    save_store(&state)?;
+    thread::spawn(move || run_manual_rewrite_job(app, folder_path, vec![full_hash], "single"));
+    Ok(json!({ "success": true, "count": 1 }))
+}
+
+#[tauri::command]
+fn rewrite_pending_commits(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    folder_path: String,
+) -> CommandResult<Value> {
+    if is_rebase_in_progress(&folder_path) {
+        return Ok(json!({ "success": false, "error": "A Git rebase is already in progress." }));
+    }
+    let hashes = {
+        let mut store = state.store.lock().map_err(|e| e.to_string())?;
+        let Some(folder) = store
+            .folders
+            .iter_mut()
+            .find(|folder| folder.path == folder_path)
+        else {
+            return Ok(json!({ "success": false, "error": "folder not found" }));
+        };
+        if folder.needs_relocation {
+            return Ok(json!({ "success": false, "error": "needs relocation" }));
+        }
+        if folder.rewrite_in_progress {
+            return Ok(json!({
+                "success": false,
+                "error": "Another rewrite is already running for this repository."
+            }));
+        }
+        let hashes = pending_rewrite_hashes(&folder_path, &folder.llm_candidates);
+        if hashes.is_empty() {
+            return Ok(json!({ "success": false, "error": "There are no pending commits to rewrite." }));
+        }
+        folder.rewrite_in_progress = true;
+        folder.rewrite_started_at = Some(now_ms());
+        hashes
+    };
+    let count = hashes.len();
+    save_store(&state)?;
+    thread::spawn(move || run_manual_rewrite_job(app, folder_path, hashes, "pending"));
+    Ok(json!({ "success": true, "count": count }))
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct TreeContextInfo {
