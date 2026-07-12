@@ -755,16 +755,33 @@ window.addEventListener('DOMContentLoaded', async () => {
       });
     });
 
-    // Paw click: manually trigger rewrite for this folder
+    async function startSingleRewrite(hash, control) {
+      control.disabled = true;
+      try {
+        const result = await window.electronAPI.rewriteCommit(folderObj.path, hash);
+        if (!result?.success) {
+          alert('Rewrite could not start:\n' + (result?.error || 'Unknown error'));
+        }
+      } catch (e) {
+        console.error('Commit rewrite error:', e);
+        alert('Rewrite could not start:\n' + (e.message || e));
+      } finally {
+        const refreshed = await getFolderObjByPath(folderObj.path);
+        if (refreshed) await renderContent(refreshed, currentPage);
+      }
+    }
+
+    // Reword is available for every commit in the current HEAD history.
+    contentList.querySelectorAll('.reword-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        await startSingleRewrite(btn.dataset.hash, btn);
+      });
+    });
+
+    // A paw is both the durable "needs rewrite" marker and its individual retry action.
     contentList.querySelectorAll('.paw-queued').forEach(img => {
       img.addEventListener('click', async () => {
-        try {
-          await window.electronAPI.triggerRewriteNow(folderObj.path);
-        } catch (e) {
-          console.error('Manual rewrite trigger error:', e);
-        } finally {
-          await renderContent(folderObj, currentPage);
-        }
+        await startSingleRewrite(img.dataset.hash, img);
       });
     });
 
