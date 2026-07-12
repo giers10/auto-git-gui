@@ -909,10 +909,12 @@ fn generate_llm_message_for_commit(
     let llm_raw = stream_ollama(&prompt, model, 0.3, app)?;
     let parsed = parse_llm_commit_messages(&llm_raw)?;
     let validated = validate_llm_commit_messages(parsed, &hashes)?;
-    validated
-        .get(hash)
-        .cloned()
-        .ok_or_else(|| format!("No validated message was returned for {}.", short_hash(hash)))
+    validated.get(hash).cloned().ok_or_else(|| {
+        format!(
+            "No validated message was returned for {}.",
+            short_hash(hash)
+        )
+    })
 }
 
 fn get_commits_for_llm(folder_path: &str, hashes: &[String]) -> CommandResult<Vec<Value>> {
@@ -2890,7 +2892,11 @@ fn run_manual_rewrite_job(
     let total = hashes.len();
     let (model, queued_before, original_birthday) = match state.store.lock() {
         Ok(store) => {
-            let Some(folder) = store.folders.iter().find(|folder| folder.path == folder_path) else {
+            let Some(folder) = store
+                .folders
+                .iter()
+                .find(|folder| folder.path == folder_path)
+            else {
                 return;
             };
             (
@@ -3142,7 +3148,9 @@ fn rewrite_pending_commits(
         }
         let hashes = pending_rewrite_hashes(&folder_path, &folder.llm_candidates);
         if hashes.is_empty() {
-            return Ok(json!({ "success": false, "error": "There are no pending commits to rewrite." }));
+            return Ok(
+                json!({ "success": false, "error": "There are no pending commits to rewrite." }),
+            );
         }
         folder.rewrite_in_progress = true;
         folder.rewrite_started_at = Some(now_ms());
