@@ -30,6 +30,10 @@
     window.dispatchEvent(new CustomEvent('rewrite-progress', { detail: event.payload }));
   });
 
+  listen('monitoring-error', event => {
+    window.dispatchEvent(new CustomEvent('monitoring-error', { detail: event.payload }));
+  });
+
   listen('theme-changed', event => {
     const theme = event.payload;
     window.dispatchEvent(new CustomEvent('theme-changed', { detail: theme }));

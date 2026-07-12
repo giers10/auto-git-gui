@@ -1,7 +1,7 @@
 {
   "productName": "Auto-Git",
   "name": "Auto-Git",
-  "version": "1.0.0",
+  "version": "1.0.7",
   "description": "Auto-Git: Git-Überwachung mit automatischer LLM-Commit-Message und README-Erstellung",
   "author": "Victor Giers",
   "scripts": {

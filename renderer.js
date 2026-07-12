@@ -393,8 +393,14 @@ window.addEventListener('DOMContentLoaded', async () => {
       const pauseBtn = li.querySelector('.pause-play-btn');
       pauseBtn.addEventListener('click', async e => {
         e.stopPropagation();
-        await window.electronAPI.setMonitoring(folderObj, !isMonitoring);
-        await renderSidebar();
+        pauseBtn.disabled = true;
+        try {
+          await window.electronAPI.setMonitoring(folderObj, !isMonitoring);
+        } catch (err) {
+          alert(`Monitoring could not be changed:\n${err?.message || err}`);
+        } finally {
+          await renderSidebar();
+        }
       });
 
       // Remove-Button
@@ -976,6 +982,12 @@ window.addEventListener('DOMContentLoaded', async () => {
       const details = progress.error ? `\n\n${String(progress.error).slice(0, 1200)}` : '';
       alert(heading + details);
     }
+  });
+
+  window.addEventListener('monitoring-error', e => {
+    const detail = e.detail || {};
+    const message = detail.message || detail.code || 'Unknown monitoring error';
+    alert(`Auto-Git paused a repository operation:\n${message}`);
   });
 
   titleEl.addEventListener('contextmenu', e => {

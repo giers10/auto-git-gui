@@ -74,6 +74,19 @@ Download the latest release for your platform:
 5. **Push to Gitea**  
    - Configure your Gitea API key in **Settings**, then push commits directly from Auto-Git.  
 
+### Git safety behavior
+
+- Starting monitoring establishes a baseline; changes that already existed are left untouched.
+- Monitoring commits only paths reported by filesystem events. It never stages the whole repository.
+- Build output and dependency folders such as `node_modules`, `dist-tauri`, and `src-tauri/target` are always excluded.
+- Auto-Git refuses to commit when the index already contains staged work or when Git is rebasing, merging, resolving conflicts, or using a detached HEAD.
+- Threshold- and timer-based commit-message rewrites run once in a temporary worktree and update the real branch atomically only after verifying that its tree is unchanged. They do not retain a duplicate history ref. The Reword button preference affects only that button, not scheduled rewrites.
+- Commit history follows local branches, so **Jump Here** can navigate backward and forward while `HEAD` is detached. Jumping to a commit that is the unique tip of a local branch reattaches that branch.
+- Starting monitoring reconciles Git changes already present in the working tree, including changes made while monitoring was paused, and commits only those reported paths through the normal guarded monitoring pipeline.
+- Adding any folder immediately enables monitoring in the UI. Existing Git repositories start their watcher at once; non-repositories stay armed and attach the watcher automatically when **Init Repo** completes, without another Play click.
+- Automatic stashing, forced checkout, rebase abort, and hard-reset recovery are not used by monitoring or commit-message rewriting.
+- Commit squashing is temporarily disabled until it uses the same transactional worktree mechanism.
+
 ---
 
 ## Settings
