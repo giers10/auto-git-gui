@@ -4253,7 +4253,10 @@ mod tests {
     fn llm_commit_messages_must_be_complete_and_non_generic() {
         let hash = "aaaaaaa111111111111111111111111111111111".to_string();
         let mut valid = HashMap::new();
-        valid.insert("aaaaaaa".to_string(), "Explain the actual change".to_string());
+        valid.insert(
+            "aaaaaaa".to_string(),
+            "Explain the actual change".to_string(),
+        );
         assert_eq!(
             validate_llm_commit_messages(valid, std::slice::from_ref(&hash))
                 .unwrap()
