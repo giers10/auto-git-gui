@@ -842,6 +842,29 @@ window.addEventListener('DOMContentLoaded', async () => {
     await renderContent(obj);
   });
 
+  window.addEventListener('rewrite-progress', async e => {
+    const progress = e.detail || {};
+    const selected = await window.electronAPI.getSelected();
+    if (!selected || selected.path !== progress.folderPath) return;
+
+    if (progress.status === 'running') {
+      rewritePendingBtn.classList.remove('hidden');
+      rewritePendingBtn.disabled = true;
+      rewritePendingBtn.textContent = `Rewriting ${progress.current}/${progress.total}…`;
+      return;
+    }
+
+    const refreshed = await getFolderObjByPath(progress.folderPath);
+    if (refreshed) await renderContent(refreshed, lastPage);
+    if (progress.status === 'failed' || progress.status === 'partial') {
+      const heading = progress.status === 'partial'
+        ? 'Some commit messages could not be rewritten. Their paws remain.'
+        : 'The commit message could not be rewritten. Its paw remains.';
+      const details = progress.error ? `\n\n${String(progress.error).slice(0, 1200)}` : '';
+      alert(heading + details);
+    }
+  });
+
   titleEl.addEventListener('contextmenu', e => {
     e.preventDefault();
     if (titleEl.textContent !== 'No folder selected') {
