@@ -4173,6 +4173,25 @@ fn main() {
 mod tests {
     use super::*;
 
+    fn init_test_repo() -> TempDir {
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().to_str().unwrap();
+        run_git(path, &["init"]).unwrap();
+        run_git(path, &["config", "user.name", "Auto Git Test"]).unwrap();
+        run_git(path, &["config", "user.email", "auto-git@example.test"]).unwrap();
+        temp
+    }
+
+    fn test_commit(repo_path: &str, filename: &str, contents: &str, message: &str) -> String {
+        fs::write(Path::new(repo_path).join(filename), contents).unwrap();
+        run_git(repo_path, &["add", filename]).unwrap();
+        run_git(repo_path, &["commit", "-m", message]).unwrap();
+        run_git(repo_path, &["rev-parse", "HEAD"])
+            .unwrap()
+            .trim()
+            .to_string()
+    }
+
     #[test]
     fn repository_names_are_slugified_for_gitea() {
         assert_eq!(
@@ -4213,6 +4232,57 @@ mod tests {
         assert_eq!(
             resolve_reword_hashes_newest_first(&all_commits, &hashes),
             all_commits
+        );
+    }
+
+    #[test]
+    fn auto_git_messages_are_always_pending_and_saved_failures_are_included() {
+        let temp = init_test_repo();
+        let path = temp.path().to_str().unwrap();
+        let generic = test_commit(path, "one.txt", "one", "auto-git: [change] one.txt");
+        let queued = test_commit(path, "two.txt", "two", "Improve the second file");
+        let ignored = test_commit(path, "three.txt", "three", "Document the third file");
+
+        let pending = pending_rewrite_hashes(path, std::slice::from_ref(&queued));
+
+        assert_eq!(pending, vec![queued, generic]);
+        assert!(!pending.contains(&ignored));
+    }
+
+    #[test]
+    fn llm_commit_messages_must_be_complete_and_non_generic() {
+        let hash = "aaaaaaa111111111111111111111111111111111".to_string();
+        let mut valid = HashMap::new();
+        valid.insert("aaaaaaa".to_string(), "Explain the actual change".to_string());
+        assert_eq!(
+            validate_llm_commit_messages(valid, std::slice::from_ref(&hash))
+                .unwrap()
+                .get(&hash)
+                .unwrap(),
+            "Explain the actual change"
+        );
+
+        let mut generic = HashMap::new();
+        generic.insert("aaaaaaa".to_string(), "auto-git: unchanged".to_string());
+        assert!(validate_llm_commit_messages(generic, std::slice::from_ref(&hash)).is_err());
+        assert!(validate_llm_commit_messages(HashMap::new(), &[hash]).is_err());
+    }
+
+    #[test]
+    fn root_commit_can_be_reworded_without_a_parent_revision() {
+        let temp = init_test_repo();
+        let path = temp.path().to_str().unwrap();
+        let root = test_commit(path, "root.txt", "root", "auto-git: [create] root.txt");
+        let mut messages = HashMap::new();
+        messages.insert(root.clone(), "Create the root fixture".to_string());
+
+        reword_commits_sequentially(path, &messages, &[root]).unwrap();
+
+        assert_eq!(
+            run_git(path, &["show", "-s", "--format=%s", "HEAD"])
+                .unwrap()
+                .trim(),
+            "Create the root fixture"
         );
     }
 }
