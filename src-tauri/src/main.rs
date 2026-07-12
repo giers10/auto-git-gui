@@ -623,7 +623,8 @@ fn init_git_repo_internal(folder: &str) -> CommandResult<()> {
     if !Path::new(folder).join(".git").exists() {
         run_git(folder, &["init"])?;
         ensure_gitignore_defaults(folder)?;
-        run_git(folder, &["add", ".gitignore"])?;
+        update_gitignore_from_existing_project(folder)?;
+        run_git(folder, &["add", "-A"])?;
         run_git(folder, &["commit", "--allow-empty", "-m", "initial commit"])?;
     }
     Ok(())
@@ -1317,6 +1318,47 @@ fn file_name_matches_ignore(name: &str, pattern: &str) -> bool {
     } else {
         name == normalized
     }
+}
+
+fn update_gitignore_from_existing_project(folder_path: &str) -> CommandResult<()> {
+    let mut stack = vec![PathBuf::from(folder_path)];
+    let mut patterns = HashSet::new();
+
+    while let Some(current) = stack.pop() {
+        let entries = fs::read_dir(&current).map_err(|e| e.to_string())?;
+        for entry in entries {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let path = entry.path();
+            let file_type = entry.file_type().map_err(|e| e.to_string())?;
+            let name = entry.file_name().to_string_lossy().to_string();
+
+            if let Some(pattern) = tauri_build_ignore_for_path(folder_path, &path) {
+                patterns.insert(pattern.to_string());
+            }
+            let matched_patterns = IGNORED_NAMES
+                .iter()
+                .copied()
+                .filter(|pattern| file_name_matches_ignore(&name, pattern))
+                .collect::<Vec<_>>();
+            for pattern in &matched_patterns {
+                patterns.insert((*pattern).to_string());
+            }
+
+            if file_type.is_dir()
+                && matched_patterns.is_empty()
+                && !should_ignore_path(folder_path, &path)
+            {
+                stack.push(path);
+            }
+        }
+    }
+
+    let mut patterns = patterns.into_iter().collect::<Vec<_>>();
+    patterns.sort();
+    for pattern in patterns {
+        ensure_in_gitignore(folder_path, &pattern)?;
+    }
+    Ok(())
 }
 
 fn exceeds_file_limit(folder_path: &str, limit: usize) -> bool {
@@ -3322,11 +3364,56 @@ fn generate_repo_description(
     ))
 }
 
+fn slugify_repository_name(name: &str) -> String {
+    let mut slug = String::new();
+    let mut needs_separator = false;
+    for character in name.chars() {
+        if character.is_ascii_alphanumeric() {
+            if needs_separator && !slug.is_empty() {
+                slug.push('-');
+            }
+            slug.push(character.to_ascii_lowercase());
+            needs_separator = false;
+        } else {
+            needs_separator = !slug.is_empty();
+        }
+    }
+    if slug.is_empty() {
+        "repository".to_string()
+    } else {
+        slug
+    }
+}
+
+fn gitea_response_error(context: &str, response: reqwest::blocking::Response) -> String {
+    let status = response.status();
+    let body = response.text().unwrap_or_default();
+    let detail = serde_json::from_str::<Value>(&body)
+        .ok()
+        .and_then(|value| {
+            let message = value.get("message").and_then(Value::as_str);
+            let errors = value.get("errors").filter(|errors| !errors.is_null());
+            match (message, errors) {
+                (Some(message), Some(errors)) => Some(format!("{message}; {errors}")),
+                (Some(message), None) => Some(message.to_string()),
+                (None, Some(errors)) => Some(errors.to_string()),
+                (None, None) => None,
+            }
+        })
+        .or_else(|| (!body.trim().is_empty()).then(|| body.trim().to_string()))
+        .unwrap_or_else(|| "Gitea returned no error details".to_string());
+    format!(
+        "{context} failed ({status}): {}",
+        truncate_text(detail, 1000)
+    )
+}
+
 #[tauri::command]
 fn push_to_gitea(
     app: AppHandle,
     state: tauri::State<'_, AppState>,
     folder_path: String,
+    allow_dirty: bool,
 ) -> CommandResult<Value> {
     let token = state
         .store
@@ -3339,11 +3426,19 @@ fn push_to_gitea(
             json!({ "success": false, "error": "No Gitea API token configured – open Settings and enter it first" }),
         );
     }
+    if has_status_changes(&git_status(&folder_path)?) && !allow_dirty {
+        return Ok(json!({
+            "success": false,
+            "code": "DIRTY_WORKTREE",
+            "error": "The repository contains uncommitted or untracked files. Confirm the warning before pushing."
+        }));
+    }
     let result = (|| -> CommandResult<Value> {
-        let repo_name = Path::new(&folder_path)
+        let folder_name = Path::new(&folder_path)
             .file_name()
             .and_then(|s| s.to_str())
             .ok_or_else(|| "invalid repository path".to_string())?;
+        let repo_name = slugify_repository_name(folder_name);
         let base = "https://giers10.uber.space/api/v1";
         let description = generate_repo_description(&app, &state, &folder_path)?;
         let client = Client::new();
@@ -3353,7 +3448,7 @@ fn push_to_gitea(
             .send()
             .map_err(|e| e.to_string())?;
         if !user_resp.status().is_success() {
-            return Err(format!("/user request failed: {}", user_resp.status()));
+            return Err(gitea_response_error("Gitea user request", user_resp));
         }
         let user: Value = user_resp.json().map_err(|e| e.to_string())?;
         let username = user
@@ -3366,7 +3461,7 @@ fn push_to_gitea(
             .send()
             .map_err(|e| e.to_string())?;
         let repo_url = if check.status().as_u16() == 404 {
-            let created: Value = client
+            let created_response = client
                 .post(format!("{base}/user/repos"))
                 .header("Authorization", format!("token {token}"))
                 .json(&json!({
@@ -3376,34 +3471,40 @@ fn push_to_gitea(
                     "auto_init": false
                 }))
                 .send()
-                .map_err(|e| e.to_string())?
-                .json()
                 .map_err(|e| e.to_string())?;
+            if !created_response.status().is_success() {
+                return Err(gitea_response_error(
+                    "Creating the Gitea repository",
+                    created_response,
+                ));
+            }
+            let created: Value = created_response.json().map_err(|e| e.to_string())?;
             created
                 .get("clone_url")
                 .and_then(Value::as_str)
                 .ok_or_else(|| "Gitea create response missing clone_url".to_string())?
                 .to_string()
         } else if check.status().is_success() {
-            let _ = client
+            let update_response = client
                 .patch(format!("{base}/repos/{username}/{repo_name}"))
                 .header("Authorization", format!("token {token}"))
                 .json(&json!({ "description": description }))
-                .send();
-            let existing: Value = client
-                .get(format!("{base}/repos/{username}/{repo_name}"))
-                .header("Authorization", format!("token {token}"))
                 .send()
-                .map_err(|e| e.to_string())?
-                .json()
                 .map_err(|e| e.to_string())?;
+            if !update_response.status().is_success() {
+                return Err(gitea_response_error(
+                    "Updating the Gitea repository description",
+                    update_response,
+                ));
+            }
+            let existing: Value = check.json().map_err(|e| e.to_string())?;
             existing
                 .get("clone_url")
                 .and_then(Value::as_str)
                 .ok_or_else(|| "Gitea repo response missing clone_url".to_string())?
                 .to_string()
         } else {
-            return Err(format!("Error checking repo: {}", check.status()));
+            return Err(gitea_response_error("Checking the Gitea repository", check));
         };
         let _ = run_git(&folder_path, &["remote", "remove", "origin"]);
         run_git(&folder_path, &["remote", "add", "origin", &repo_url])?;
@@ -3571,6 +3672,30 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn repository_names_are_slugified_for_gitea() {
+        assert_eq!(
+            slugify_repository_name("EP-133 Sample Tool Offline"),
+            "ep-133-sample-tool-offline"
+        );
+        assert_eq!(slugify_repository_name("  Fragile___App  "), "fragile-app");
+        assert_eq!(slugify_repository_name("☃"), "repository");
+    }
+
+    #[test]
+    fn existing_project_ignore_rules_are_written_before_staging() {
+        let temp = TempDir::new().unwrap();
+        fs::write(temp.path().join(".DS_Store"), "metadata").unwrap();
+        fs::create_dir(temp.path().join("Release.app")).unwrap();
+        fs::write(temp.path().join("Release.app").join("binary"), "binary").unwrap();
+
+        update_gitignore_from_existing_project(temp.path().to_str().unwrap()).unwrap();
+
+        let gitignore = fs::read_to_string(temp.path().join(".gitignore")).unwrap();
+        assert!(gitignore.lines().any(|line| line == ".DS_Store"));
+        assert!(gitignore.lines().any(|line| line == "*.app"));
+    }
 
     #[test]
     fn reword_hashes_are_processed_newest_first() {
