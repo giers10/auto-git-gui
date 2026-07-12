@@ -604,7 +604,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             <span>${new Date(c.date).toLocaleString()}</span>
           </div>
           <div class="text-gray-800 mb-2">${c.message}</div>
-          <div class="flex space-x-2 mb-2">
+          <div class="flex flex-wrap gap-2 mb-2">
             <button class="diff-btn flex items-center px-2 py-1 text-xs border rounded hover:bg-gray-100" data-hash="${c.hash}">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 rotate" viewBox="0 0 24 24"
                    stroke="currentColor" fill="none">

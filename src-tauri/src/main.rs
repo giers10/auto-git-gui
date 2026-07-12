@@ -4315,4 +4315,28 @@ mod tests {
             "Create the root fixture"
         );
     }
+
+    #[test]
+    fn pending_descendant_identity_survives_an_older_commit_reword() {
+        let temp = init_test_repo();
+        let path = temp.path().to_str().unwrap();
+        let older = test_commit(path, "older.txt", "older", "auto-git: [create] older.txt");
+        let newer = test_commit(path, "newer.txt", "newer", "auto-git: [create] newer.txt");
+        let identity = identities_for_hashes(path, std::slice::from_ref(&newer))
+            .remove(&newer)
+            .unwrap();
+        let mut messages = HashMap::new();
+        messages.insert(older.clone(), "Create the older fixture".to_string());
+
+        reword_commits_sequentially(path, &messages, &[older]).unwrap();
+
+        let remapped = current_commit_identities(path).remove(&identity).unwrap();
+        assert_ne!(remapped, newer);
+        assert_eq!(
+            run_git(path, &["show", "-s", "--format=%s", &remapped])
+                .unwrap()
+                .trim(),
+            "auto-git: [create] newer.txt"
+        );
+    }
 }
