@@ -336,6 +336,7 @@ struct CommitPage {
     page: usize,
     page_size: usize,
     pages: usize,
+    pending_rewrite_count: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -343,6 +344,8 @@ struct CommitSummary {
     hash: String,
     date: String,
     message: String,
+    needs_rewrite: bool,
+    can_reword: bool,
 }
 
 #[derive(Debug, Serialize)]
