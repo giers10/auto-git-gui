@@ -9,6 +9,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const readmeBtn   = document.getElementById('readmeBtn');
   const initRepoBtn = document.getElementById('initRepoBtn');
   const pushBtn = document.getElementById('pushBtn');
+  const rewritePendingBtn = document.getElementById('rewritePendingBtn');
   const panel       = document.querySelector('.flex-1.p-4.overflow-y-auto');
   const PAGE_SIZE = 50;
 
@@ -104,6 +105,24 @@ window.addEventListener('DOMContentLoaded', async () => {
     } finally {
       initRepoBtn.disabled = false;
       initRepoBtn.textContent = 'Init Repo';
+    }
+  });
+
+  rewritePendingBtn.addEventListener('click', async () => {
+    const selected = await window.electronAPI.getSelected();
+    if (!selected?.path) return;
+    rewritePendingBtn.disabled = true;
+    rewritePendingBtn.textContent = 'Starting rewrite…';
+    try {
+      const result = await window.electronAPI.rewritePendingCommits(selected.path);
+      if (!result?.success) {
+        alert('Rewrite could not start:\n' + (result?.error || 'Unknown error'));
+      }
+    } catch (err) {
+      alert('Rewrite could not start:\n' + (err.message || err));
+    } finally {
+      const refreshed = await getFolderObjByPath(selected.path);
+      if (refreshed) await renderContent(refreshed, lastPage);
     }
   });
 
@@ -532,6 +551,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     pushBtn.disabled = !isGit;
     pushBtn.classList.toggle('hidden', !isGit);
     if (!isGit) {
+      rewritePendingBtn.classList.add('hidden');
       contentList.innerHTML = '<div class="p-6 text-gray-500">Not a Git repository. Click "Init Repo" to initialize.</div>';
       paginationEl.innerHTML = '';
       lastFolderPath = folder;
@@ -558,19 +578,24 @@ window.addEventListener('DOMContentLoaded', async () => {
     lastFolderPath = folder;
     lastPage = usePage;
 
-    const { head, commits, total, page: currentPage, pageSize, pages } =
+    const { head, commits, total, page: currentPage, pageSize, pages, pendingRewriteCount } =
       await window.electronAPI.getCommits(folderObj, usePage, PAGE_SIZE);
 
+    const pendingCount = pendingRewriteCount || 0;
+    rewritePendingBtn.classList.toggle('hidden', pendingCount === 0 && !folderObj.rewriteInProgress);
+    rewritePendingBtn.disabled = !!folderObj.rewriteInProgress || pendingCount === 0;
+    rewritePendingBtn.textContent = folderObj.rewriteInProgress
+      ? 'Rewriting…'
+      : `Rewrite pending (${pendingCount})`;
+
     if (!commits || !commits.length) {
+      rewritePendingBtn.classList.add('hidden');
       contentList.innerHTML = '<div class="p-6 text-gray-500">No commits found.</div>';
       paginationEl.innerHTML = '';
       return;
     }
 
     contentList.innerHTML = commits.map(c => {
-      const isQueued = folderObj.llmCandidates && folderObj.llmCandidates.some(fullHash =>
-        fullHash.startsWith(c.hash)
-      );
       return `
         <li style="position:relative;" class="w-full p-3 mb-2 bg-white border border-gray-200 rounded shadow-sm
                    ${c.hash === head ? 'current-commit' : ''}">
@@ -605,6 +630,17 @@ window.addEventListener('DOMContentLoaded', async () => {
               </svg>
               Jump Here
             </button>
+            <button
+              class="reword-btn flex items-center px-2 py-1 text-xs border rounded ${!c.canReword || folderObj.rewriteInProgress ? 'disabled' : 'hover:bg-gray-100'}"
+              data-hash="${c.hash}"
+              title="${c.canReword ? 'Generate and apply a new LLM commit message' : 'This commit is not in the current HEAD history'}"
+              ${!c.canReword || folderObj.rewriteInProgress ? 'disabled' : ''}>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              Reword
+            </button>
           </div>
           <div class="diff-container relative">
             <button class="copy-diff-btn absolute top-1 right-1 p-1 border rounded hover:bg-gray-100 flex items-center justify-center">
@@ -618,11 +654,12 @@ window.addEventListener('DOMContentLoaded', async () => {
             <pre class="m-0"></pre>
           </div>
           ${
-            isQueued
+            c.needsRewrite
               ? `<img src="assets/cat/paw.png"
-                      alt="In Rewrite Queue"
-                      title="In Rewrite Queue"
+                      alt="Needs LLM rewrite"
+                      title="Needs LLM rewrite — click to retry this commit"
                       class="paw-queued"
+                      data-hash="${c.hash}"
                       style="pointer-events: auto; cursor: pointer; z-index:10;">`
               : ''
           }
