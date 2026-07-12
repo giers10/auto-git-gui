@@ -247,16 +247,23 @@
     <!-- Content-Area -->
     <div class="flex-1 p-4 overflow-y-auto content-area">
       <!-- Title -->
-      <div id="folderTitleDrop"
-        class="relative flex items-baseline space-x-1 cursor-pointer select-none group pb-2">
-        <svg id="folderTitleArrow"
-             class="h-4 w-6 flex-none transition-transform"
-             viewBox="0 0 24 24">
-          <path stroke="currentColor" stroke-width="2" fill="none"
-                stroke-linecap="round" stroke-linejoin="round"
-                d="M9 5l7 7-7 7"/>
-        </svg>
-        <span id="currentTitle" class="font-semibold text-xl truncate"></span>
+      <div class="flex items-center pb-2">
+        <div id="folderTitleDrop"
+          class="relative flex flex-1 min-w-0 items-baseline space-x-1 cursor-pointer select-none group">
+          <svg id="folderTitleArrow"
+               class="h-4 w-6 flex-none transition-transform"
+               viewBox="0 0 24 24">
+            <path stroke="currentColor" stroke-width="2" fill="none"
+                  stroke-linecap="round" stroke-linejoin="round"
+                  d="M9 5l7 7-7 7"/>
+          </svg>
+          <span id="currentTitle" class="font-semibold text-xl truncate"></span>
+        </div>
+        <button id="rewritePendingBtn"
+          class="hidden ml-3 px-3 py-1.5 text-sm border rounded font-semibold whitespace-nowrap"
+          style="background: var(--accent); color: #fff; border-color: var(--border)">
+          Rewrite pending (0)
+        </button>
       </div>
       <pre id="folderHierarchyDropdown"
             class="hidden text-sm font-mono select-text leading-snug mb-2 mt-1 max-h-80 overflow-auto"
