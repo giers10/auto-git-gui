@@ -1192,6 +1192,7 @@ fn run_llm_commit_rewrite(app: AppHandle, folder_path: String, force: bool) -> C
         }
     }
     save_store(&state)?;
+    emit(&app, "repo-updated", folder_path.clone());
 
     if let Some(err) = error {
         return Err(err);
