@@ -2925,6 +2925,15 @@ fn run_manual_rewrite_job(
         .filter_map(|hash| resolve_commit_hash(&folder_path, hash))
         .filter_map(|hash| identities_before.get(&hash).cloned())
         .collect();
+    let queued_without_identity: Vec<String> = queued_before
+        .iter()
+        .filter(|hash| {
+            resolve_commit_hash(&folder_path, hash)
+                .and_then(|resolved| identities_before.get(&resolved))
+                .is_none()
+        })
+        .cloned()
+        .collect();
 
     let mut successful_messages = HashMap::new();
     let mut llm_failures: Vec<(String, String)> = Vec::new();
@@ -2999,11 +3008,7 @@ fn run_manual_rewrite_job(
         .iter()
         .filter_map(|identity| identities_after.get(identity).cloned())
         .collect();
-    for queued in &queued_before {
-        if resolve_commit_hash(&folder_path, queued).is_none() {
-            candidates.push(queued.clone());
-        }
-    }
+    candidates.extend(queued_without_identity);
     if scope == "pending" || history_error.is_some() {
         candidates = pending_rewrite_hashes(&folder_path, &candidates);
     }
