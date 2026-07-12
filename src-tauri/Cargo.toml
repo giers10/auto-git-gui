@@ -1,6 +1,6 @@
 [package]
 name = "auto-git"
-version = "1.0.7"
+version = "1.0.8"
 description = "Auto-Git: Git monitoring with automatic LLM commit messages and README generation"
 authors = ["Victor Giers"]
 edition = "2021"

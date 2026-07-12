@@ -45,6 +45,9 @@ const MAX_SQUASH_COMMIT_MESSAGE_CHARS: usize = 160;
 const OLLAMA_BASE_URL: &str = "http://127.0.0.1:11434";
 const ROSE_TITLEBAR_COLOR: Color = Color(255, 241, 242, 255);
 const GIT_PROCESS_TIMEOUT: Duration = Duration::from_secs(5 * 60);
+const MAX_COMMIT_MESSAGE_PROMPT_CHARS: usize = 32_000;
+const MAX_COMMIT_DIFF_TOTAL_CHARS: usize = 18_000;
+const OLLAMA_COMMIT_CONTEXT_TOKENS: u64 = 16_384;
 // Automatic rewriting is safe to enable because all history mutation happens in an isolated
 // worktree and the real branch is updated only after tree validation and a compare-and-swap.
 const AUTO_HISTORY_REWRITE_ENABLED: bool = true;
@@ -150,7 +153,6 @@ const IGNORED_NAMES: &[&str] = &[
     "bin",
     "pkg",
     "vendor",
-    "Cargo.lock",
     "*.gem",
     ".bundle",
     "vendor/bundle",
@@ -217,7 +219,6 @@ const IGNORED_NAMES: &[&str] = &[
     "DerivedDataCache",
     "Intermediate",
     "Saved",
-    "*.lock",
     "*.7z",
 ];
 
@@ -531,10 +532,9 @@ fn normalize_store(store: &mut StoreData) {
     }
 
     for folder in &mut store.folders {
-        let repo_exists = Path::new(&folder.path).join(".git").exists();
         let path_exists = Path::new(&folder.path).exists();
         folder.needs_relocation = !path_exists;
-        if !repo_exists || folder.needs_relocation {
+        if folder.needs_relocation {
             folder.monitoring = false;
         }
         // A persisted flag can only describe a process from a previous app lifetime. Never resume
@@ -967,16 +967,46 @@ fn stream_ollama(
     temperature: f64,
     app: &AppHandle,
 ) -> CommandResult<String> {
-    stream_ollama_request(prompt, model, temperature, app, false)
+    stream_ollama_request(prompt, model, temperature, app, None)
 }
 
 fn stream_ollama_json(
     prompt: &str,
     model: &str,
     temperature: f64,
+    hashes: &[String],
     app: &AppHandle,
 ) -> CommandResult<String> {
-    stream_ollama_request(prompt, model, temperature, app, true)
+    stream_ollama_request(
+        prompt,
+        model,
+        temperature,
+        app,
+        Some(commit_message_json_schema(hashes)),
+    )
+}
+
+fn commit_message_json_schema(hashes: &[String]) -> Value {
+    let mut properties = serde_json::Map::new();
+    let mut required = Vec::new();
+    for hash in hashes {
+        let short = short_hash(hash);
+        properties.insert(
+            short.clone(),
+            json!({
+                "type": "string",
+                "minLength": 1,
+                "description": "A concise single-line commit message"
+            }),
+        );
+        required.push(short);
+    }
+    json!({
+        "type": "object",
+        "properties": properties,
+        "required": required,
+        "additionalProperties": false
+    })
 }
 
 fn stream_ollama_request(
@@ -984,7 +1014,7 @@ fn stream_ollama_request(
     model: &str,
     temperature: f64,
     app: &AppHandle,
-    json_mode: bool,
+    response_format: Option<Value>,
 ) -> CommandResult<String> {
     ensure_ollama_running()?;
     emit(app, "cat-begin", ());
@@ -997,10 +1027,14 @@ fn stream_ollama_request(
         "model": model,
         "prompt": prompt,
         "stream": true,
-        "options": { "temperature": temperature }
+        "options": {
+            "temperature": temperature,
+            "num_ctx": OLLAMA_COMMIT_CONTEXT_TOKENS,
+            "num_predict": 2048
+        }
     });
-    if json_mode {
-        payload["format"] = json!("json");
+    if let Some(response_format) = response_format {
+        payload["format"] = response_format;
     }
     let mut response = client
         .post(format!("{OLLAMA_BASE_URL}/api/generate"))
@@ -1081,7 +1115,7 @@ fn generate_llm_message_for_commit(
 ) -> CommandResult<String> {
     let hashes = vec![hash.to_string()];
     let prompt = generate_llm_commit_prompt(folder_path, &hashes)?;
-    let llm_raw = stream_ollama_json(&prompt, model, 0.3, app)?;
+    let llm_raw = stream_ollama_json(&prompt, model, 0.3, &hashes, app)?;
     let parsed = parse_llm_commit_messages(&llm_raw)?;
     let validated = validate_llm_commit_messages(parsed, &hashes)?;
     validated.get(hash).cloned().ok_or_else(|| {
@@ -1092,15 +1126,26 @@ fn generate_llm_message_for_commit(
     })
 }
 
+fn truncate_prompt_text(value: &str, max_chars: usize) -> String {
+    let Some((cutoff, _)) = value.char_indices().nth(max_chars) else {
+        return value.to_string();
+    };
+    format!("{}\n[diff truncated by Auto-Git]", &value[..cutoff])
+}
+
 fn get_commits_for_llm(folder_path: &str, hashes: &[String]) -> CommandResult<Vec<Value>> {
     let mut commits = Vec::new();
+    let diff_budget = MAX_COMMIT_DIFF_TOTAL_CHARS / hashes.len().max(1);
     for hash in hashes {
-        let diff = run_git(folder_path, &["diff", &format!("{hash}^!")])?;
+        let diff = run_git(
+            folder_path,
+            &["show", "--format=", "--no-ext-diff", "--unified=2", hash],
+        )?;
         let msg = run_git(folder_path, &["show", "-s", "--format=%B", hash])?;
         commits.push(json!({
             "hash": short_hash(hash),
             "message": msg.trim(),
-            "diff": diff
+            "diff": truncate_prompt_text(&diff, diff_budget)
         }));
     }
     Ok(commits)
@@ -1124,10 +1169,11 @@ COMMITS (as JSON):
 {}"#,
         serde_json::to_string_pretty(&commits).map_err(|e| e.to_string())?
     );
-    if prompt.len() > 200_000 {
+    if prompt.chars().count() > MAX_COMMIT_MESSAGE_PROMPT_CHARS {
         return Err(format!(
-            "LLM prompt too large ({} chars) for {folder_path}",
-            prompt.len()
+            "Commit-message prompt is still too large after bounded diff truncation ({} chars; maximum {}). No LLM request was sent for {folder_path}.",
+            prompt.chars().count(),
+            MAX_COMMIT_MESSAGE_PROMPT_CHARS
         ));
     }
     Ok(prompt)
@@ -1375,7 +1421,7 @@ fn set_executable(_path: &Path) -> CommandResult<()> {
 fn run_llm_commit_rewrite(app: AppHandle, folder_path: String) -> CommandResult<()> {
     let state = app.state::<AppState>();
     let _operation = begin_repo_operation(&state, &folder_path, "history rewrite")?;
-    let (hashes, original_birthday) = {
+    let hashes = {
         let mut store = state.store.lock().map_err(|e| e.to_string())?;
         let Some(folder) = store.folders.iter_mut().find(|f| f.path == folder_path) else {
             return Ok(());
@@ -1395,15 +1441,18 @@ fn run_llm_commit_rewrite(app: AppHandle, folder_path: String) -> CommandResult<
             return Err("Another rewrite is already running for this repository.".to_string());
         }
         let hashes = folder.llm_candidates.clone();
-        let original_birthday = folder.first_candidate_birthday;
         folder.rewrite_in_progress = true;
         folder.rewrite_started_at = Some(now_ms());
-        (hashes, original_birthday)
+        hashes
     };
     save_store(&state)?;
 
     let mut error: Option<String> = None;
     let result = (|| -> CommandResult<()> {
+        // Do every Git safety check that can block the rewrite before issuing an LLM request.
+        // A dirty index/worktree, detached HEAD, conflict, or in-progress Git operation must cost
+        // zero model calls.
+        safe_repo_snapshot(&folder_path, true)?;
         let prompt = generate_llm_commit_prompt(&folder_path, &hashes)?;
         let model = {
             let store = state.store.lock().map_err(|e| e.to_string())?;
@@ -1412,7 +1461,7 @@ fn run_llm_commit_rewrite(app: AppHandle, folder_path: String) -> CommandResult<
                 .clone()
                 .unwrap_or_else(|| "qwen2.5-coder:7b".to_string())
         };
-        let llm_raw = stream_ollama_json(&prompt, &model, 0.3, &app)?;
+        let llm_raw = stream_ollama_json(&prompt, &model, 0.3, &hashes, &app)?;
         let message_map =
             validate_llm_commit_messages(parse_llm_commit_messages(&llm_raw)?, &hashes)?;
         reword_commits_transactionally(&folder_path, &message_map, &hashes)?;
@@ -1448,13 +1497,7 @@ fn run_llm_commit_rewrite(app: AppHandle, folder_path: String) -> CommandResult<
             let buffer = folder.llm_buffer.clone();
             if error.is_some() {
                 folder.llm_candidates = retry_candidates;
-                folder.first_candidate_birthday = original_birthday.or_else(|| {
-                    if folder.llm_candidates.is_empty() {
-                        None
-                    } else {
-                        Some(now_ms())
-                    }
-                });
+                pause_automatic_rewrite_after_failure(folder);
             } else {
                 folder.llm_candidates = buffer;
                 folder.first_candidate_birthday = if folder.llm_candidates.is_empty() {
@@ -1471,6 +1514,20 @@ fn run_llm_commit_rewrite(app: AppHandle, folder_path: String) -> CommandResult<
     }
     save_store(&state)?;
     emit(&app, "repo-updated", folder_path.clone());
+
+    if let Some(err) = error.as_deref() {
+        emit(
+            &app,
+            "monitoring-error",
+            json!({
+                "path": folder_path,
+                "code": "AUTO_REWRITE_PAUSED",
+                "message": format!(
+                    "Automatic commit-message rewriting was paused after one failed attempt. No automatic retry will run until a new commit is recorded or you explicitly retry. {err}"
+                )
+            }),
+        );
+    }
 
     error.map_or(Ok(()), Err)
 }
@@ -1490,6 +1547,11 @@ fn automatic_rewrite_eligible(folder: &FolderObj) -> bool {
         && folder.monitoring
         && !folder.rewrite_in_progress
         && !folder.llm_candidates.is_empty()
+}
+
+fn pause_automatic_rewrite_after_failure(folder: &mut FolderObj) {
+    folder.lines_changed = 0;
+    folder.first_candidate_birthday = None;
 }
 
 fn line_rewrite_due(folder: &FolderObj, threshold: i64) -> bool {
@@ -1629,7 +1691,7 @@ fn auto_commit(app: AppHandle, folder_path: String, mut paths: Vec<String>) -> C
             folder.llm_buffer.push(new_head.clone());
         } else {
             folder.llm_candidates.push(new_head.clone());
-            if folder.llm_candidates.len() == 1 {
+            if folder.first_candidate_birthday.is_none() {
                 folder.first_candidate_birthday = Some(now_ms());
             }
         }
@@ -4884,6 +4946,63 @@ mod tests {
     }
 
     #[test]
+    fn failed_automatic_rewrite_is_not_retried_by_the_scheduler() {
+        let mut folder = FolderObj {
+            path: "/tmp/example".to_string(),
+            monitoring: true,
+            needs_relocation: false,
+            lines_changed: 1_543,
+            llm_candidates: vec!["a".repeat(40)],
+            llm_buffer: Vec::new(),
+            first_candidate_birthday: Some(60_000),
+            last_head_hash: None,
+            rewrite_in_progress: false,
+            rewrite_started_at: None,
+        };
+
+        pause_automatic_rewrite_after_failure(&mut folder);
+
+        assert_eq!(folder.lines_changed, 0);
+        assert_eq!(folder.first_candidate_birthday, None);
+        assert!(!line_rewrite_due(&folder, 10));
+        assert!(!time_rewrite_due(&folder, 1, 120_000));
+        assert_eq!(folder.llm_candidates.len(), 1);
+    }
+
+    #[test]
+    fn structured_commit_output_requires_every_requested_hash() {
+        let hashes = vec!["aaaaaaa111111111111111111111111111111111".to_string()];
+        let schema = commit_message_json_schema(&hashes);
+
+        assert_eq!(schema["type"], "object");
+        assert_eq!(schema["additionalProperties"], false);
+        assert_eq!(schema["required"], json!(["aaaaaaa"]));
+        assert_eq!(schema["properties"]["aaaaaaa"]["type"], "string");
+    }
+
+    #[test]
+    fn existing_non_repo_can_remain_armed_for_monitoring() {
+        let temp = TempDir::new().unwrap();
+        let mut store = StoreData::default();
+        store.folders.push(FolderObj {
+            path: temp.path().to_string_lossy().to_string(),
+            monitoring: true,
+            needs_relocation: false,
+            lines_changed: 0,
+            llm_candidates: Vec::new(),
+            llm_buffer: Vec::new(),
+            first_candidate_birthday: None,
+            last_head_hash: None,
+            rewrite_in_progress: false,
+            rewrite_started_at: None,
+        });
+
+        normalize_store(&mut store);
+
+        assert!(store.folders[0].monitoring);
+    }
+
+    #[test]
     fn commit_summary_uses_the_javascript_field_names() {
         let summary = CommitSummary {
             hash: "abcdef0".to_string(),
@@ -4969,6 +5088,19 @@ mod tests {
         assert!(validate_llm_commit_messages(generic, std::slice::from_ref(&hash)).is_err());
         assert!(validate_llm_commit_messages(HashMap::new(), &[hash]).is_err());
         assert!(parse_llm_commit_messages("```json\n{\"aaaaaaa\":\"message\"}\n```").is_err());
+    }
+
+    #[test]
+    fn commit_message_prompt_is_bounded_before_any_model_call() {
+        let temp = init_test_repo();
+        let path = temp.path().to_str().unwrap();
+        let contents = "let generated_value = 1;\n".repeat(10_000);
+        let hash = test_commit(path, "large.rs", &contents, "auto-git: large change");
+
+        let prompt = generate_llm_commit_prompt(path, &[hash]).unwrap();
+
+        assert!(prompt.chars().count() <= MAX_COMMIT_MESSAGE_PROMPT_CHARS);
+        assert!(prompt.contains("[diff truncated by Auto-Git]"));
     }
 
     #[test]
@@ -5185,6 +5317,10 @@ mod tests {
         assert!(is_default_ignored(
             root,
             &temp.path().join("node_modules/package/index.js")
+        ));
+        assert!(!is_default_ignored(
+            root,
+            &temp.path().join("src-tauri/Cargo.lock")
         ));
     }
 

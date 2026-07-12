@@ -84,6 +84,7 @@ Download the latest release for your platform:
 - Commit history follows local branches, so **Jump Here** can navigate backward and forward while `HEAD` is detached. Jumping to a commit that is the unique tip of a local branch reattaches that branch.
 - Starting monitoring reconciles Git changes already present in the working tree, including changes made while monitoring was paused, and commits only those reported paths through the normal guarded monitoring pipeline.
 - Adding any folder immediately enables monitoring in the UI. Existing Git repositories start their watcher at once; non-repositories stay armed and attach the watcher automatically when **Init Repo** completes, without another Play click.
+- Automatic commit-message rewriting performs all Git safety checks before contacting Ollama, bounds diffs to the configured model context, requests an exact JSON schema, and stops after the first failed automatic attempt instead of retrying on each scheduler tick.
 - Automatic stashing, forced checkout, rebase abort, and hard-reset recovery are not used by monitoring or commit-message rewriting.
 - Commit squashing is temporarily disabled until it uses the same transactional worktree mechanism.
 
