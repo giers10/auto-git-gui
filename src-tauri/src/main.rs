@@ -2084,6 +2084,7 @@ fn remove_git_folder(folder_obj: FolderObj) -> CommandResult<()> {
 
 #[tauri::command]
 fn get_commits(
+    state: tauri::State<'_, AppState>,
     folder_obj: FolderObj,
     page: Option<usize>,
     page_size: Option<usize>,
@@ -2098,8 +2099,28 @@ fn get_commits(
             page: 1,
             page_size,
             pages: 1,
+            pending_rewrite_count: 0,
         });
     }
+    let queued_hashes = state
+        .store
+        .lock()
+        .map_err(|e| e.to_string())?
+        .folders
+        .iter()
+        .find(|folder| folder.path == folder_obj.path)
+        .map(|folder| folder.llm_candidates.clone())
+        .unwrap_or_default();
+    let queued_full: HashSet<String> = queued_hashes
+        .iter()
+        .filter_map(|hash| resolve_commit_hash(&folder_obj.path, hash))
+        .collect();
+    let current_history: HashSet<String> = run_git(&folder_obj.path, &["rev-list", "HEAD"])
+        .unwrap_or_default()
+        .lines()
+        .map(str::to_string)
+        .collect();
+    let pending_rewrite_count = pending_rewrite_hashes(&folder_obj.path, &queued_hashes).len();
     let total = run_git(&folder_obj.path, &["rev-list", "--all", "--count"])
         .ok()
         .and_then(|raw| raw.trim().parse::<usize>().ok())
@@ -2112,6 +2133,7 @@ fn get_commits(
             page: 1,
             page_size,
             pages: 1,
+            pending_rewrite_count: 0,
         });
     }
     let skip = (page - 1) * page_size;
@@ -2138,6 +2160,8 @@ fn get_commits(
                 hash: short_hash(hash),
                 date: date.to_string(),
                 message: message.to_string(),
+                needs_rewrite: is_auto_git_message(message) || queued_full.contains(hash),
+                can_reword: current_history.contains(hash),
             })
         })
         .collect();
@@ -2152,6 +2176,7 @@ fn get_commits(
         page,
         page_size,
         pages: pages.max(1),
+        pending_rewrite_count,
     })
 }
 
