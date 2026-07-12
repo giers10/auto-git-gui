@@ -33,6 +33,7 @@ use tempfile::TempDir;
 type CommandResult<T> = Result<T, String>;
 
 const VALID_THEMES: &[&str] = &["sky", "default", "grey"];
+const VALID_REWORD_MODES: &[&str] = &["ask", "auto", "manual"];
 const EMPTY_TREE_HASH: &str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 const SQUASH_CHUNK_WINDOW_MS: i64 = 2 * 60 * 1000;
 const MAX_SQUASH_PROMPT_CHARS: usize = 25_000;
@@ -279,6 +280,8 @@ struct StoreData {
     commit_model: Option<String>,
     #[serde(default)]
     readme_model: Option<String>,
+    #[serde(default = "default_reword_mode")]
+    reword_mode: String,
     #[serde(default)]
     author: Option<String>,
     #[serde(default)]
@@ -305,6 +308,7 @@ impl Default for StoreData {
             llm_buffer: Vec::new(),
             commit_model: None,
             readme_model: None,
+            reword_mode: default_reword_mode(),
             author: None,
             license: None,
         }
@@ -313,6 +317,10 @@ impl Default for StoreData {
 
 fn default_theme() -> String {
     "sky".to_string()
+}
+
+fn default_reword_mode() -> String {
+    "ask".to_string()
 }
 
 fn default_true() -> bool {
@@ -340,6 +348,7 @@ struct CommitPage {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct CommitSummary {
     hash: String,
     date: String,
@@ -456,6 +465,9 @@ fn normalize_store(store: &mut StoreData) {
         store.theme = if store.skymode { "sky" } else { "default" }.to_string();
     }
     store.skymode = store.theme == "sky";
+    if !VALID_REWORD_MODES.contains(&store.reword_mode.as_str()) {
+        store.reword_mode = default_reword_mode();
+    }
 
     for folder in &mut store.folders {
         let repo_exists = Path::new(&folder.path).join(".git").exists();
@@ -2051,7 +2063,7 @@ fn open_settings_window(app: &AppHandle) -> CommandResult<()> {
     let builder =
         WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("settings.html".into()))
             .title("Einstellungen")
-            .inner_size(600.0, 500.0)
+            .inner_size(600.0, 550.0)
             .resizable(false)
             .background_color(ROSE_TITLEBAR_COLOR);
     #[cfg(target_os = "macos")]
@@ -2679,6 +2691,25 @@ fn set_readme_model(state: tauri::State<'_, AppState>, val: String) -> CommandRe
 }
 
 #[tauri::command]
+fn get_reword_mode(state: tauri::State<'_, AppState>) -> CommandResult<String> {
+    Ok(state
+        .store
+        .lock()
+        .map_err(|e| e.to_string())?
+        .reword_mode
+        .clone())
+}
+
+#[tauri::command]
+fn set_reword_mode(state: tauri::State<'_, AppState>, val: String) -> CommandResult<()> {
+    if !VALID_REWORD_MODES.contains(&val.as_str()) {
+        return Err("Invalid Reword button behavior.".to_string());
+    }
+    state.store.lock().map_err(|e| e.to_string())?.reword_mode = val;
+    save_store(&state)
+}
+
+#[tauri::command]
 fn get_intelligent_commit_threshold(state: tauri::State<'_, AppState>) -> CommandResult<i64> {
     Ok(state
         .store
@@ -2892,6 +2923,7 @@ fn run_manual_rewrite_job(
     folder_path: String,
     hashes: Vec<String>,
     scope: &'static str,
+    supplied_messages: Option<HashMap<String, String>>,
 ) {
     let state = app.state::<AppState>();
     let total = hashes.len();
@@ -2948,40 +2980,58 @@ fn run_manual_rewrite_job(
         })
         .collect();
 
-    let mut successful_messages = HashMap::new();
+    let mut successful_messages = supplied_messages.unwrap_or_default();
     let mut llm_failures: Vec<(String, String)> = Vec::new();
-    match ensure_ollama_running() {
+    let uses_llm = successful_messages.is_empty();
+    match if uses_llm {
+        ensure_ollama_running()
+    } else {
+        Ok(())
+    } {
         Ok(()) => {
-            for (index, hash) in hashes.iter().enumerate() {
+            if !uses_llm {
                 emit_rewrite_progress(
                     &app,
                     &folder_path,
                     scope,
                     "running",
-                    index,
                     total,
-                    Some(hash),
+                    total,
+                    hashes.first().map(String::as_str),
                     None,
                 );
-                match generate_llm_message_for_commit(&app, &folder_path, hash, &model) {
-                    Ok(message) => {
-                        successful_messages.insert(hash.clone(), message);
+            } else {
+                for (index, hash) in hashes.iter().enumerate() {
+                    emit_rewrite_progress(
+                        &app,
+                        &folder_path,
+                        scope,
+                        "running",
+                        index,
+                        total,
+                        Some(hash),
+                        None,
+                    );
+                    match generate_llm_message_for_commit(&app, &folder_path, hash, &model) {
+                        Ok(message) => {
+                            successful_messages.insert(hash.clone(), message);
+                        }
+                        Err(err) => {
+                            eprintln!("[manualRewrite] {} failed: {err}", short_hash(hash));
+                            llm_failures.push((hash.clone(), err));
+                        }
                     }
-                    Err(err) => {
-                        eprintln!("[manualRewrite] {} failed: {err}", short_hash(hash));
-                        llm_failures.push((hash.clone(), err));
-                    }
+                    emit_rewrite_progress(
+                        &app,
+                        &folder_path,
+                        scope,
+                        "running",
+                        index + 1,
+                        total,
+                        Some(hash),
+                        None,
+                    );
                 }
-                emit_rewrite_progress(
-                    &app,
-                    &folder_path,
-                    scope,
-                    "running",
-                    index + 1,
-                    total,
-                    Some(hash),
-                    None,
-                );
             }
         }
         Err(err) => {
@@ -3142,7 +3192,67 @@ fn rewrite_commit(
         folder.rewrite_started_at = Some(now_ms());
     }
     save_store(&state)?;
-    thread::spawn(move || run_manual_rewrite_job(app, folder_path, vec![full_hash], "single"));
+    thread::spawn(move || {
+        run_manual_rewrite_job(app, folder_path, vec![full_hash], "single", None)
+    });
+    Ok(json!({ "success": true, "count": 1 }))
+}
+
+#[tauri::command]
+fn rewrite_commit_with_message(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    folder_path: String,
+    hash: String,
+    message: String,
+) -> CommandResult<Value> {
+    let message = message.trim().to_string();
+    if message.is_empty() {
+        return Ok(json!({ "success": false, "error": "The commit message cannot be empty." }));
+    }
+    if message.lines().count() != 1 {
+        return Ok(
+            json!({ "success": false, "error": "Please enter a single-line commit message." }),
+        );
+    }
+    let full_hash = resolve_commit_hash(&folder_path, &hash)
+        .ok_or_else(|| format!("Commit {hash} was not found."))?;
+    if !is_commit_on_current_history(&folder_path, &full_hash) {
+        return Ok(json!({
+            "success": false,
+            "error": "This commit is not in the current HEAD history. Jump to its branch/history first."
+        }));
+    }
+    if is_rebase_in_progress(&folder_path) {
+        return Ok(json!({ "success": false, "error": "A Git rebase is already in progress." }));
+    }
+    {
+        let mut store = state.store.lock().map_err(|e| e.to_string())?;
+        let Some(folder) = store
+            .folders
+            .iter_mut()
+            .find(|folder| folder.path == folder_path)
+        else {
+            return Ok(json!({ "success": false, "error": "folder not found" }));
+        };
+        if folder.needs_relocation {
+            return Ok(json!({ "success": false, "error": "needs relocation" }));
+        }
+        if folder.rewrite_in_progress {
+            return Ok(json!({
+                "success": false,
+                "error": "Another rewrite is already running for this repository."
+            }));
+        }
+        folder.rewrite_in_progress = true;
+        folder.rewrite_started_at = Some(now_ms());
+    }
+    save_store(&state)?;
+    thread::spawn(move || {
+        let mut messages = HashMap::new();
+        messages.insert(full_hash.clone(), message);
+        run_manual_rewrite_job(app, folder_path, vec![full_hash], "typed", Some(messages));
+    });
     Ok(json!({ "success": true, "count": 1 }))
 }
 
@@ -3185,7 +3295,7 @@ fn rewrite_pending_commits(
     };
     let count = hashes.len();
     save_store(&state)?;
-    thread::spawn(move || run_manual_rewrite_job(app, folder_path, hashes, "pending"));
+    thread::spawn(move || run_manual_rewrite_job(app, folder_path, hashes, "pending", None));
     Ok(json!({ "success": true, "count": count }))
 }
 
@@ -4164,6 +4274,8 @@ fn main() {
             set_commit_model,
             get_readme_model,
             set_readme_model,
+            get_reword_mode,
+            set_reword_mode,
             get_intelligent_commit_threshold,
             set_intelligent_commit_threshold,
             get_minutes_commit_threshold,
@@ -4182,6 +4294,7 @@ fn main() {
             get_all_commit_hashes,
             trigger_rewrite_now,
             rewrite_commit,
+            rewrite_commit_with_message,
             rewrite_pending_commits,
             show_folder_context_menu,
             show_tree_context_menu,
@@ -4227,6 +4340,33 @@ mod tests {
         );
         assert_eq!(slugify_repository_name("  Fragile___App  "), "fragile-app");
         assert_eq!(slugify_repository_name("☃"), "repository");
+    }
+
+    #[test]
+    fn reword_button_mode_defaults_to_ask_and_invalid_values_are_normalized() {
+        let mut store = StoreData::default();
+        assert_eq!(store.reword_mode, "ask");
+
+        store.reword_mode = "unexpected".to_string();
+        normalize_store(&mut store);
+        assert_eq!(store.reword_mode, "ask");
+    }
+
+    #[test]
+    fn commit_summary_uses_the_javascript_field_names() {
+        let summary = CommitSummary {
+            hash: "abcdef0".to_string(),
+            date: "2026-07-12T00:00:00Z".to_string(),
+            message: "Test message".to_string(),
+            needs_rewrite: true,
+            can_reword: true,
+        };
+
+        let serialized = serde_json::to_value(summary).unwrap();
+        assert_eq!(serialized["needsRewrite"], true);
+        assert_eq!(serialized["canReword"], true);
+        assert!(serialized.get("needs_rewrite").is_none());
+        assert!(serialized.get("can_reword").is_none());
     }
 
     #[test]

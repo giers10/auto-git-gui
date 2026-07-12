@@ -64,6 +64,8 @@
     setCommitModel: model => invoke('set_commit_model', { val: model }),
     getReadmeModel: () => invoke('get_readme_model'),
     setReadmeModel: model => invoke('set_readme_model', { val: model }),
+    getRewordMode: () => invoke('get_reword_mode'),
+    setRewordMode: val => invoke('set_reword_mode', { val }),
     close: () => invoke('close_settings'),
     getAutostart: () => invoke('get_autostart'),
     setAutostart: val => invoke('set_autostart', { enabled: val }),
@@ -123,6 +125,7 @@
     initRepo: folderPath => invoke('init_repo', { folderPath }),
     triggerRewriteNow: folderPath => invoke('trigger_rewrite_now', { folderPath }),
     rewriteCommit: (folderPath, hash) => invoke('rewrite_commit', { folderPath, hash }),
+    rewriteCommitWithMessage: (folderPath, hash, message) => invoke('rewrite_commit_with_message', { folderPath, hash, message }),
     rewritePendingCommits: folderPath => invoke('rewrite_pending_commits', { folderPath })
   };
 

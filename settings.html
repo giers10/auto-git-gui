@@ -176,6 +176,7 @@
     const cbSkip             = document.getElementById('skipPrompt');
     const thresholdInput     = document.getElementById('intelligentCommitThresholdInput');
     const minutesInput       = document.getElementById('intelligentCommitMinutesInput');
+    const rewordModeSelect   = document.getElementById('rewordModeSelect');
     const ok                 = document.getElementById('okBtn');
     const cancel             = document.getElementById('cancelBtn');
     const cbAutostart        = document.getElementById('autostart');
@@ -190,11 +191,12 @@
     cbCloseToTray.checked = initialCloseToTray;
 
     // Initialwerte parallel laden
-    const [initialTheme, initialSkip, initialThreshold, initialMinutes] = await Promise.all([
+    const [initialTheme, initialSkip, initialThreshold, initialMinutes, initialRewordMode] = await Promise.all([
       window.settingsAPI.getTheme(),
       window.settingsAPI.getSkipPrompt(),
       window.electronAPI.getIntelligentCommitThreshold(),
-      window.electronAPI.getMinutesCommitThreshold()
+      window.electronAPI.getMinutesCommitThreshold(),
+      window.settingsAPI.getRewordMode()
     ]);
 
     const fallbackTheme = VALID_THEMES.includes(initialTheme) ? initialTheme : 'sky';
@@ -204,6 +206,9 @@
     cbSkip.checked       = initialSkip;
     thresholdInput.value = initialThreshold;
     minutesInput.value   = initialMinutes;
+    rewordModeSelect.value = ['ask', 'auto', 'manual'].includes(initialRewordMode)
+      ? initialRewordMode
+      : 'ask';
 
     // **Vorschau**: Theme sofort übernehmen
     themeSelect.addEventListener('change', async () => {
@@ -224,6 +229,7 @@
       await window.settingsAPI.setAutostart(cbAutostart.checked);
       await window.settingsAPI.setCloseToTray(cbCloseToTray.checked);
       await window.settingsAPI.setTheme(themeSelect.value || fallbackTheme);
+      await window.settingsAPI.setRewordMode(rewordModeSelect.value || 'ask');
 
       // Threshold speichern (immer Wert aus Feld nehmen!)
       let threshold = parseInt(thresholdInput.value, 10);
@@ -341,6 +347,14 @@
           <option value="sky">SkyMode</option>
           <option value="default">Default</option>
           <option value="grey">Grey</option>
+        </select>
+      </label>
+      <label class="option" style="align-items:center;">
+        Reword button:
+        <select id="rewordModeSelect" style="margin-left:1em;">
+          <option value="ask">Ask every time</option>
+          <option value="auto">Automatic (LLM)</option>
+          <option value="manual">Manual input</option>
         </select>
       </label>
       <label class="option">

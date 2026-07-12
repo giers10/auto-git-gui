@@ -10,6 +10,15 @@ window.addEventListener('DOMContentLoaded', async () => {
   const initRepoBtn = document.getElementById('initRepoBtn');
   const pushBtn = document.getElementById('pushBtn');
   const rewritePendingBtn = document.getElementById('rewritePendingBtn');
+  const rewordModeModal = document.getElementById('rewordModeModal');
+  const rememberRewordMode = document.getElementById('rememberRewordMode');
+  const cancelRewordModeBtn = document.getElementById('cancelRewordModeBtn');
+  const manualRewordModeBtn = document.getElementById('manualRewordModeBtn');
+  const autoRewordModeBtn = document.getElementById('autoRewordModeBtn');
+  const manualRewordModal = document.getElementById('manualRewordModal');
+  const manualRewordForm = document.getElementById('manualRewordForm');
+  const manualRewordInput = document.getElementById('manualRewordInput');
+  const cancelManualRewordBtn = document.getElementById('cancelManualRewordBtn');
   const panel       = document.querySelector('.flex-1.p-4.overflow-y-auto');
   const PAGE_SIZE = 50;
 
@@ -20,6 +29,59 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   let lastFolderPath = null;
   let lastPage = null;
+
+  function chooseRewordMode() {
+    rememberRewordMode.checked = false;
+    rewordModeModal.classList.remove('hidden');
+    rewordModeModal.classList.add('flex');
+    return new Promise(resolve => {
+      const finish = mode => {
+        rewordModeModal.classList.add('hidden');
+        rewordModeModal.classList.remove('flex');
+        resolve(mode ? { mode, remember: rememberRewordMode.checked } : null);
+      };
+      cancelRewordModeBtn.onclick = () => finish(null);
+      manualRewordModeBtn.onclick = () => finish('manual');
+      autoRewordModeBtn.onclick = () => finish('auto');
+    });
+  }
+
+  function promptForCommitMessage(currentMessage) {
+    manualRewordInput.value = currentMessage || '';
+    manualRewordInput.setCustomValidity('');
+    manualRewordModal.classList.remove('hidden');
+    manualRewordModal.classList.add('flex');
+    requestAnimationFrame(() => {
+      manualRewordInput.focus();
+      manualRewordInput.select();
+    });
+    return new Promise(resolve => {
+      const finish = message => {
+        manualRewordModal.classList.add('hidden');
+        manualRewordModal.classList.remove('flex');
+        resolve(message);
+      };
+      cancelManualRewordBtn.onclick = () => finish(null);
+      manualRewordInput.oninput = () => manualRewordInput.setCustomValidity('');
+      manualRewordInput.onkeydown = event => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          finish(null);
+        }
+      };
+      manualRewordForm.onsubmit = event => {
+        event.preventDefault();
+        const message = manualRewordInput.value.trim();
+        if (!message) {
+          manualRewordInput.setCustomValidity('The commit message cannot be empty.');
+          manualRewordInput.reportValidity();
+          return;
+        }
+        manualRewordInput.setCustomValidity('');
+        finish(message);
+      };
+    });
+  }
 
   const slot = document.getElementById('catSlot');
   window.cat = new window.AnimeCat(slot, {
@@ -771,10 +833,61 @@ window.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
+    async function startTypedRewrite(hash, currentMessage, control) {
+      const message = await promptForCommitMessage(currentMessage);
+      if (message === null) return;
+      control.disabled = true;
+      try {
+        const result = await window.electronAPI.rewriteCommitWithMessage(
+          folderObj.path,
+          hash,
+          message
+        );
+        if (!result?.success) {
+          alert('Rewrite could not start:\n' + (result?.error || 'Unknown error'));
+        }
+      } catch (e) {
+        console.error('Typed commit rewrite error:', e);
+        alert('Rewrite could not start:\n' + (e.message || e));
+      } finally {
+        const refreshed = await getFolderObjByPath(folderObj.path);
+        if (refreshed) await renderContent(refreshed, currentPage);
+      }
+    }
+
+    async function handleRewordButton(commit, control) {
+      let mode = 'ask';
+      try {
+        mode = await window.settingsAPI.getRewordMode();
+      } catch (e) {
+        console.error('Could not load Reword choice:', e);
+      }
+      if (!['ask', 'auto', 'manual'].includes(mode)) mode = 'ask';
+      if (mode === 'ask') {
+        const choice = await chooseRewordMode();
+        if (!choice) return;
+        mode = choice.mode;
+        if (choice.remember) {
+          try {
+            await window.settingsAPI.setRewordMode(mode);
+          } catch (e) {
+            console.error('Could not remember Reword choice:', e);
+            alert('Your choice could not be saved, but this rewrite will continue.');
+          }
+        }
+      }
+      if (mode === 'manual') {
+        await startTypedRewrite(commit.hash, commit.message, control);
+      } else {
+        await startSingleRewrite(commit.hash, control);
+      }
+    }
+
     // Reword is available for every commit in the current HEAD history.
     contentList.querySelectorAll('.reword-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
-        await startSingleRewrite(btn.dataset.hash, btn);
+        const commit = commits.find(item => item.hash === btn.dataset.hash);
+        if (commit) await handleRewordButton(commit, btn);
       });
     });
 
