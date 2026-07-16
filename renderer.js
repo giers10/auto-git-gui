@@ -654,7 +654,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     rewritePendingBtn.disabled = !!folderObj.rewriteInProgress || pendingCount === 0;
     rewritePendingBtn.textContent = folderObj.rewriteInProgress
       ? 'Rewriting…'
-      : `Rewrite pending (${pendingCount})`;
+      : `Rewrite all (${pendingCount})`;
 
     if (!commits || !commits.length) {
       rewritePendingBtn.classList.add('hidden');

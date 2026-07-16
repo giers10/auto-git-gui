@@ -80,13 +80,16 @@ Download the latest release for your platform:
 - Monitoring commits only paths reported by filesystem events. It never stages the whole repository.
 - Build output and dependency folders such as `node_modules`, `dist-tauri`, and `src-tauri/target` are always excluded.
 - Auto-Git refuses to commit when the index already contains staged work or when Git is rebasing, merging, resolving conflicts, or using a detached HEAD.
-- Threshold- and timer-based commit-message rewrites run once in a temporary worktree and update the real branch atomically only after verifying that its tree is unchanged. They do not retain a duplicate history ref. The Reword button preference affects only that button, not scheduled rewrites.
+- Threshold- and timer-based commit-message rewrites rebuild commit objects directly without checkout, rebase, hooks, signing, or staging. Every rewritten and descendant commit is checked for identical tree, topology, metadata, and the expected message before the guarded branch compare-and-swap. They do not retain a duplicate history ref. The Reword button preference affects only that button, not scheduled rewrites.
 - Commit history follows local branches, so **Jump Here** can navigate backward and forward while `HEAD` is detached. Jumping to a commit that is the unique tip of a local branch reattaches that branch.
 - Starting monitoring reconciles Git changes already present in the working tree, including changes made while monitoring was paused, and commits only those reported paths through the normal guarded monitoring pipeline.
 - Adding any folder immediately enables monitoring in the UI. Existing Git repositories start their watcher at once; non-repositories stay armed and attach the watcher automatically when **Init Repo** completes, without another Play click.
 - Automatic commit-message rewriting performs all Git safety checks before contacting Ollama, bounds diffs to the configured model context, requests an exact JSON schema, and stops after the first failed automatic attempt instead of retrying on each scheduler tick.
+- **Rewrite all** is shown whenever the current HEAD history contains paw-marked commits and rewrites all of them in one manually initiated model request and one transactional history update.
+- Every automatic candidate batch receives a persisted one-shot identifier before its model request. The same batch can never be sent automatically again, including after a failure or app restart.
+- Reword, paw retry, and Rewrite all run their Git preflight synchronously. Dirty, staged, and untracked working changes are preserved because message rewriting never touches the worktree or index. Conflicts, detached HEAD, and in-progress Git operations return an immediate UI error and start no model request.
 - Automatic stashing, forced checkout, rebase abort, and hard-reset recovery are not used by monitoring or commit-message rewriting.
-- Commit squashing is temporarily disabled until it uses the same transactional worktree mechanism.
+- Commit squashing is temporarily disabled until it uses an equivalently isolated transactional mechanism.
 
 ---
 

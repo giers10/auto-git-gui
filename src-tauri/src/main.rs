@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 use std::{
     collections::{HashMap, HashSet},
     fs,
-    io::{Read, Write},
+    io::{BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::{
@@ -19,7 +19,7 @@ use std::{
         Mutex,
     },
     thread,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
@@ -28,7 +28,9 @@ use tauri::{
     AppHandle, Emitter, Manager, TitleBarStyle, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
     WindowEvent,
 };
-use tempfile::{NamedTempFile, TempDir};
+use tempfile::NamedTempFile;
+#[cfg(test)]
+use tempfile::TempDir;
 use wait_timeout::ChildExt;
 
 type CommandResult<T> = Result<T, String>;
@@ -46,10 +48,11 @@ const OLLAMA_BASE_URL: &str = "http://127.0.0.1:11434";
 const ROSE_TITLEBAR_COLOR: Color = Color(255, 241, 242, 255);
 const GIT_PROCESS_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 const MAX_COMMIT_MESSAGE_PROMPT_CHARS: usize = 32_000;
-const MAX_COMMIT_DIFF_TOTAL_CHARS: usize = 18_000;
+const MAX_COMMIT_DIFF_TOTAL_CHARS: usize = 12_000;
+const MAX_EXISTING_COMMIT_MESSAGE_CHARS: usize = 160;
 const OLLAMA_COMMIT_CONTEXT_TOKENS: u64 = 16_384;
-// Automatic rewriting is safe to enable because all history mutation happens in an isolated
-// worktree and the real branch is updated only after tree validation and a compare-and-swap.
+// Automatic rewriting is safe to enable because commits are rebuilt with non-interactive Git
+// plumbing, every commit is validated, and the guarded branch move is an atomic compare-and-swap.
 const AUTO_HISTORY_REWRITE_ENABLED: bool = true;
 const TRANSACTIONAL_SQUASH_ENABLED: bool = false;
 const VISIBLE_HISTORY_REVISION: &str = "--branches";
@@ -249,6 +252,8 @@ struct FolderObj {
     rewrite_in_progress: bool,
     #[serde(default)]
     rewrite_started_at: Option<i64>,
+    #[serde(default)]
+    attempted_automatic_rewrite_batches: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -691,7 +696,9 @@ fn validate_repo_state(repo_path: &str, require_clean: bool) -> CommandResult<()
             "Git {operation} is already in progress. Auto-Git left it untouched."
         ));
     }
-    let unmerged = run_git(repo_path, &["diff", "--name-only", "--diff-filter=U"])?;
+    // `git diff` can invoke a repository-configured legacy fsmonitor hook. Reading the unmerged
+    // index entries directly avoids executing repository code during rewrite preflight.
+    let unmerged = run_git(repo_path, &["-c", "core.fsmonitor=false", "ls-files", "-u"])?;
     if !unmerged.trim().is_empty() {
         return Err(
             "Repository has unresolved conflicts. Auto-Git left them untouched.".to_string(),
@@ -700,9 +707,11 @@ fn validate_repo_state(repo_path: &str, require_clean: bool) -> CommandResult<()
     if require_clean {
         let status = run_git(repo_path, &["status", "--porcelain"])?;
         if !status.trim().is_empty() {
+            let summary = status.lines().take(10).collect::<Vec<_>>().join("\n");
             return Err(
-                "This operation requires a clean worktree and index; Auto-Git did not stash anything."
-                    .to_string(),
+                format!(
+                    "This operation requires a clean worktree and index; Auto-Git did not stash anything. Current changes:\n{summary}"
+                ),
             );
         }
     }
@@ -871,6 +880,31 @@ fn pending_rewrite_hashes(repo_path: &str, queued_hashes: &[String]) -> Vec<Stri
         .filter_map(|hash| resolve_commit_hash(repo_path, hash))
         .filter(|hash| is_commit_on_current_history(repo_path, hash))
         .filter(|hash| seen.insert(hash.clone()))
+        .collect()
+}
+
+fn rewrite_batch_id(hashes: &[String]) -> String {
+    let mut hashes = hashes.to_vec();
+    hashes.sort();
+    hashes.dedup();
+    hashes.join("\n")
+}
+
+fn all_rewrite_needed_hashes(repo_path: &str, queued_hashes: &[String]) -> Vec<String> {
+    let queued: HashSet<String> = pending_rewrite_hashes(repo_path, queued_hashes)
+        .into_iter()
+        .collect();
+    run_git(repo_path, &["log", "HEAD", "--format=%H%x1f%s"])
+        .unwrap_or_default()
+        .lines()
+        .filter_map(|line| {
+            let (hash, message) = line.split_once('\x1f')?;
+            if is_auto_git_message(message) || queued.contains(hash) {
+                Some(hash.to_string())
+            } else {
+                None
+            }
+        })
         .collect()
 }
 
@@ -1107,30 +1141,23 @@ fn validate_llm_commit_messages(
     Ok(validated)
 }
 
-fn generate_llm_message_for_commit(
+fn generate_llm_messages_for_commits(
     app: &AppHandle,
     folder_path: &str,
-    hash: &str,
+    hashes: &[String],
     model: &str,
-) -> CommandResult<String> {
-    let hashes = vec![hash.to_string()];
-    let prompt = generate_llm_commit_prompt(folder_path, &hashes)?;
-    let llm_raw = stream_ollama_json(&prompt, model, 0.3, &hashes, app)?;
+) -> CommandResult<HashMap<String, String>> {
+    let prompt = generate_llm_commit_prompt(folder_path, hashes)?;
+    let llm_raw = stream_ollama_json(&prompt, model, 0.3, hashes, app)?;
     let parsed = parse_llm_commit_messages(&llm_raw)?;
-    let validated = validate_llm_commit_messages(parsed, &hashes)?;
-    validated.get(hash).cloned().ok_or_else(|| {
-        format!(
-            "No validated message was returned for {}.",
-            short_hash(hash)
-        )
-    })
+    validate_llm_commit_messages(parsed, hashes)
 }
 
-fn truncate_prompt_text(value: &str, max_chars: usize) -> String {
+fn truncate_prompt_text(value: &str, max_chars: usize, marker: &str) -> String {
     let Some((cutoff, _)) = value.char_indices().nth(max_chars) else {
         return value.to_string();
     };
-    format!("{}\n[diff truncated by Auto-Git]", &value[..cutoff])
+    format!("{}\n{marker}", &value[..cutoff])
 }
 
 fn get_commits_for_llm(folder_path: &str, hashes: &[String]) -> CommandResult<Vec<Value>> {
@@ -1139,13 +1166,28 @@ fn get_commits_for_llm(folder_path: &str, hashes: &[String]) -> CommandResult<Ve
     for hash in hashes {
         let diff = run_git(
             folder_path,
-            &["show", "--format=", "--no-ext-diff", "--unified=2", hash],
+            &[
+                "show",
+                "--format=",
+                "--no-ext-diff",
+                "--no-textconv",
+                "--unified=2",
+                hash,
+            ],
         )?;
         let msg = run_git(folder_path, &["show", "-s", "--format=%B", hash])?;
         commits.push(json!({
             "hash": short_hash(hash),
-            "message": msg.trim(),
-            "diff": truncate_prompt_text(&diff, diff_budget)
+            "message": truncate_prompt_text(
+                msg.trim(),
+                MAX_EXISTING_COMMIT_MESSAGE_CHARS,
+                "[existing message truncated by Auto-Git]"
+            ),
+            "diff": truncate_prompt_text(
+                &diff,
+                diff_budget,
+                "[diff truncated by Auto-Git]"
+            )
         }));
     }
     Ok(commits)
@@ -1179,8 +1221,303 @@ COMMITS (as JSON):
     Ok(prompt)
 }
 
-fn shell_single_quote(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "'\"'\"'"))
+#[derive(Clone, Debug)]
+struct RawCommit {
+    hash: String,
+    headers: String,
+    tree: String,
+    parents: Vec<String>,
+    message: String,
+}
+
+fn read_raw_commit(repo_path: &str, hash: &str) -> CommandResult<RawCommit> {
+    let raw = run_git(repo_path, &["cat-file", "commit", hash])?;
+    // run_process exposes text. Round-tripping before writing anything ensures invalid UTF-8 or
+    // replacement-object content cannot be silently changed by the conversion.
+    let round_trip = run_git_owned(
+        repo_path,
+        &[
+            "hash-object".into(),
+            "-t".into(),
+            "commit".into(),
+            "--stdin".into(),
+        ],
+        None,
+        Some(&raw),
+    )?;
+    if round_trip.trim() != hash {
+        return Err(format!(
+            "Commit {} cannot be represented losslessly; Auto-Git left history untouched.",
+            short_hash(hash)
+        ));
+    }
+    let (headers, message) = raw.split_once("\n\n").ok_or_else(|| {
+        format!(
+            "Commit {} has malformed headers; Auto-Git left history untouched.",
+            short_hash(hash)
+        )
+    })?;
+    let mut tree: Option<String> = None;
+    let mut parents = Vec::new();
+    for line in headers.lines() {
+        if let Some(value) = line.strip_prefix("tree ") {
+            if tree.replace(value.to_string()).is_some() {
+                return Err(format!(
+                    "Commit {} has multiple tree headers.",
+                    short_hash(hash)
+                ));
+            }
+        } else if let Some(value) = line.strip_prefix("parent ") {
+            parents.push(value.to_string());
+        } else if line.starts_with("gpgsig ") || line.starts_with("gpgsig-sha256 ") {
+            return Err(format!(
+                "Commit {} is signed. Auto-Git will not invalidate commit signatures.",
+                short_hash(hash)
+            ));
+        }
+    }
+    Ok(RawCommit {
+        hash: hash.to_string(),
+        headers: headers.to_string(),
+        tree: tree.ok_or_else(|| format!("Commit {} has no tree header.", short_hash(hash)))?,
+        parents,
+        message: message.to_string(),
+    })
+}
+
+fn headers_without_parent(headers: &str) -> String {
+    headers
+        .lines()
+        .filter(|line| !line.starts_with("parent "))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn raw_commit_with_parent_and_message(
+    commit: &RawCommit,
+    parent: Option<&str>,
+    message: &str,
+) -> CommandResult<String> {
+    if commit.parents.len() > 1 {
+        return Err(format!(
+            "Commit {} is a merge commit. Auto-Git left history untouched.",
+            short_hash(&commit.hash)
+        ));
+    }
+    if commit.parents.is_empty() != parent.is_none() {
+        return Err(format!(
+            "Commit topology changed at {}; Auto-Git left history untouched.",
+            short_hash(&commit.hash)
+        ));
+    }
+    let mut rewritten_headers = Vec::new();
+    for line in commit.headers.lines() {
+        if line.starts_with("parent ") {
+            rewritten_headers.push(format!("parent {}", parent.unwrap_or_default()));
+        } else {
+            rewritten_headers.push(line.to_string());
+        }
+    }
+    Ok(format!("{}\n\n{}", rewritten_headers.join("\n"), message))
+}
+
+fn write_commit_object(repo_path: &str, raw: &str) -> CommandResult<String> {
+    Ok(run_git_owned(
+        repo_path,
+        &[
+            "hash-object".into(),
+            "-t".into(),
+            "commit".into(),
+            "-w".into(),
+            "--stdin".into(),
+        ],
+        None,
+        Some(raw),
+    )?
+    .trim()
+    .to_string())
+}
+
+fn wait_for_ref_transaction_response(
+    receiver: &std::sync::mpsc::Receiver<String>,
+    expected: &str,
+) -> CommandResult<()> {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Err(format!("Timed out waiting for Git response `{expected}`."));
+        }
+        match receiver.recv_timeout(remaining) {
+            Ok(line) if line.trim() == expected => return Ok(()),
+            Ok(_) => continue,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                return Err(format!("Timed out waiting for Git response `{expected}`."));
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                return Err(format!(
+                    "Git exited before confirming ref transaction step `{expected}`."
+                ));
+            }
+        }
+    }
+}
+
+fn update_current_branch_compare_and_swap(
+    repo_path: &str,
+    snapshot: &RepoSnapshot,
+    new_head: &str,
+) -> CommandResult<()> {
+    let mut child = Command::new("git")
+        .args([
+            "-c",
+            "core.hooksPath=/dev/null",
+            "update-ref",
+            "-m",
+            "auto-git: reword commit messages",
+            "--stdin",
+        ])
+        .current_dir(repo_path)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|err| format!("Could not start the guarded ref transaction: {err}"))?;
+    let mut stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| "Could not open the ref transaction input.".to_string())?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "Could not read the ref transaction output.".to_string())?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| "Could not read the ref transaction errors.".to_string())?;
+    let (line_sender, line_receiver) = std::sync::mpsc::channel();
+    let stdout_reader = thread::spawn(move || {
+        let mut reader = BufReader::new(stdout);
+        loop {
+            let mut line = String::new();
+            match reader.read_line(&mut line) {
+                Ok(0) => break,
+                Ok(_) => {
+                    if line_sender.send(line).is_err() {
+                        break;
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+    });
+    let stderr_reader = thread::spawn(move || {
+        let mut reader = stderr;
+        let mut bytes = Vec::new();
+        let _ = reader.read_to_end(&mut bytes);
+        bytes
+    });
+
+    let mut transaction_error = (|| -> CommandResult<()> {
+        writeln!(stdin, "start").map_err(|err| err.to_string())?;
+        writeln!(stdin, "update HEAD {new_head} {}", snapshot.head)
+            .map_err(|err| err.to_string())?;
+        writeln!(stdin, "prepare").map_err(|err| err.to_string())?;
+        stdin.flush().map_err(|err| err.to_string())?;
+        wait_for_ref_transaction_response(&line_receiver, "prepare: ok")?;
+
+        // Preparing an update to HEAD locks both HEAD and its current referent. With those locks
+        // held, this second snapshot proves that the transaction resolved the branch that was
+        // originally selected; checkout/rebase cannot change it before `commit`.
+        let current = safe_repo_snapshot(repo_path, false)?;
+        if current.branch_ref != snapshot.branch_ref
+            || current.head != snapshot.head
+            || current.tree != snapshot.tree
+        {
+            return Err(
+                "The checked-out branch or HEAD changed during message generation; Auto-Git left all refs untouched."
+                    .to_string(),
+            );
+        }
+        Ok(())
+    })()
+    .err();
+
+    let commit_requested = transaction_error.is_none();
+    let mut final_step_confirmed = false;
+    if commit_requested {
+        if let Err(err) = writeln!(stdin, "commit").and_then(|_| stdin.flush()) {
+            transaction_error = Some(err.to_string());
+        } else {
+            match wait_for_ref_transaction_response(&line_receiver, "commit: ok") {
+                Ok(()) => final_step_confirmed = true,
+                Err(err) => transaction_error = Some(err),
+            }
+        }
+    } else if writeln!(stdin, "abort").and_then(|_| stdin.flush()).is_ok()
+        && wait_for_ref_transaction_response(&line_receiver, "abort: ok").is_ok()
+    {
+        final_step_confirmed = true;
+    }
+    drop(stdin);
+
+    let status = if final_step_confirmed {
+        match child
+            .wait_timeout(Duration::from_secs(10))
+            .map_err(|err| err.to_string())?
+        {
+            Some(status) => status,
+            None => {
+                // `commit: ok` / `abort: ok` means Git already released all transaction locks.
+                // SIGKILL is only safe after that acknowledgement, never while prepared.
+                let _ = child.kill();
+                child.wait().map_err(|err| err.to_string())?
+            }
+        }
+    } else {
+        // Closing stdin makes update-ref abort a still-prepared transaction and clean its locks.
+        // Do not SIGKILL here: an ungraceful death would strand HEAD.lock and the branch lock.
+        child.wait().map_err(|err| err.to_string())?
+    };
+    let _ = stdout_reader.join();
+    let stderr = String::from_utf8_lossy(&stderr_reader.join().unwrap_or_default())
+        .trim()
+        .to_string();
+    if commit_requested && final_step_confirmed {
+        return Ok(());
+    }
+    if commit_requested {
+        let committed = run_git(repo_path, &["symbolic-ref", "--quiet", "HEAD"])
+            .map(|branch| branch.trim() == snapshot.branch_ref)
+            .unwrap_or(false)
+            && run_git(repo_path, &["rev-parse", "HEAD"])
+                .map(|head| head.trim() == new_head)
+                .unwrap_or(false)
+            && run_git(repo_path, &["rev-parse", "HEAD^{tree}"])
+                .map(|tree| tree.trim() == snapshot.tree)
+                .unwrap_or(false);
+        if committed {
+            return Ok(());
+        }
+    }
+    if let Some(err) = transaction_error {
+        return Err(if stderr.is_empty() {
+            err
+        } else {
+            format!("{err} {stderr}")
+        });
+    }
+    if !status.success() {
+        return Err(if stderr.is_empty() {
+            "Git rejected the guarded ref transaction; Auto-Git left all refs untouched."
+                .to_string()
+        } else {
+            format!(
+                "Git rejected the guarded ref transaction; Auto-Git left all refs untouched. {stderr}"
+            )
+        });
+    }
+    Ok(())
 }
 
 fn reword_commits_transactionally(
@@ -1197,11 +1534,8 @@ fn reword_commits_transactionally(
     if hashes.is_empty() {
         return Ok(());
     }
-    if hashes.len() > 50 {
-        return Err("Refusing to rewrite more than 50 commits in one transaction.".to_string());
-    }
-    let snapshot = safe_repo_snapshot(repo_path, true)?;
-    let all_raw = run_git(repo_path, &["log", "--format=%H"])?;
+    let snapshot = safe_repo_snapshot(repo_path, false)?;
+    let all_raw = run_git(repo_path, &["log", "--format=%H", &snapshot.head])?;
     let all_commits: Vec<String> = all_raw.lines().map(|s| s.to_string()).collect();
     let full_hashes = resolve_reword_hashes_newest_first(&all_commits, hashes);
     if full_hashes.len() != hashes.len() {
@@ -1213,11 +1547,11 @@ fn reword_commits_transactionally(
     let parent = run_git(repo_path, &["rev-parse", "--verify", &format!("{oldest}^")])
         .ok()
         .map(|raw| raw.trim().to_string());
-    let merge_range = parent
+    let rewrite_range = parent
         .as_ref()
-        .map(|parent| format!("{parent}..HEAD"))
-        .unwrap_or_else(|| "HEAD".to_string());
-    if !run_git(repo_path, &["rev-list", "--merges", &merge_range])?
+        .map(|parent| format!("{parent}..{}", snapshot.head))
+        .unwrap_or_else(|| snapshot.head.clone());
+    if !run_git(repo_path, &["rev-list", "--merges", &rewrite_range])?
         .trim()
         .is_empty()
     {
@@ -1227,95 +1561,91 @@ fn reword_commits_transactionally(
         );
     }
 
-    let temp_dir = TempDir::new().map_err(|e| e.to_string())?;
-    let sequence_path = temp_dir.path().join("sequence-editor.sh");
-    let mut sequence_script = String::from(
-        "#!/bin/sh\nset -eu\ntodo=$1\ntmp=\"${todo}.auto-git\"\nwhile IFS= read -r line || [ -n \"$line\" ]; do\n  printf '%s\\n' \"$line\"\n  case \"$line\" in\n",
-    );
-    for (index, full_hash) in full_hashes.iter().enumerate() {
-        let short = short_hash(full_hash);
-        let new_msg = commit_message_map
-            .get(full_hash)
-            .or_else(|| commit_message_map.get(&short))
-            .ok_or_else(|| format!("No validated message exists for commit {short}."))?;
-        let msg_file = temp_dir.path().join(format!("commit-message-{index}.txt"));
-        fs::write(&msg_file, new_msg.trim().to_string() + "\n").map_err(|e| e.to_string())?;
-        let command = format!(
-            "exec git commit --amend --no-verify -F {}",
-            shell_single_quote(&msg_file.to_string_lossy())
-        );
-        sequence_script.push_str(&format!(
-            "    \"pick {full_hash} \"*) printf '%s\\n' {} ;;\n",
-            shell_single_quote(&command)
-        ));
+    let range_raw = run_git(repo_path, &["rev-list", "--reverse", &rewrite_range])?;
+    let range_hashes: Vec<String> = range_raw.lines().map(str::to_string).collect();
+    if range_hashes.is_empty() {
+        return Err("No commits resolved for the rewrite range.".to_string());
     }
-    sequence_script.push_str("  esac\ndone < \"$todo\" > \"$tmp\"\nmv \"$tmp\" \"$todo\"\n");
-    fs::write(&sequence_path, sequence_script).map_err(|e| e.to_string())?;
-    set_executable(&sequence_path)?;
+    let commits: Vec<RawCommit> = range_hashes
+        .iter()
+        .map(|hash| read_raw_commit(repo_path, hash))
+        .collect::<CommandResult<_>>()?;
+    let target_set: HashSet<&str> = full_hashes.iter().map(String::as_str).collect();
+    let mut old_parent = parent.clone();
+    let mut new_parent = parent.clone();
+    let mut expected_messages = Vec::with_capacity(commits.len());
+    let mut new_hashes = Vec::with_capacity(commits.len());
 
-    let worktree_path = temp_dir.path().join("worktree");
-    let worktree_arg = worktree_path.to_string_lossy().to_string();
-    run_git(
-        repo_path,
-        &["worktree", "add", "--detach", &worktree_arg, &snapshot.head],
-    )?;
-    let result = (|| -> CommandResult<()> {
-        let mut env = HashMap::new();
-        env.insert(
-            "GIT_SEQUENCE_EDITOR".to_string(),
-            sequence_path.to_string_lossy().to_string(),
-        );
-        env.insert("GIT_EDITOR".to_string(), "true".to_string());
-        let rebase_args = if let Some(parent) = &parent {
-            vec![
-                "-c".into(),
-                "core.abbrev=40".into(),
-                "-c".into(),
-                "rebase.abbreviateCommands=false".into(),
-                "rebase".into(),
-                "-i".into(),
-                parent.clone(),
-            ]
-        } else {
-            vec![
-                "-c".into(),
-                "core.abbrev=40".into(),
-                "-c".into(),
-                "rebase.abbreviateCommands=false".into(),
-                "rebase".into(),
-                "-i".into(),
-                "--root".into(),
-            ]
-        };
-        run_git_owned(&worktree_arg, &rebase_args, Some(&env), None)?;
-        let new_head = run_git(&worktree_arg, &["rev-parse", "HEAD"])?
-            .trim()
-            .to_string();
-        let new_tree = run_git(&worktree_arg, &["rev-parse", "HEAD^{tree}"])?
-            .trim()
-            .to_string();
-        if new_tree != snapshot.tree {
-            return Err("Rewrite validation failed: final tree changed.".to_string());
+    for commit in &commits {
+        if commit.parents != old_parent.iter().cloned().collect::<Vec<_>>() {
+            return Err(format!(
+                "Commit topology is not a single intact chain at {}; Auto-Git left history untouched.",
+                short_hash(&commit.hash)
+            ));
         }
-        run_git(
-            repo_path,
-            &[
-                "update-ref",
-                &snapshot.branch_ref,
-                &new_head,
-                &snapshot.head,
-            ],
-        )?;
-        Ok(())
-    })();
-    let _ = run_git(repo_path, &["worktree", "remove", "--force", &worktree_arg]);
-    result
+        let expected_message = if target_set.contains(commit.hash.as_str()) {
+            let short = short_hash(&commit.hash);
+            commit_message_map
+                .get(&commit.hash)
+                .or_else(|| commit_message_map.get(&short))
+                .ok_or_else(|| format!("No validated message exists for commit {short}."))?
+                .trim()
+                .to_string()
+                + "\n"
+        } else {
+            commit.message.clone()
+        };
+        let rewritten =
+            raw_commit_with_parent_and_message(commit, new_parent.as_deref(), &expected_message)?;
+        let new_hash = write_commit_object(repo_path, &rewritten)?;
+        expected_messages.push(expected_message);
+        new_hashes.push(new_hash.clone());
+        old_parent = Some(commit.hash.clone());
+        new_parent = Some(new_hash);
+    }
+
+    let new_head = new_hashes
+        .last()
+        .ok_or_else(|| "Rewrite produced no commits.".to_string())?;
+    for (index, new_hash) in new_hashes.iter().enumerate() {
+        let original = &commits[index];
+        let rewritten = read_raw_commit(repo_path, new_hash)?;
+        let expected_parent = if index == 0 {
+            parent.as_deref()
+        } else {
+            Some(new_hashes[index - 1].as_str())
+        };
+        if rewritten.tree != original.tree
+            || rewritten.parents
+                != expected_parent
+                    .into_iter()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>()
+            || headers_without_parent(&rewritten.headers)
+                != headers_without_parent(&original.headers)
+            || rewritten.message != expected_messages[index]
+        {
+            return Err(format!(
+                "Rewrite validation failed at commit {}; Auto-Git left all refs untouched.",
+                short_hash(&original.hash)
+            ));
+        }
+    }
+    if commits.last().map(|commit| commit.tree.as_str()) != Some(snapshot.tree.as_str()) {
+        return Err("Rewrite validation failed: final tree changed.".to_string());
+    }
+
+    update_current_branch_compare_and_swap(repo_path, &snapshot, new_head)
 }
 
 fn resolve_reword_hashes_newest_first(all_commits: &[String], hashes: &[String]) -> Vec<String> {
     let mut full_hashes: Vec<String> = hashes
         .iter()
-        .filter_map(|h| all_commits.iter().find(|full| full.starts_with(h)).cloned())
+        .filter_map(|h| {
+            let mut matches = all_commits.iter().filter(|full| full.starts_with(h));
+            let first = matches.next()?.clone();
+            matches.next().is_none().then_some(first)
+        })
         .collect();
     full_hashes.sort_by_key(|h| {
         all_commits
@@ -1405,19 +1735,6 @@ fn emit_rewrite_progress(
     );
 }
 
-#[cfg(unix)]
-fn set_executable(path: &Path) -> CommandResult<()> {
-    use std::os::unix::fs::PermissionsExt;
-    let mut permissions = fs::metadata(path).map_err(|e| e.to_string())?.permissions();
-    permissions.set_mode(0o755);
-    fs::set_permissions(path, permissions).map_err(|e| e.to_string())
-}
-
-#[cfg(not(unix))]
-fn set_executable(_path: &Path) -> CommandResult<()> {
-    Ok(())
-}
-
 fn run_llm_commit_rewrite(app: AppHandle, folder_path: String) -> CommandResult<()> {
     let state = app.state::<AppState>();
     let _operation = begin_repo_operation(&state, &folder_path, "history rewrite")?;
@@ -1441,6 +1758,19 @@ fn run_llm_commit_rewrite(app: AppHandle, folder_path: String) -> CommandResult<
             return Err("Another rewrite is already running for this repository.".to_string());
         }
         let hashes = folder.llm_candidates.clone();
+        let batch_id = rewrite_batch_id(&hashes);
+        if folder
+            .attempted_automatic_rewrite_batches
+            .contains(&batch_id)
+        {
+            return Err(
+                "This automatic rewrite batch has already been attempted; refusing a duplicate LLM request."
+                    .to_string(),
+            );
+        }
+        // Persist the one-shot token before any network request. If the app crashes or the model
+        // fails, this exact batch still cannot be sent a second time after restart.
+        folder.attempted_automatic_rewrite_batches.push(batch_id);
         folder.rewrite_in_progress = true;
         folder.rewrite_started_at = Some(now_ms());
         hashes
@@ -1450,10 +1780,10 @@ fn run_llm_commit_rewrite(app: AppHandle, folder_path: String) -> CommandResult<
     let mut error: Option<String> = None;
     let result = (|| -> CommandResult<()> {
         // Do every Git safety check that can block the rewrite before issuing an LLM request.
-        // A dirty index/worktree, detached HEAD, conflict, or in-progress Git operation must cost
-        // zero model calls.
-        safe_repo_snapshot(&folder_path, true)?;
-        let prompt = generate_llm_commit_prompt(&folder_path, &hashes)?;
+        // Detached HEAD, conflicts, and in-progress Git operations must cost zero model calls.
+        // Ordinary dirty/staged changes are safe because no checkout/index command runs and every
+        // rebuilt commit is required to preserve its original tree and topology.
+        safe_repo_snapshot(&folder_path, false)?;
         let model = {
             let store = state.store.lock().map_err(|e| e.to_string())?;
             store
@@ -1461,9 +1791,7 @@ fn run_llm_commit_rewrite(app: AppHandle, folder_path: String) -> CommandResult<
                 .clone()
                 .unwrap_or_else(|| "qwen2.5-coder:7b".to_string())
         };
-        let llm_raw = stream_ollama_json(&prompt, &model, 0.3, &hashes, &app)?;
-        let message_map =
-            validate_llm_commit_messages(parse_llm_commit_messages(&llm_raw)?, &hashes)?;
+        let message_map = generate_llm_messages_for_commits(&app, &folder_path, &hashes, &model)?;
         reword_commits_transactionally(&folder_path, &message_map, &hashes)?;
         emit(&app, "repo-updated", folder_path.clone());
         Ok(())
@@ -1543,10 +1871,15 @@ fn parse_numstat_added_deleted(line: &str) -> i64 {
 }
 
 fn automatic_rewrite_eligible(folder: &FolderObj) -> bool {
+    let batch_id = rewrite_batch_id(&folder.llm_candidates);
     AUTO_HISTORY_REWRITE_ENABLED
         && folder.monitoring
         && !folder.rewrite_in_progress
         && !folder.llm_candidates.is_empty()
+        && folder.llm_candidates.len() <= 50
+        && !folder
+            .attempted_automatic_rewrite_batches
+            .contains(&batch_id)
 }
 
 fn pause_automatic_rewrite_after_failure(folder: &mut FolderObj) {
@@ -2169,6 +2502,7 @@ fn add_folder_by_path_internal(
                 last_head_hash,
                 rewrite_in_progress: false,
                 rewrite_started_at: None,
+                attempted_automatic_rewrite_batches: Vec::new(),
             });
         }
         store.selected = Some(new_folder.clone());
@@ -2637,16 +2971,16 @@ fn get_commits(
         .find(|folder| folder.path == folder_obj.path)
         .map(|folder| folder.llm_candidates.clone())
         .unwrap_or_default();
-    let queued_full: HashSet<String> = queued_hashes
-        .iter()
-        .filter_map(|hash| resolve_commit_hash(&folder_obj.path, hash))
-        .collect();
+    let rewrite_needed_full: HashSet<String> =
+        all_rewrite_needed_hashes(&folder_obj.path, &queued_hashes)
+            .into_iter()
+            .collect();
     let current_history: HashSet<String> = run_git(&folder_obj.path, &["rev-list", "HEAD"])
         .unwrap_or_default()
         .lines()
         .map(str::to_string)
         .collect();
-    let pending_rewrite_count = pending_rewrite_hashes(&folder_obj.path, &queued_hashes).len();
+    let pending_rewrite_count = rewrite_needed_full.len();
     let total = run_git(
         &folder_obj.path,
         &["rev-list", VISIBLE_HISTORY_REVISION, "--count"],
@@ -2689,7 +3023,7 @@ fn get_commits(
                 hash: short_hash(hash),
                 date: date.to_string(),
                 message: message.to_string(),
-                needs_rewrite: is_auto_git_message(message) || queued_full.contains(hash),
+                needs_rewrite: rewrite_needed_full.contains(hash),
                 can_reword: current_history.contains(hash),
             })
         })
@@ -3404,26 +3738,6 @@ fn run_manual_rewrite_job(
     supplied_messages: Option<HashMap<String, String>>,
 ) {
     let state = app.state::<AppState>();
-    if hashes.len() > 50 {
-        if let Ok(mut store) = state.store.lock() {
-            if let Some(folder) = store.folders.iter_mut().find(|f| f.path == folder_path) {
-                folder.rewrite_in_progress = false;
-                folder.rewrite_started_at = None;
-            }
-        }
-        let _ = save_store(&state);
-        emit_rewrite_progress(
-            &app,
-            &folder_path,
-            scope,
-            "failed",
-            0,
-            hashes.len(),
-            None,
-            Some("Refusing to rewrite more than 50 commits in one transaction."),
-        );
-        return;
-    }
     let _operation = match begin_repo_operation(&state, &folder_path, "history rewrite") {
         Ok(operation) => operation,
         Err(err) => {
@@ -3501,76 +3815,55 @@ fn run_manual_rewrite_job(
         })
         .collect();
 
+    let uses_llm = supplied_messages.is_none();
     let mut successful_messages = supplied_messages.unwrap_or_default();
     let mut llm_failures: Vec<(String, String)> = Vec::new();
-    let uses_llm = successful_messages.is_empty();
-    match if uses_llm {
-        ensure_ollama_running()
-    } else {
-        Ok(())
-    } {
-        Ok(()) => {
-            if !uses_llm {
-                emit_rewrite_progress(
-                    &app,
-                    &folder_path,
-                    scope,
-                    "running",
-                    total,
-                    total,
-                    hashes.first().map(String::as_str),
-                    None,
-                );
-            } else {
-                for (index, hash) in hashes.iter().enumerate() {
-                    emit_rewrite_progress(
-                        &app,
-                        &folder_path,
-                        scope,
-                        "running",
-                        index,
-                        total,
-                        Some(hash),
-                        None,
-                    );
-                    match generate_llm_message_for_commit(&app, &folder_path, hash, &model) {
-                        Ok(message) => {
-                            successful_messages.insert(hash.clone(), message);
-                        }
-                        Err(err) => {
-                            eprintln!("[manualRewrite] {} failed: {err}", short_hash(hash));
-                            llm_failures.push((hash.clone(), err));
-                        }
-                    }
-                    emit_rewrite_progress(
-                        &app,
-                        &folder_path,
-                        scope,
-                        "running",
-                        index + 1,
-                        total,
-                        Some(hash),
-                        None,
-                    );
+    if uses_llm {
+        emit_rewrite_progress(
+            &app,
+            &folder_path,
+            scope,
+            "running",
+            0,
+            total,
+            hashes.first().map(String::as_str),
+            None,
+        );
+        // Manual bulk rewriting is one model request for the complete set. Check Git first so an
+        // unsafe Git state cannot consume model work. Dirty/staged changes are allowed and
+        // preserved because the object-only rewrite never checks out or stages files.
+        let generated = safe_repo_snapshot(&folder_path, false)
+            .and_then(|_| generate_llm_messages_for_commits(&app, &folder_path, &hashes, &model));
+        match generated {
+            Ok(messages) => successful_messages = messages,
+            Err(err) => {
+                for hash in &hashes {
+                    llm_failures.push((hash.clone(), err.clone()));
                 }
             }
         }
-        Err(err) => {
-            for hash in &hashes {
-                llm_failures.push((hash.clone(), err.clone()));
-            }
-            emit_rewrite_progress(
-                &app,
-                &folder_path,
-                scope,
-                "running",
-                total,
-                total,
-                None,
-                None,
-            );
-        }
+    } else {
+        emit_rewrite_progress(
+            &app,
+            &folder_path,
+            scope,
+            "running",
+            total,
+            total,
+            hashes.first().map(String::as_str),
+            None,
+        );
     }
+    emit_rewrite_progress(
+        &app,
+        &folder_path,
+        scope,
+        "running",
+        total,
+        total,
+        None,
+        None,
+    );
 
     let successful_hashes: Vec<String> = hashes
         .iter()
@@ -3597,13 +3890,6 @@ fn run_manual_rewrite_job(
                 desired_identities.remove(identity);
             }
         }
-        for (hash, _) in &llm_failures {
-            if let Some(identity) = attempted_identities.get(hash) {
-                desired_identities.insert(identity.clone());
-            }
-        }
-    } else {
-        desired_identities.extend(attempted_identities.values().cloned());
     }
 
     let identities_after = current_commit_identities(&folder_path);
@@ -3619,6 +3905,8 @@ fn run_manual_rewrite_job(
     candidates.sort();
     candidates.dedup();
 
+    let rewrite_failed =
+        history_error.is_some() || !llm_failures.is_empty() || successful_hashes.is_empty();
     if let Ok(mut store) = state.store.lock() {
         if let Some(folder) = store
             .folders
@@ -3632,11 +3920,15 @@ fn run_manual_rewrite_job(
             folder.llm_buffer.clear();
             folder.rewrite_in_progress = false;
             folder.rewrite_started_at = None;
-            folder.first_candidate_birthday = if folder.llm_candidates.is_empty() {
+            folder.first_candidate_birthday = if rewrite_failed || folder.llm_candidates.is_empty()
+            {
                 None
             } else {
                 original_birthday.or_else(|| Some(now_ms()))
             };
+            if rewrite_failed {
+                folder.lines_changed = 0;
+            }
         }
     }
     if let Err(err) = save_store(&state) {
@@ -3644,11 +3936,13 @@ fn run_manual_rewrite_job(
     }
     emit(&app, "repo-updated", folder_path.clone());
 
-    let errors: Vec<String> = llm_failures
+    let mut errors: Vec<String> = llm_failures
         .iter()
-        .map(|(hash, err)| format!("{}: {err}", short_hash(hash)))
+        .map(|(_, err)| format!("LLM: {err}"))
         .chain(history_error.iter().map(|err| format!("Git: {err}")))
         .collect();
+    errors.sort();
+    errors.dedup();
     let status = if history_error.is_some() || successful_hashes.is_empty() {
         "failed"
     } else if llm_failures.is_empty() {
@@ -3692,6 +3986,9 @@ fn rewrite_commit(
         return Ok(
             json!({ "success": false, "error": "Another Git operation is already in progress." }),
         );
+    }
+    if let Err(err) = safe_repo_snapshot(&folder_path, false) {
+        return Ok(json!({ "success": false, "error": err }));
     }
     {
         let mut store = state.store.lock().map_err(|e| e.to_string())?;
@@ -3751,6 +4048,9 @@ fn rewrite_commit_with_message(
             json!({ "success": false, "error": "Another Git operation is already in progress." }),
         );
     }
+    if let Err(err) = safe_repo_snapshot(&folder_path, false) {
+        return Ok(json!({ "success": false, "error": err }));
+    }
     {
         let mut store = state.store.lock().map_err(|e| e.to_string())?;
         let Some(folder) = store
@@ -3792,6 +4092,9 @@ fn rewrite_pending_commits(
             json!({ "success": false, "error": "Another Git operation is already in progress." }),
         );
     }
+    if let Err(err) = safe_repo_snapshot(&folder_path, false) {
+        return Ok(json!({ "success": false, "error": err }));
+    }
     let hashes = {
         let mut store = state.store.lock().map_err(|e| e.to_string())?;
         let Some(folder) = store
@@ -3810,17 +4113,11 @@ fn rewrite_pending_commits(
                 "error": "Another rewrite is already running for this repository."
             }));
         }
-        let hashes = pending_rewrite_hashes(&folder_path, &folder.llm_candidates);
+        let hashes = all_rewrite_needed_hashes(&folder_path, &folder.llm_candidates);
         if hashes.is_empty() {
             return Ok(
-                json!({ "success": false, "error": "There are no pending commits to rewrite." }),
+                json!({ "success": false, "error": "There are no commits marked with a rewrite paw." }),
             );
-        }
-        if hashes.len() > 50 {
-            return Ok(json!({
-                "success": false,
-                "error": "More than 50 commits are queued. Rewrite a smaller explicit batch."
-            }));
         }
         folder.rewrite_in_progress = true;
         folder.rewrite_started_at = Some(now_ms());
@@ -4903,6 +5200,24 @@ mod tests {
             .to_string()
     }
 
+    #[cfg(unix)]
+    fn install_test_hook(repo_path: &str, name: &str, sentinel: &Path) {
+        use std::os::unix::fs::PermissionsExt;
+
+        let hook = git_dir_path(repo_path).unwrap().join("hooks").join(name);
+        fs::write(
+            &hook,
+            format!(
+                "#!/bin/sh\nprintf '%s\\n' {name} >> '{}'\n",
+                sentinel.display()
+            ),
+        )
+        .unwrap();
+        let mut permissions = fs::metadata(&hook).unwrap().permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(hook, permissions).unwrap();
+    }
+
     #[test]
     fn repository_names_are_slugified_for_gitea() {
         assert_eq!(
@@ -4936,6 +5251,7 @@ mod tests {
             last_head_hash: None,
             rewrite_in_progress: false,
             rewrite_started_at: None,
+            attempted_automatic_rewrite_batches: Vec::new(),
         };
 
         assert!(line_rewrite_due(&folder, 10));
@@ -4958,7 +5274,23 @@ mod tests {
             last_head_hash: None,
             rewrite_in_progress: false,
             rewrite_started_at: None,
+            attempted_automatic_rewrite_batches: Vec::new(),
         };
+
+        let batch_id = rewrite_batch_id(&folder.llm_candidates);
+        folder
+            .attempted_automatic_rewrite_batches
+            .push(batch_id.clone());
+
+        assert!(!automatic_rewrite_eligible(&folder));
+        folder.llm_candidates.push("b".repeat(40));
+        assert!(automatic_rewrite_eligible(&folder));
+        folder.llm_candidates.pop();
+        assert_eq!(rewrite_batch_id(&folder.llm_candidates), batch_id);
+        assert!(!automatic_rewrite_eligible(&folder));
+        let restored: FolderObj =
+            serde_json::from_str(&serde_json::to_string(&folder).unwrap()).unwrap();
+        assert!(!automatic_rewrite_eligible(&restored));
 
         pause_automatic_rewrite_after_failure(&mut folder);
 
@@ -4967,6 +5299,27 @@ mod tests {
         assert!(!line_rewrite_due(&folder, 10));
         assert!(!time_rewrite_due(&folder, 1, 120_000));
         assert_eq!(folder.llm_candidates.len(), 1);
+    }
+
+    #[test]
+    fn automatic_rewrite_never_attempts_an_oversized_batch() {
+        let folder = FolderObj {
+            path: "/tmp/example".to_string(),
+            monitoring: true,
+            needs_relocation: false,
+            lines_changed: 10_000,
+            llm_candidates: (0..51).map(|index| format!("{index:040}")).collect(),
+            llm_buffer: Vec::new(),
+            first_candidate_birthday: Some(1),
+            last_head_hash: None,
+            rewrite_in_progress: false,
+            rewrite_started_at: None,
+            attempted_automatic_rewrite_batches: Vec::new(),
+        };
+
+        assert!(!automatic_rewrite_eligible(&folder));
+        assert!(!line_rewrite_due(&folder, 10));
+        assert!(!time_rewrite_due(&folder, 1, 120_000));
     }
 
     #[test]
@@ -4995,6 +5348,7 @@ mod tests {
             last_head_hash: None,
             rewrite_in_progress: false,
             rewrite_started_at: None,
+            attempted_automatic_rewrite_batches: Vec::new(),
         });
 
         normalize_store(&mut store);
@@ -5068,6 +5422,19 @@ mod tests {
     }
 
     #[test]
+    fn rewrite_all_includes_every_paw_commit_on_head() {
+        let temp = init_test_repo();
+        let path = temp.path().to_str().unwrap();
+        let first_paw = test_commit(path, "one.txt", "one", "auto-git: [create] one.txt");
+        let explicitly_queued = test_commit(path, "two.txt", "two", "Keep this current message");
+        let second_paw = test_commit(path, "three.txt", "three", "auto-git: [create] three.txt");
+
+        let needed = all_rewrite_needed_hashes(path, std::slice::from_ref(&explicitly_queued));
+
+        assert_eq!(needed, vec![second_paw, explicitly_queued, first_paw]);
+    }
+
+    #[test]
     fn llm_commit_messages_must_be_complete_and_non_generic() {
         let hash = "aaaaaaa111111111111111111111111111111111".to_string();
         let mut valid = HashMap::new();
@@ -5095,12 +5462,14 @@ mod tests {
         let temp = init_test_repo();
         let path = temp.path().to_str().unwrap();
         let contents = "let generated_value = 1;\n".repeat(10_000);
-        let hash = test_commit(path, "large.rs", &contents, "auto-git: large change");
+        let existing_message = format!("auto-git: {}", "generated ".repeat(2_000));
+        let hash = test_commit(path, "large.rs", &contents, &existing_message);
 
         let prompt = generate_llm_commit_prompt(path, &[hash]).unwrap();
 
         assert!(prompt.chars().count() <= MAX_COMMIT_MESSAGE_PROMPT_CHARS);
         assert!(prompt.contains("[diff truncated by Auto-Git]"));
+        assert!(prompt.contains("[existing message truncated by Auto-Git]"));
     }
 
     #[test]
@@ -5130,6 +5499,41 @@ mod tests {
         .unwrap()
         .trim()
         .is_empty());
+    }
+
+    #[test]
+    fn rewrite_all_transaction_handles_more_than_fifty_commits() {
+        let temp = init_test_repo();
+        let path = temp.path().to_str().unwrap();
+        test_commit(path, "fixture.txt", "base", "Create fixture");
+        let mut hashes = Vec::new();
+        let mut messages = HashMap::new();
+        for index in 0..77 {
+            let old_message = if index == 6 {
+                format!(
+                    "auto-git: {}",
+                    "oversized historical subject ".repeat(1_000)
+                )
+            } else {
+                format!("auto-git: update {index}")
+            };
+            let hash = test_commit(path, "fixture.txt", &format!("value {index}"), &old_message);
+            messages.insert(hash.clone(), format!("Update fixture value {index}"));
+            hashes.push(hash);
+        }
+        let tree_before = run_git(path, &["rev-parse", "HEAD^{tree}"]).unwrap();
+        let prompt = generate_llm_commit_prompt(path, &hashes).unwrap();
+
+        assert!(prompt.chars().count() <= MAX_COMMIT_MESSAGE_PROMPT_CHARS);
+        assert!(prompt.contains("[existing message truncated by Auto-Git]"));
+
+        reword_commits_transactionally(path, &messages, &hashes).unwrap();
+
+        assert_eq!(
+            run_git(path, &["rev-parse", "HEAD^{tree}"]).unwrap(),
+            tree_before
+        );
+        assert!(all_rewrite_needed_hashes(path, &[]).is_empty());
     }
 
     #[test]
@@ -5177,26 +5581,250 @@ mod tests {
     }
 
     #[test]
-    fn rewrite_refuses_dirty_worktrees_without_stashing() {
+    fn rewrite_preserves_dirty_worktrees_without_stashing() {
         let temp = init_test_repo();
         let path = temp.path().to_str().unwrap();
         let head = test_commit(path, "file.txt", "original", "auto-git: original");
+        let original_tree = run_git(path, &["rev-parse", "HEAD^{tree}"])
+            .unwrap()
+            .trim()
+            .to_string();
         fs::write(temp.path().join("file.txt"), "dirty").unwrap();
         let mut messages = HashMap::new();
         messages.insert(head.clone(), "Improve the original message".to_string());
 
-        let result = reword_commits_transactionally(path, &messages, std::slice::from_ref(&head));
+        reword_commits_transactionally(path, &messages, std::slice::from_ref(&head)).unwrap();
 
-        assert!(result.is_err());
-        assert_eq!(run_git(path, &["rev-parse", "HEAD"]).unwrap().trim(), head);
+        let rewritten_head = run_git(path, &["rev-parse", "HEAD"])
+            .unwrap()
+            .trim()
+            .to_string();
+        assert_ne!(rewritten_head, head);
+        assert_eq!(
+            run_git(path, &["show", "-s", "--format=%s", "HEAD"])
+                .unwrap()
+                .trim(),
+            "Improve the original message"
+        );
+        assert_eq!(
+            run_git(path, &["rev-parse", "HEAD^{tree}"]).unwrap().trim(),
+            original_tree
+        );
         assert_eq!(
             fs::read_to_string(temp.path().join("file.txt")).unwrap(),
             "dirty"
         );
-        assert!(!run_git(path, &["status", "--porcelain"])
+        assert_eq!(
+            run_git(path, &["status", "--porcelain"]).unwrap(),
+            " M file.txt\n"
+        );
+    }
+
+    #[test]
+    fn rewrite_preserves_staged_and_unstaged_changes() {
+        let temp = init_test_repo();
+        let path = temp.path().to_str().unwrap();
+        let head = test_commit(path, "file.txt", "original", "auto-git: original");
+        fs::write(temp.path().join("file.txt"), "staged").unwrap();
+        run_git(path, &["add", "file.txt"]).unwrap();
+        fs::write(temp.path().join("file.txt"), "unstaged after staging").unwrap();
+        fs::write(temp.path().join("untracked.txt"), "untracked").unwrap();
+        let status_before = run_git(path, &["status", "--porcelain"]).unwrap();
+        let staged_before = run_git(path, &["show", ":file.txt"]).unwrap();
+        let mut messages = HashMap::new();
+        messages.insert(
+            head.clone(),
+            "Improve the staged fixture message".to_string(),
+        );
+
+        reword_commits_transactionally(path, &messages, std::slice::from_ref(&head)).unwrap();
+
+        assert_eq!(
+            run_git(path, &["status", "--porcelain"]).unwrap(),
+            status_before
+        );
+        assert_eq!(
+            run_git(path, &["show", ":file.txt"]).unwrap(),
+            staged_before
+        );
+        assert_eq!(
+            fs::read_to_string(temp.path().join("file.txt")).unwrap(),
+            "unstaged after staging"
+        );
+        assert_eq!(
+            fs::read_to_string(temp.path().join("untracked.txt")).unwrap(),
+            "untracked"
+        );
+        assert_eq!(
+            run_git(path, &["show", "-s", "--format=%s", "HEAD"])
+                .unwrap()
+                .trim(),
+            "Improve the staged fixture message"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rewrite_runs_no_hooks_or_rebase_config_and_preserves_other_refs() {
+        let temp = init_test_repo();
+        let path = temp.path().to_str().unwrap();
+        let target = test_commit(path, "one.txt", "one", "auto-git: create one.txt");
+        let middle = test_commit(path, "two.txt", "two", "fixup! auto-git: create one.txt");
+        let _tip = test_commit(path, "three.txt", "three", "Keep the third commit intact");
+        run_git(path, &["branch", "side-ref", &middle]).unwrap();
+        let side_before = run_git(path, &["rev-parse", "refs/heads/side-ref"])
             .unwrap()
             .trim()
-            .is_empty());
+            .to_string();
+        let before = run_git(path, &["log", "--reverse", "--format=%T%x1f%s"])
+            .unwrap()
+            .lines()
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+
+        let sentinel = temp.path().join("hook-or-config-ran");
+        run_git(path, &["config", "core.hooksPath", ".git/hooks"]).unwrap();
+        run_git(path, &["config", "commit.gpgSign", "true"]).unwrap();
+        run_git(path, &["config", "rebase.autoSquash", "true"]).unwrap();
+        run_git(path, &["config", "rebase.updateRefs", "true"]).unwrap();
+        run_git(path, &["config", "rebase.autoStash", "true"]).unwrap();
+        run_git(path, &["config", "rebase.rebaseMerges", "true"]).unwrap();
+        run_git(
+            path,
+            &[
+                "config",
+                "rebase.instructionFormat",
+                &format!("%s%nexec touch '{}'", sentinel.display()),
+            ],
+        )
+        .unwrap();
+        for hook in [
+            "post-checkout",
+            "prepare-commit-msg",
+            "post-commit",
+            "post-rewrite",
+            "reference-transaction",
+            "fsmonitor-test",
+        ] {
+            install_test_hook(path, hook, &sentinel);
+        }
+        let fsmonitor_hook = git_dir_path(path).unwrap().join("hooks/fsmonitor-test");
+        run_git(
+            path,
+            &["config", "core.fsmonitor", fsmonitor_hook.to_str().unwrap()],
+        )
+        .unwrap();
+
+        let mut messages = HashMap::new();
+        messages.insert(target.clone(), "Create the first fixture".to_string());
+        reword_commits_transactionally(path, &messages, &[target]).unwrap();
+
+        assert!(!sentinel.exists());
+        assert_eq!(
+            run_git(path, &["rev-parse", "refs/heads/side-ref"])
+                .unwrap()
+                .trim(),
+            side_before
+        );
+        let after = run_git(path, &["log", "--reverse", "--format=%T%x1f%s"])
+            .unwrap()
+            .lines()
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        assert_eq!(after.len(), before.len());
+        assert_eq!(
+            after[0].split_once('\x1f').unwrap().0,
+            before[0].split_once('\x1f').unwrap().0
+        );
+        assert_eq!(
+            after[0].split_once('\x1f').unwrap().1,
+            "Create the first fixture"
+        );
+        assert_eq!(&after[1..], &before[1..]);
+    }
+
+    #[test]
+    fn rewrite_preserves_empty_descendant_commits() {
+        let temp = init_test_repo();
+        let path = temp.path().to_str().unwrap();
+        let target = test_commit(path, "file.txt", "content", "auto-git: create file.txt");
+        run_git(
+            path,
+            &[
+                "commit",
+                "--allow-empty",
+                "-m",
+                "Keep this empty checkpoint",
+            ],
+        )
+        .unwrap();
+        test_commit(path, "later.txt", "later", "Keep the later commit");
+        let count_before = run_git(path, &["rev-list", "--count", "HEAD"])
+            .unwrap()
+            .trim()
+            .to_string();
+        let trees_before = run_git(path, &["log", "--reverse", "--format=%T"]).unwrap();
+        let mut messages = HashMap::new();
+        messages.insert(target.clone(), "Create the tracked fixture".to_string());
+
+        reword_commits_transactionally(path, &messages, &[target]).unwrap();
+
+        assert_eq!(
+            run_git(path, &["rev-list", "--count", "HEAD"])
+                .unwrap()
+                .trim(),
+            count_before
+        );
+        assert_eq!(
+            run_git(path, &["log", "--reverse", "--format=%T"]).unwrap(),
+            trees_before
+        );
+        assert_eq!(
+            run_git(path, &["log", "--reverse", "--format=%s"]).unwrap(),
+            "Create the tracked fixture\nKeep this empty checkpoint\nKeep the later commit\n"
+        );
+    }
+
+    #[test]
+    fn guarded_ref_update_refuses_a_changed_checkout() {
+        let temp = init_test_repo();
+        let path = temp.path().to_str().unwrap();
+        let original = test_commit(path, "main.txt", "main", "Main branch commit");
+        let snapshot = safe_repo_snapshot(path, false).unwrap();
+        let commit = read_raw_commit(path, &original).unwrap();
+        let rewritten = raw_commit_with_parent_and_message(
+            &commit,
+            commit.parents.first().map(String::as_str),
+            "Rewritten main branch commit\n",
+        )
+        .unwrap();
+        let rewritten_hash = write_commit_object(path, &rewritten).unwrap();
+        run_git(path, &["switch", "-c", "other"]).unwrap();
+
+        let result = update_current_branch_compare_and_swap(path, &snapshot, &rewritten_hash);
+
+        assert!(result
+            .unwrap_err()
+            .contains("checked-out branch or HEAD changed"));
+        assert_eq!(
+            run_git(path, &["rev-parse", &snapshot.branch_ref])
+                .unwrap()
+                .trim(),
+            original
+        );
+        assert_eq!(
+            run_git(path, &["rev-parse", "refs/heads/other"])
+                .unwrap()
+                .trim(),
+            original
+        );
+        assert_eq!(
+            run_git(path, &["rev-parse", "HEAD"]).unwrap().trim(),
+            original
+        );
+        let git_dir = git_dir_path(path).unwrap();
+        assert!(!git_dir.join("HEAD.lock").exists());
+        assert!(!git_dir.join("refs/heads/other.lock").exists());
     }
 
     #[test]
