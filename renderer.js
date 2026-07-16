@@ -122,16 +122,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     pushBtn.textContent = 'Pushing…';
 
     try {
-      const hasUncommittedFiles = await window.electronAPI.hasDiffs(selected);
-      if (hasUncommittedFiles) {
-        const confirmed = confirm(
-          'This repository contains uncommitted or untracked files.\n\n' +
-          'Only committed files will be pushed. Continue anyway?'
-        );
-        if (!confirmed) return;
-      }
       // send the folder‐path to main via a new IPC channel 'push-to-gitea'
-      const result = await window.electronAPI.pushToGitea(selected.path, hasUncommittedFiles);
+      const result = await window.electronAPI.pushToGitea(selected.path);
       if (result.success) {
         alert('✔ Pushed successfully to Gitea: ' + result.repoUrl);
       } else {

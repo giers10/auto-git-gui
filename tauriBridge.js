@@ -125,7 +125,7 @@
     hasReadme: folderPath => invoke('has_readme', { folderPath }),
     generateReadme: folderPath => invoke('generate_readme', { folderPath }),
     squashCommits: folderPath => invoke('squash_commits', { folderPath }),
-    pushToGitea: (folderPath, allowDirty = false) => invoke('push_to_gitea', { folderPath, allowDirty }),
+    pushToGitea: folderPath => invoke('push_to_gitea', { folderPath }),
     initRepo: folderPath => invoke('init_repo', { folderPath }),
     triggerRewriteNow: folderPath => invoke('trigger_rewrite_now', { folderPath }),
     rewriteCommit: (folderPath, hash) => invoke('rewrite_commit', { folderPath, hash }),

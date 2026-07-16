@@ -4886,7 +4886,6 @@ fn push_to_gitea(
     app: AppHandle,
     state: tauri::State<'_, AppState>,
     folder_path: String,
-    allow_dirty: bool,
 ) -> CommandResult<Value> {
     let token = state
         .store
@@ -4898,13 +4897,6 @@ fn push_to_gitea(
         return Ok(
             json!({ "success": false, "error": "No Gitea API token configured – open Settings and enter it first" }),
         );
-    }
-    if has_status_changes(&git_status(&folder_path)?) && !allow_dirty {
-        return Ok(json!({
-            "success": false,
-            "code": "DIRTY_WORKTREE",
-            "error": "The repository contains uncommitted or untracked files. Confirm the warning before pushing."
-        }));
     }
     let result = (|| -> CommandResult<Value> {
         let folder_name = Path::new(&folder_path)
