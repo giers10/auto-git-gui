@@ -3557,6 +3557,7 @@ fn set_autostart(state: tauri::State<'_, AppState>, enabled: bool) -> CommandRes
     let auto = auto_launch::AutoLaunchBuilder::new()
         .set_app_name("Auto-Git")
         .set_app_path(exe.to_string_lossy().as_ref())
+        .set_use_launch_agent(true)
         .build()
         .map_err(|e| e.to_string())?;
     if enabled {

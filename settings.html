@@ -223,36 +223,44 @@
 
 
 
-    // OK: alles final speichern
+    // OK: alles final speichern – eine fehlschlagende Einstellung darf die
+    // anderen nicht blockieren und das Fenster muss sich immer schließen.
     ok.addEventListener('click', async () => {
-      await window.settingsAPI.setSkipPrompt(cbSkip.checked);
-      await window.settingsAPI.setAutostart(cbAutostart.checked);
-      await window.settingsAPI.setCloseToTray(cbCloseToTray.checked);
-      await window.settingsAPI.setTheme(themeSelect.value || fallbackTheme);
-      await window.settingsAPI.setRewordMode(rewordModeSelect.value || 'ask');
+      const errors = [];
+      const safe = async (name, promise) => {
+        try { await promise; } catch (e) { errors.push(`${name}: ${e}`); }
+      };
+
+      await safe('Skip-Prompt', window.settingsAPI.setSkipPrompt(cbSkip.checked));
+      await safe('Autostart', window.settingsAPI.setAutostart(cbAutostart.checked));
+      await safe('Close-to-Tray', window.settingsAPI.setCloseToTray(cbCloseToTray.checked));
+      await safe('Theme', window.settingsAPI.setTheme(themeSelect.value || fallbackTheme));
+      await safe('Reword-Mode', window.settingsAPI.setRewordMode(rewordModeSelect.value || 'ask'));
 
       // Threshold speichern (immer Wert aus Feld nehmen!)
       let threshold = parseInt(thresholdInput.value, 10);
       if (isNaN(threshold)) threshold = 10;
       if (threshold < 1) threshold = 1;
       if (threshold > 1000) threshold = 1000;
-      await window.settingsAPI.setIntelligentCommitThreshold(threshold);
+      await safe('Commit-Threshold', window.settingsAPI.setIntelligentCommitThreshold(threshold));
 
       let minutes = parseInt(minutesInput.value, 10);
       if (isNaN(minutes)) minutes = 10;
       if (minutes < 1) minutes = 1;
       if (minutes > 1000) minutes = 60;
-      await window.settingsAPI.setMinutesCommitThreshold(minutes);
+      await safe('Minutes-Threshold', window.settingsAPI.setMinutesCommitThreshold(minutes));
 
       // Dropdowns speichern
       const commitSel = document.getElementById('commitModelSelect');
       const readmeSel = document.getElementById('readmeModelSelect');
-      if (commitSel) await window.settingsAPI.setCommitModel(commitSel.value);
-      if (readmeSel)  await window.settingsAPI.setReadmeModel(readmeSel.value);
+      if (commitSel) await safe('Commit-Model', window.settingsAPI.setCommitModel(commitSel.value));
+      if (readmeSel)  await safe('Readme-Model', window.settingsAPI.setReadmeModel(readmeSel.value));
 
-      await window.settingsAPI.setGiteaToken(giteaTokenInput.value.trim());
+      await safe('Gitea-Token', window.settingsAPI.setGiteaToken(giteaTokenInput.value.trim()));
 
-
+      if (errors.length) {
+        alert('Nicht alle Einstellungen konnten gespeichert werden:\n\n' + errors.join('\n'));
+      }
       window.settingsAPI.close();
     });
     // Cancel / Close: Theme zurücksetzen, dann schließen
